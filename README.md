@@ -1,3 +1,9 @@
+# Learning Framework
+
+* This repo is an extension of the basic open games engine. It provides a playground for learning games.
+
+
+
 # Refactored version
 
 This repo is a refactored and simplified implementation on the basis of [this](https://github.com/jules-hedges/open-game-engine) version by Jules Hedges. 
