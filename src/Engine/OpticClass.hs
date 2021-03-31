@@ -11,6 +11,8 @@ module Engine.OpticClass where
 import           Control.Monad.State                hiding (state)
 import           Numeric.Probability.Distribution   hiding (lift)
 
+
+
 class Optic o where
   lens :: (s -> a) -> (s -> b -> t) -> o s t a b
   (>>>>) :: o s t a b -> o a b p q -> o s t p q
@@ -96,3 +98,145 @@ instance ContextAdd StochasticStatefulContext where
        in if null fs then Nothing
                      else Just (StochasticStatefulContext (fromFreqs fs) (\z a2 -> k z (Right a2)))
 
+------------------------------------------------------------
+-- 1 Alternative implementations of monadic, stateful optics
+
+
+data MonadicLens m s t a b where
+     MonadicLens :: (Monad m) => (s -> a) -> (s -> b -> m t) -> MonadicLens m s t a b
+
+instance (Monad m) => Optic (MonadicLens m) where
+  lens v u = MonadicLens (\s -> v s) (\s b -> return (u s b))
+  (>>>>) (MonadicLens v1 u1) (MonadicLens v2 u2) = MonadicLens v u
+    where v s   = let a1 = v1 s
+                      in v2 a1
+          u s q = let a1 = v1 s
+                      in do  {b' <- u2 a1 q; u1 s b'}
+  (&&&&) (MonadicLens v1 u1) (MonadicLens v2 u2) = MonadicLens v u
+    where v (s1, s2) = let a1 = v1 s1
+                           a2 = v2 s2
+                           in (a1,a2)
+          u (s1, s2) (b1, b2) = do {t1 <- u1 s1 b1; t2 <- u2 s2 b2; return (t1, t2)}
+  (++++) (MonadicLens v1 u1) (MonadicLens v2 u2) = MonadicLens v u
+    where v (Left s1)  = let a1 = v1 s1
+                             in Left a1
+          v (Right s2) = let a2 = v2 s2
+                             in  Right a2
+          u (Left s1) b  =  u1 s1 b
+          u (Right s2) b =  u2 s2 b
+
+data MonadicLensContext m s t a b where
+  MonadicLensContext :: (Monad m) =>  s -> (a -> m b) -> MonadicLensContext m s t a b
+
+instance Monad m => Precontext (MonadicLensContext m) where
+  void = MonadicLensContext () (\() -> return ())
+
+
+instance Monad m => Context (MonadicLensContext m) (MonadicLens m) where
+  cmap (MonadicLens v1 u1) (MonadicLens v2 u2) (MonadicLensContext h k)
+            = let h' = v1 h
+                  k' a = let a' = v2 a
+                             in do {y <- k a'; u2 a y} 
+               in MonadicLensContext h' k'
+  (//) (MonadicLens v u) (MonadicLensContext h k)
+            = let h' = let (_, s2) = h
+                           in s2
+                  k' a2 = let (s1,_) = h
+                              a1     =  v s1
+                              in do {(_,b2) <- k (a1,a2); return b2}
+               in MonadicLensContext h' k'
+  (\\) (MonadicLens v u) (MonadicLensContext h k)
+            = let h' = let (s1, _) = h
+                            in s1
+                  k' a1 = let (_,s2) = h
+                              a2     = v s2
+                              in do {(b1,_) <- k (a1,a2); return b1}
+                  in MonadicLensContext h' k'
+
+instance Monad m => ContextAdd (MonadicLensContext m) where
+  prl (MonadicLensContext h k)
+    =  case h of
+         Left s1 -> do  Just (MonadicLensContext s1 (k . Left))
+         _       -> do  Nothing
+  prr (MonadicLensContext h k)
+    = case h of
+         Right s2 -> Just (MonadicLensContext s2 (k . Right))
+         _       -> Nothing
+
+
+-------------------------------------------------------------
+-- 2 Alternative implementations of monadic, stateful optics;
+-- the difference is in the action of the monad
+-- NOTE no implementation (yet for the (++++) operator)
+
+data MonadicLearnLens m s t a b where
+     MonadicLearnLens :: (Monad m) => (s ->  m a) -> (s -> m (b -> m t)) -> MonadicLearnLens m s t a b
+
+instance (Monad m) => Optic (MonadicLearnLens m) where
+  lens v u = MonadicLearnLens
+                (\s -> pure $ v s)
+                (\s -> do 
+                    pure $ (\b -> do return (u s b)))
+  (>>>>) (MonadicLearnLens v1 u1) (MonadicLearnLens v2 u2) = MonadicLearnLens v u
+    where v s1  = do
+                     a1 <- v1 s1
+                     v2 a1
+          u s1  = do
+                    a1   <- v1 s1
+                    u1'  <- u1 s1
+                    u2'  <- u2 a1
+                    pure $ (\b2 -> do
+                                  b1 <- u2' b2
+                                  u1' b1)
+  (&&&&) (MonadicLearnLens v1 u1) (MonadicLearnLens v2 u2) = MonadicLearnLens v u
+    where v (s1, s2) = do
+                         a1 <- v1 s1
+                         a2 <- v2 s2
+                         pure (a1,a2)
+          u (s1, s2) = let u1' = u1 s1
+                           u2' = u2 s2
+                           in do
+                              u1'' <- u1'
+                              u2'' <- u2'
+                              pure $ (\(b1, b2) -> do
+                                                   t1 <- u1'' b1
+                                                   t2 <- u2'' b2
+                                                   pure (t1,t2))
+
+
+data MonadicLearnLensContext m s t a b where
+  MonadicLearnLensContext :: (Monad m) => m s -> m (a -> m b) -> MonadicLearnLensContext m s t a b
+
+instance Monad m => Precontext (MonadicLearnLensContext m) where
+  void = MonadicLearnLensContext (pure ()) (pure $ \() -> return ())
+
+
+instance Monad m => Context (MonadicLearnLensContext m) (MonadicLearnLens m) where
+  cmap (MonadicLearnLens v1 u1) (MonadicLearnLens v2 u2) (MonadicLearnLensContext h k)
+            = let h'  = do {s1 <- h; v1 s1}
+                  u2' = u2
+                  k' = do pure $ (\a1 -> do
+                                         s2   <- v2 a1
+                                         u2'' <- u2' a1
+                                         k''  <- k
+                                         b2'' <- k'' s2
+                                         u2'' b2'')
+               in MonadicLearnLensContext h' k'
+  (//) (MonadicLearnLens v u) (MonadicLearnLensContext h k)
+            = let h' = do {(s1,s2) <- h; pure s2} 
+                  k' = do pure $ (\a2 -> do
+                                            k''     <- k
+                                            h'      <- h
+                                            a1      <- v $ fst h'
+                                            (b1,b2) <- k'' (a1,a2)
+                                            pure b2) 
+                  in MonadicLearnLensContext h' k'
+  (\\) (MonadicLearnLens v u) (MonadicLearnLensContext h k)
+            = let h' = do {(s1,s2) <- h; pure s1} 
+                  k' = do pure $ (\a1 -> do
+                                            k''     <- k
+                                            h'      <- h
+                                            a2      <- v $ snd h'
+                                            (b1,b2) <- k'' (a1,a2)
+                                            pure b1) 
+                  in MonadicLearnLensContext h' k'
