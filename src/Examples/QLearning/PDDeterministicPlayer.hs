@@ -25,10 +25,10 @@ import Preprocessor.THSyntax
 
 
 pdMatrix :: Action -> Action -> Double
-pdMatrix Cooperate Cooperate = 3 
+pdMatrix Cooperate Cooperate = 0.3 
 pdMatrix Cooperate Defect = 0
-pdMatrix Defect Cooperate = 5
-pdMatrix Defect Defect = 1
+pdMatrix Defect Cooperate = 0.5
+pdMatrix Defect Defect = 0.1
 
 
 

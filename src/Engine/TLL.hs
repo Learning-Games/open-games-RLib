@@ -13,15 +13,6 @@ data List ts where
   Nil :: List '[]
   (::-) :: t -> List ts -> List (t ': ts)
 
-instance Show (List '[]) where
-    show Nil = "Nil"
-
-instance (Show (List as), Show a)
-    => Show (List (a ': as)) where
-    show (a ::- rest) =
-        show a ++ " ::- " ++ show rest
-
-
 type family (+:+) (as :: [*]) (bs :: [*]) :: [*] where
   '[] +:+ bs = bs
   (a ': as) +:+ bs = a ': (as +:+ bs)
@@ -39,6 +30,15 @@ instance Unappend '[] where
 
 instance Unappend as => Unappend (a ': as) where
   unappend (a ::- abs) = case unappend abs of (as, bs) -> (a ::- as, bs)
+
+
+instance Show (List '[]) where
+    show Nil = "Nil"
+
+instance (Show (List as), Show a)
+    => Show (List (a ': as)) where
+    show (a ::- rest) =
+        show a ++ " ::- " ++ show rest
 
 ---------------------------------
 -- Operations to transform output
@@ -74,3 +74,8 @@ type family ConstMap (t :: *) (xs :: [*]) :: [*] where
   ConstMap _      '[]  = '[]
   ConstMap t (x ': xs) = t ': (ConstMap t xs)
 
+-- Produce pair of results, useful for two player interactions
+toPair :: List '[a,b] -> Maybe (a,b)
+toPair Nil               = Nothing
+toPair (x ::- Nil)       = Nothing
+toPair (x ::- y ::- Nil) = Just (x,y)
