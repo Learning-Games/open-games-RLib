@@ -90,10 +90,15 @@ updateObservation s o = obs .~ o $  s
 updateRandomGAndQTable :: State -> Rand.StdGen -> QTable -> State
 updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r 
 
--- Policy for deterministic player
-titForTat :: Observation -> Action
-titForTat (_,Cooperate) = Cooperate
-titForTat (_,Defect)    = Defect
+-- better prepare output to be used
+extractFst :: Maybe (a,b) -> Maybe a
+extractFst Nothing      = Nothing
+extractFst (Just (a,b)) = Just a
+
+extractSnd :: Maybe (a,b) -> Maybe b
+extractSnd Nothing      = Nothing
+extractSnd (Just (a,b)) = Just b
+
 
 
 -----------------------------------
@@ -120,8 +125,8 @@ chooseLearnQTable s obs1 obs2 reward action = do
   optimalAction <- chooseActionQTable s
   let q = _qTable $ _env s
       prediction = q A.! (obs1, action)
-      target = reward + gamma * (fst $ maxScore obs2 q)
-      newValue = prediction + learningRate * (target - prediction)
+      updatedValue = reward + gamma * (fst $ maxScore obs2 q)
+      newValue = (1 - learningrate) * prediction + learningRate * updatedValue
       newQ = q A.// [((obs1, action), newValue)]
   ST.put $ updateQTable s newQ
   return optimalAction
@@ -135,21 +140,26 @@ chooseLearnQTable2 s obs2 reward  = do
         let  action' = if actionP < 0.5 then Cooperate else Defect
         let q = _qTable $ _env s
             prediction = q A.! (_obs s, action')
-            target = reward + gamma * (fst $ maxScore obs2 q)
-            newValue = prediction + learningRate * (target - prediction)
+            updatedValue = reward + gamma * (fst $ maxScore obs2 q)
+            newValue = (1 - learningrate) * prediction + learningRate * updatedValue
             newQ = q A.// [((_obs s, action'), newValue)]
-        ST.put $ updateRandomGAndQTable s gen'' newQ 
+        ST.put $ updateRandomGAndQTable s gen'' newQ
         return action'
      else do
         let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s)
         let q = _qTable $ _env s
             prediction = q A.! (_obs s, optimalAction)
-            target = reward + gamma * (fst $ maxScore obs2 q)
-            newValue = prediction + learningRate * (target - prediction)
+            updatedValue = reward + gamma * (fst $ maxScore obs2 q)
+            newValue = (1 - learningrate) * prediction + learningRate * updatedValue
             newQ = q A.// [((_obs s, optimalAction), newValue)]
         ST.put $ updateRandomGAndQTable s gen' newQ
         return optimalAction
 
+
+-- Policy for deterministic player
+titForTat :: Observation -> Action
+titForTat (_,Cooperate) = Cooperate
+titForTat (_,Defect)    = Defect
 
 
 
