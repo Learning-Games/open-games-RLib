@@ -18,6 +18,7 @@ library:
     - Engine.Diagnostics
     - Engine.OpenGames
     - Engine.OpticClass
+    - Engine.QLearning
     - Engine.TLL
     - Preprocessor.AbstractSyntax
     - Preprocessor.Compile
