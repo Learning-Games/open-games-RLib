@@ -55,8 +55,8 @@ makeLenses ''PDEnv
 makeLenses ''State
 
 -- fixing outside parameters
-gamma = 0.96
-learningRate = 0.81
+gamma = 0.95
+learningRate = 0.20
 
 
 ------------------------

@@ -2,10 +2,9 @@
 
 
 module Examples.QLearning.PDDeterministicPlayer
-   --                  ( iterateEval
-   --                  , evalStageLS
-   --                  , evalStageLS2
-   --                  , initiateStrat)
+                     ( evalStageLS
+                     , initiateStrat
+                     )
                      where
 
 import Control.Comonad
@@ -26,9 +25,9 @@ import Preprocessor.THSyntax
 
 
 pdMatrix :: Action -> Action -> Double
-pdMatrix Cooperate Cooperate = 5
+pdMatrix Cooperate Cooperate = 3 
 pdMatrix Cooperate Defect = 0
-pdMatrix Defect Cooperate = 2
+pdMatrix Defect Cooperate = 5
 pdMatrix Defect Defect = 1
 
 
