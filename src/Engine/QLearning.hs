@@ -90,7 +90,10 @@ updateObservation s o = obs .~ o $  s
 updateRandomGAndQTable :: State -> Rand.StdGen -> QTable -> State
 updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r 
 
-
+-- Policy for deterministic player
+titForTat :: Observation -> Action
+titForTat (_,Cooperate) = Cooperate
+titForTat (_,Defect)    = Defect
 
 
 -----------------------------------
@@ -173,7 +176,6 @@ pureDecisionQStage name = OpenGame {
 
 
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
--- How to implement that feedback loop from the future? We could also do it through the S
 pureDecisionQStage' :: (Comonad m, Monad m) =>  Agent -> QLearningStageGame m '[m (Action,PDEnv)] '[m (Action,PDEnv)] Observation () Action  (Double,Observation)
 pureDecisionQStage' name = OpenGame {
   play =  \(strat ::- Nil) -> let (_,pdenv') = extract strat
@@ -197,7 +199,45 @@ pureDecisionQStage' name = OpenGame {
                    return (action,env')
                 in (output ::- Nil)}
 
+-- Follow a deterministic strategy
+-- TODO change strategy? Here just to see the trace easily
+-- TODO change return type? Here just to simplify symmetric treatment
+-- TODO here just assumption of fixed action? 
+deterministicStratStage :: (Comonad m, Monad m) =>  Agent -> (Observation -> Action) -> QLearningStageGame m '[m Action] '[m Action] Observation () Action  (Double,Observation)
+deterministicStratStage name policy = OpenGame {
+  play =  \(_ ::- Nil) -> let v obs = pure $ policy obs
+                              in MonadicLearnLens v (\_ ->pure  (\_ -> pure ())),
+  -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
+  evaluate = \(a ::- Nil) (MonadicLearnLensContext h k) ->
+              let
+                output = do
+                   obs <- h
+                   -- ^ Take the (old observation) from the context
+                   pure $ policy obs
+                in (output ::- Nil)}
 
+
+
+
+
+--------------------------
+-- 4 Further functionality
+
+fromLens :: Monad m => (x -> y) -> (x -> r -> s) -> QLearningStageGame m '[] '[] x s y r
+fromLens v u = OpenGame {
+  play = \Nil -> MonadicLearnLens (\x -> pure $ v x) (\x -> pure $ (\r -> pure $ u x r)),
+  evaluate = \Nil _ -> Nil}
+
+
+fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[] x s y r
+fromFunctions f g = fromLens f (const g)
+
+
+
+
+
+---------------------
+-- 5. Not needed now
 
 -- TODO another idea: feed information back inside as coutility? 
 pureDecisionQStage2 :: (Monad m) =>  Agent -> QLearningStageGame m '[m (Action,PDEnv)] '[m (Action,PDEnv)] State Double Action Double
@@ -217,23 +257,6 @@ pureDecisionQStage2 name = OpenGame {
                                                    (State pdenv' obs)
                    return (action,env')
                 in (output ::- Nil)}
-
-
-
-
---------------------------
--- 4 Further functionality
-
-fromLens :: Monad m => (x -> y) -> (x -> r -> s) -> QLearningStageGame m '[] '[] x s y r
-fromLens v u = OpenGame {
-  play = \Nil -> MonadicLearnLens (\x -> pure $ v x) (\x -> pure $ (\r -> pure $ u x r)),
-  evaluate = \Nil _ -> Nil}
-
-
-fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[] x s y r
-fromFunctions f g = fromLens f (const g)
-
-
 
 
 
