@@ -93,9 +93,7 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 
 
 ------------------------------
--- Game stage 1
--- TODO still unclear whether there is actually a link to continuation payoffs
--- TODO how is the contravariant output used? Is it? But I could reuse it at the decision-level! 
+-- Game stage 
 
 generateGame "stageSimple" ["helper"]
                 (Block ["state1", "state2"] []
