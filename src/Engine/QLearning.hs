@@ -14,9 +14,8 @@ import qualified System.Random as Rand
 import qualified GHC.Arr as A
 
 
-import Optics.TH  (makeLenses)
-import qualified Optics.Lens as L
-import qualified Optics.Setter as S
+import           Optics.TH  (makeLenses)
+import           Optics.Optic ((%)) 
 import           Optics.Operators
 
 -- TODO check the random update
@@ -27,6 +26,8 @@ import           Optics.Operators
 -- 0 Preliminaries
 
 type Agent = String
+
+type Temperature = Double
 
 data Action = Cooperate | Defect
   deriving (Eq,Ord,Enum,Show,A.Ix)
@@ -46,6 +47,7 @@ data PDEnv = PDEnv
   { _qTable :: QTable
   , _exploreRate :: Double
   , _randomGen :: Rand.StdGen
+  , _temperature :: Temperature
   }  deriving (Show)
 
 
@@ -57,7 +59,6 @@ makeLenses ''State
 -- fixing outside parameters
 gamma = 0.95
 learningRate = 0.20
-temperature = 2.0
 
 ------------------------
 -- 1 Auxiliary functions
@@ -73,22 +74,28 @@ maxScore obs table = maximum [(value,action)| (value,(_,action)) <-valuesAndIndi
 
 -- Update randomG
 updateRandomG :: State -> Rand.StdGen -> State
-updateRandomG s r = env .~ newRandom $  s
-     where newRandom = randomGen .~ r $ _env s 
-
+updateRandomG s r = env % randomGen .~ r  $  s
 
 -- Update QTable
 updateQTable :: State -> QTable -> State
-updateQTable s q = env .~ newQTable $  s
-     where newQTable = qTable .~ q $ _env s 
+updateQTable s q = env % qTable .~ q  $  s
 
 -- Update Observation
 updateObservation :: State -> Observation -> State
 updateObservation s o = obs .~ o $  s
 
+
+-- Update temperature
+updateTemperature :: State ->  State
+updateTemperature = env % temperature %~ (* 0.999)
+
 -- Update State
 updateRandomGAndQTable :: State -> Rand.StdGen -> QTable -> State
 updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r 
+
+-- Update state including temperature
+updateRandomGQTableTemp :: State -> Rand.StdGen -> QTable -> State
+updateRandomGQTableTemp s r q = updateTemperature $ updateRandomGAndQTable s r q
 
 -- better prepare output to be used
 extractFst :: Maybe (a,b) -> Maybe a
@@ -157,11 +164,12 @@ chooseBoltzQTable s = do
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR  < _exploreRate (_env s)
     then do
-      let q                = _qTable $ _env s
+      let temp             = _temperature $ _env s
+          q                = _qTable $ _env s
           qCooperate       = q A.! (_obs s, Cooperate) 
           qDefect          = q A.! (_obs s, Defect) 
-          eCooperate       = (exp 1.0) ** qCooperate  / temperature
-          eDefect          = (exp 1.0) ** qDefect  / temperature
+          eCooperate       = (exp 1.0) ** qCooperate  / temp
+          eDefect          = (exp 1.0) ** qDefect  / temp
           probCooperate    = eCooperate / (eCooperate + eDefect) 
           (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
           action'          = if actionP < probCooperate then Cooperate else Defect
@@ -178,11 +186,12 @@ chooseUpdateBoltzQTable s obs2 reward  = do
     let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
     if exploreR < _exploreRate (_env s)
       then do
-        let q                = _qTable $ _env s
+        let temp             = _temperature $ _env s
+            q                = _qTable $ _env s
             qCooperate       = q A.! (_obs s, Cooperate)
             qDefect          = q A.! (_obs s, Defect)
-            eCooperate       = (exp 1.0)** qCooperate / temperature
-            eDefect          = (exp 1.0)** qDefect / temperature
+            eCooperate       = (exp 1.0)** qCooperate / temp
+            eDefect          = (exp 1.0)** qDefect / temp
             probCooperate    = eCooperate / (eCooperate + eDefect)
             (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
             action'          = if actionP < probCooperate then Cooperate else Defect
@@ -199,7 +208,7 @@ chooseUpdateBoltzQTable s obs2 reward  = do
             updatedValue = reward + gamma * (fst $ maxScore obs2 q)
             newValue = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ = q A.// [((_obs s, optimalAction), newValue)]
-        ST.put $ updateRandomGAndQTable s gen' newQ
+        ST.put $ updateRandomGQTableTemp s gen' newQ
         return optimalAction
 
 

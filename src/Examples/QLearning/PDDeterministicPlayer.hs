@@ -52,9 +52,9 @@ initialArray =  A.array (((Cooperate,Cooperate),Cooperate),((Defect,Defect),Defe
 
 
 -- initialEnv and parameters
-initialEnv1 = PDEnv initialArray  0.2  (Rand.mkStdGen 3)
-initialEnv2 = PDEnv initialArray  0.2  (Rand.mkStdGen 100)
-
+initialEnv1 = PDEnv initialArray  0.2  (Rand.mkStdGen 3) (5 * 0.999)
+initialEnv2 = PDEnv initialArray  0.2  (Rand.mkStdGen 100) (5 * 0.999)
+-- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 
 initialObservation :: (Observation, Observation)
@@ -119,5 +119,6 @@ evalStageLS startValue n =
               newStrat = evalStage startValue context
               in if n > 0 then newStrat : evalStageLS newStrat (n-1)
                           else [newStrat]
+
 
 
