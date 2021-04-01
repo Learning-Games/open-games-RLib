@@ -58,7 +58,7 @@ makeLenses ''State
 
 -- fixing outside parameters
 gamma = 0.95
-learningRate = 0.20
+learningRate = 0.40
 
 ------------------------
 -- 1 Auxiliary functions
@@ -121,7 +121,7 @@ chooseActionQTable s = do
   if exploreR < _exploreRate (_env s)
     then do
       let (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
-          action' = if actionP < 0.5 then Cooperate else Defect
+          action'          = if actionP < 0.5 then Cooperate else Defect
       ST.put $ updateRandomG s gen'' 
       return action'
     else do
@@ -136,21 +136,21 @@ chooseLearnQTable s obs2 reward  = do
     if exploreR < _exploreRate (_env s)
       then do
         let (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
-            action' = if actionP < 0.5 then Cooperate else Defect
-            q = _qTable $ _env s
-            prediction = q A.! (_obs s, action')
-            updatedValue = reward + gamma * (fst $ maxScore obs2 q)
-            newValue = (1 - learningRate) * prediction + learningRate * updatedValue
-            newQ = q A.// [((_obs s, action'), newValue)]
+            action'          = if actionP < 0.5 then Cooperate else Defect
+            q                = _qTable $ _env s
+            prediction       = q A.! (_obs s, action')
+            updatedValue     = reward + gamma * (fst $ maxScore obs2 q)
+            newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
+            newQ             = q A.// [((_obs s, action'), newValue)]
         ST.put $ updateRandomGAndQTable s gen'' newQ
         return action'
      else do
         let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s)
-            q = _qTable $ _env s
-            prediction = q A.! (_obs s, optimalAction)
-            updatedValue = reward + gamma * (fst $ maxScore obs2 q)
-            newValue = (1 - learningRate) * prediction + learningRate * updatedValue
-            newQ = q A.// [((_obs s, optimalAction), newValue)]
+            q             = _qTable $ _env s
+            prediction    = q A.! (_obs s, optimalAction)
+            updatedValue  = reward + gamma * (fst $ maxScore obs2 q)
+            newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
+            newQ          = q A.// [((_obs s, optimalAction), newValue)]
         ST.put $ updateRandomGAndQTable s gen' newQ
         return optimalAction
 
@@ -161,32 +161,16 @@ chooseLearnQTable s obs2 reward  = do
 chooseBoltzQTable :: Monad m =>
   State -> ST.StateT State m Action
 chooseBoltzQTable s = do
-  let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
-  if exploreR  < _exploreRate (_env s)
-    then do
-      let temp             = _temperature $ _env s
-          q                = _qTable $ _env s
-          qCooperate       = q A.! (_obs s, Cooperate) 
-          qDefect          = q A.! (_obs s, Defect) 
-          eCooperate       = (exp 1.0) ** qCooperate  / temp
-          eDefect          = (exp 1.0) ** qDefect  / temp
-          probCooperate    = eCooperate / (eCooperate + eDefect) 
-          (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
-          action'          = if actionP < probCooperate then Cooperate else Defect
-      ST.put $ updateRandomG s gen'' 
-      return action'
-    else do
-      let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s)
+      let (_, gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+          optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s)
       ST.put $  updateRandomG s gen'
       return optimalAction
 
 -- choose optimally or explore greedily
 chooseUpdateBoltzQTable ::  Monad m => State -> Observation -> Double -> ST.StateT State m Action
 chooseUpdateBoltzQTable s obs2 reward  = do
-    let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
-    if exploreR < _exploreRate (_env s)
-      then do
-        let temp             = _temperature $ _env s
+        let (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+            temp             = _temperature $ _env s
             q                = _qTable $ _env s
             qCooperate       = q A.! (_obs s, Cooperate)
             qDefect          = q A.! (_obs s, Defect)
@@ -199,18 +183,8 @@ chooseUpdateBoltzQTable s obs2 reward  = do
             updatedValue     = reward + gamma * (fst $ maxScore obs2 q)
             newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ             = q A.// [((_obs s, action'), newValue)]
-        ST.put $ updateRandomGAndQTable s gen'' newQ
+        ST.put $ updateRandomGQTableTemp s gen'' newQ
         return action'
-     else do
-        let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s)
-        let q = _qTable $ _env s
-            prediction = q A.! (_obs s, optimalAction)
-            updatedValue = reward + gamma * (fst $ maxScore obs2 q)
-            newValue = (1 - learningRate) * prediction + learningRate * updatedValue
-            newQ = q A.// [((_obs s, optimalAction), newValue)]
-        ST.put $ updateRandomGQTableTemp s gen' newQ
-        return optimalAction
-
 
 
 -- Policy for deterministic player
