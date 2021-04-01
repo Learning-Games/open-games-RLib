@@ -102,8 +102,6 @@ generateGame "stageSimple" ["helper"]
                 [[|(act1, act2)|]] [])
 
 
-
-
 ----------------------------------
 -- Defining the iterator structure
 evalStage  strat context  = evaluate (stageSimple "helper") strat context
