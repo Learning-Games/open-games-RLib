@@ -77,8 +77,9 @@ toObs :: (Comonad m, Monad m) => m (Action,PDEnv) -> m (Action, PDEnv) -> m (Obs
 toObs a1 a2 = do
              (act1,env1) <- a1
              (act2,env2) <- a2
-             let obs = (act1,act2)
-                 in pure (obs,obs)
+             let obs1 = (act1,act2)
+                 obs2 = (act2,act1)
+                 in pure (obs1,obs2)
 
 toObsFromLS :: (Comonad m, Monad m) => List '[m (Action,PDEnv),m (Action,PDEnv)] -> m (Observation,Observation)
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
