@@ -99,7 +99,7 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 
 generateGame "stageDeterministic" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage' "Player1"|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage "Player1"|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
                 , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
                 [[|(act1, act2)|]] [])
 

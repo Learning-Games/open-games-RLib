@@ -2,12 +2,12 @@
 
 
 module Examples.QLearning.PD
-   --                  ( iterateEval
-   --                  , evalStageLS
-   --                  , evalStageLS2
-   --                  , initiateStrat)
+                     ( evalStageLS
+                     , initiateStrat
+                     )
                      where
 
+import Control.Comonad
 import Data.Functor.Identity
 import Language.Haskell.TH
 import qualified Control.Monad.Trans.State as ST
@@ -25,10 +25,10 @@ import Preprocessor.THSyntax
 
 
 pdMatrix :: Action -> Action -> Double
-pdMatrix Cooperate Cooperate = 5
+pdMatrix Cooperate Cooperate = 0.3 
 pdMatrix Cooperate Defect = 0
-pdMatrix Defect Cooperate = 2
-pdMatrix Defect Defect = 1
+pdMatrix Defect Cooperate = 0.5
+pdMatrix Defect Defect = 0.1
 
 
 
@@ -36,8 +36,8 @@ pdMatrix Defect Defect = 1
 -- Constructing initial state
 -- TODO change this
 lstIndexValues = [
-  (((Cooperate,Cooperate), Cooperate),0),(((Cooperate,Defect),Cooperate),2),(((Defect,Cooperate),Cooperate), 0),(((Defect,Defect),Cooperate),4),
-   (((Cooperate,Cooperate), Defect),1),(((Cooperate,Defect),Defect),0),(((Defect,Cooperate),Defect), 3),(((Defect,Defect),Defect),0)]
+  (((Cooperate,Cooperate), Cooperate),0),(((Cooperate,Defect),Cooperate),0),(((Defect,Cooperate),Cooperate), 0),(((Defect,Defect),Cooperate),0),
+   (((Cooperate,Cooperate), Defect),0),(((Cooperate,Defect),Defect),0),(((Defect,Cooperate),Defect), 0),(((Defect,Defect),Defect),0)]
 
 
 
@@ -52,37 +52,43 @@ initialArray =  A.array (((Cooperate,Cooperate),Cooperate),((Defect,Defect),Defe
 
 
 -- initialEnv and parameters
-initialEnv = PDEnv initialArray  0.2  (Rand.mkStdGen 3)
-initialState = State initialEnv (Cooperate,Cooperate)
+initialEnv1 = PDEnv initialArray  0.2  (Rand.mkStdGen 3)
+initialEnv2 = PDEnv initialArray  0.2  (Rand.mkStdGen 100)
 
 
-initialContext :: Monad m => MonadicLearnLensContext m (State,State) (Double,Double) (Action,Action) (Double,Double)
-initialContext = MonadicLearnLensContext (pure (initialState,initialState)) (pure (\(_,_) -> pure (0,0)))
+
+initialObservation :: (Observation, Observation)
+initialObservation = ((Cooperate,Cooperate),(Cooperate,Cooperate))
+
+
+initialContext :: Monad m => MonadicLearnLensContext m (Observation,Observation) () (Action,Action) ()
+initialContext = MonadicLearnLensContext (pure initialObservation) (pure (\(_,_) -> pure ()))
 
 -- initialstrategy
 initiateStrat :: List '[Identity (Action, PDEnv), Identity (Action, PDEnv)]
-initiateStrat = pure (Cooperate,initialEnv) ::- pure (Cooperate,initialEnv) ::- Nil
+initiateStrat = pure (Cooperate,initialEnv1) ::- pure (Cooperate,initialEnv2) ::- Nil
 
 
 ------------------------------
 -- Updating state
 
-toState :: Monad m => m (Action,PDEnv) -> m (Action,PDEnv) -> m (State,State)
-toState a1 a2 = do
+toObs :: (Comonad m, Monad m) => m (Action,PDEnv) -> m (Action, PDEnv) -> m (Observation,Observation)
+toObs a1 a2 = do
              (act1,env1) <- a1
              (act2,env2) <- a2
-             let obs = (act1,act2)
-                in pure $ ((State env1 obs),(State env2 obs))
+             let obs1 = (act1,act2)
+                 obs2 = (act2,act1)
+                 in pure (obs1,obs2)
 
-toStateFromLS :: Monad m => List '[m (Action,PDEnv),m (Action,PDEnv)] -> m (State,State)
-toStateFromLS (x ::- (y ::- Nil))= toState x y
+toObsFromLS :: (Comonad m, Monad m) => List '[m (Action,PDEnv),m (Action,PDEnv)] -> m (Observation,Observation)
+toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: Monad m =>
+fromEvalToContext :: (Comonad m, Monad m) =>
                      List '[m (Action,PDEnv),m (Action,PDEnv)] ->
-                     MonadicLearnLensContext m (State,State) (Double,Double) (Action,Action) (Double,Double)
-fromEvalToContext ls = MonadicLearnLensContext (toStateFromLS ls) (pure (\(a1,a2) -> pure (pdMatrix a1 a2, pdMatrix a2 a1)))
+                     MonadicLearnLensContext m (Observation, Observation) () (Action,Action) ()
+fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pure ()))
 
 
 
@@ -91,42 +97,19 @@ fromEvalToContext ls = MonadicLearnLensContext (toStateFromLS ls) (pure (\(a1,a2
 -- TODO still unclear whether there is actually a link to continuation payoffs
 -- TODO how is the contravariant output used? Is it? But I could reuse it at the decision-level! 
 
-generateGame "pdQDecStage" ["helper"]
-                (Block ["state1", "state2"] [[|(pdMatrix act1 act2 + gamma * cont1, pdMatrix act2 act1 + gamma * cont2)|]]
-                [ Line [[|state1|]] [] [|pureDecisionQStage "Player1"|] ["act1"]  [[|pdMatrix act1 act2|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage "Player2"|] ["act2"]  [[|pdMatrix act2 act1|]]]
-                [[|(act1, act2)|]] ["cont1","cont2"])
+generateGame "stageSimple" ["helper"]
+                (Block ["state1", "state2"] []
+                [ Line [[|state1|]] [] [|pureDecisionQStage "Player1"|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage "Player2"|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
+                [[|(act1, act2)|]] [])
 
-
---------------------------------------------------------
--- Game stage 1 with payoffs being discounted internally
-generateGame "pdQDecStage'" ["helper"]
-                (Block ["state1", "state2"] [[|(cont1', cont2')|]]
-                [ Line [[|state1|]] ["cont1'"] [|pureDecisionQStage' "Player1"|] ["act1"]  [[|cont1|]]
-                , Line [[|state2|]] ["cont2'"] [|pureDecisionQStage' "Player2"|] ["act2"]  [[|cont2|]]]
-                [[|(act1, act2)|]] ["cont1","cont2"])
-
-
-
-
---------------------------------------------------------
--- Game stage 1 with payoffs being discounted internally
-generateGame "pdQDecStage2" ["helper"]
-                (Block ["state1", "state2"] [[|(cont1', cont2')|]]
-                [ Line [[|state1|]] ["cont1'"] [|pureDecisionQStage2 "Player1"|] ["act1"]  [[|cont1|]]
-                , Line [[|state2|]] ["cont2'"] [|pureDecisionQStage2 "Player2"|] ["act2"]  [[|cont2|]]]
-                [[|(act1, act2)|]] ["cont1","cont2"])
 
 
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage  strat context  = evaluate (pdQDecStage "helper") strat context
+evalStage  strat context  = evaluate (stageSimple "helper") strat context
 
-evalStage' strat context = evaluate (pdQDecStage' "helper") strat context
-
-
-evalStage2 strat context = evaluate (pdQDecStage2 "helper") strat context
 
 -- One solution; nest the iterator; very bad memory-wise 
 iterateEval 0  = evalStage initiateStrat initialContext
@@ -138,4 +121,5 @@ evalStageLS startValue n =
               newStrat = evalStage startValue context
               in if n > 0 then newStrat : evalStageLS newStrat (n-1)
                           else [newStrat]
+
 
