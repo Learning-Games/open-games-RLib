@@ -31,7 +31,6 @@ library:
     - Examples.Bayesian
     - Examples.Sequential
     - Examples.QLearning.PD
-    - Examples.QLearning.PD2
     - Examples.QLearning.PDDeterministicPlayer
 
 dependencies:

@@ -129,7 +129,7 @@ chooseLearnQTable s obs2 reward  = do
         let q = _qTable $ _env s
             prediction = q A.! (_obs s, action')
             updatedValue = reward + gamma * (fst $ maxScore obs2 q)
-            newValue = (1 - learningrate) * prediction + learningRate * updatedValue
+            newValue = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ = q A.// [((_obs s, action'), newValue)]
         ST.put $ updateRandomGAndQTable s gen'' newQ
         return action'
@@ -138,7 +138,7 @@ chooseLearnQTable s obs2 reward  = do
         let q = _qTable $ _env s
             prediction = q A.! (_obs s, optimalAction)
             updatedValue = reward + gamma * (fst $ maxScore obs2 q)
-            newValue = (1 - learningrate) * prediction + learningRate * updatedValue
+            newValue = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ = q A.// [((_obs s, optimalAction), newValue)]
         ST.put $ updateRandomGAndQTable s gen' newQ
         return optimalAction
@@ -211,30 +211,6 @@ fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[]
 fromFunctions f g = fromLens f (const g)
 
 
-
-
-
----------------------
--- 5. Not needed now
-
--- TODO another idea: feed information back inside as coutility? 
-pureDecisionQStage2 :: (Monad m) =>  Agent -> QLearningStageGame m '[m (Action,PDEnv)] '[m (Action,PDEnv)] State Double Action Double
-pureDecisionQStage2 name = OpenGame {
-  play =  \(_ ::- Nil) -> let v s = ST.evalStateT  (chooseActionQTable s) s
-                                    in MonadicLearnLens v (\_ ->pure  (\b -> pure $ gamma * b)),
-  -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
-  evaluate = \(pdenv ::- Nil) (MonadicLearnLensContext h k) ->
-             let
-                output = do
-                   (State _ obs) <- h
-                   k' <- k
-                   (_,pdenv') <- pdenv
-                   action <- ST.evalStateT  (chooseActionQTable (State pdenv' obs)) (State pdenv' obs)
-                   reward <- k' action 
-                   (State env' _) <- ST.execStateT (chooseLearnQTable (State pdenv' obs) (obs) (obs) reward action)
-                                                   (State pdenv' obs)
-                   return (action,env')
-                in (output ::- Nil)}
 
 
 
