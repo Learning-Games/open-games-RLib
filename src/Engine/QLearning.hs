@@ -186,6 +186,41 @@ chooseUpdateBoltzQTable s obs2 reward  = do
         ST.put $ updateRandomGQTableTemp s gen'' newQ
         return action'
 
+-- choose optimally or explore greedily
+chooseUpdateBoltzQTable2 ::  Monad m => State -> Observation -> Double -> ST.StateT State m Action
+chooseUpdateBoltzQTable2 s obs2 reward  =
+    let temp      = _temperature $ _env s
+        (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+        q         = _qTable $ _env s
+        chooseNoExplore =
+            do
+              let (_, gen'')   = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
+                  action'      = snd $  maxScore (_obs s) (_qTable $ _env s)
+                  prediction   = q A.! (_obs s, action')
+                  updatedValue = reward + gamma * (fst $ maxScore obs2 q)
+                  newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
+                  newQ         = q A.// [((_obs s, action'), newValue)]
+              ST.put $ updateRandomGQTableTemp s gen'' newQ
+              return action'
+        chooseExplore  =
+          do
+            let qCooperate       = q A.! (_obs s, Cooperate)
+                qDefect          = q A.! (_obs s, Defect)
+                eCooperate       = (exp 1.0)** qCooperate / temp
+                eDefect          = (exp 1.0)** qDefect / temp
+                probCooperate    = eCooperate / (eCooperate + eDefect)
+                (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
+                action'          = if actionP < probCooperate then Cooperate else Defect
+                prediction       = q A.! (_obs s, action')
+                updatedValue     = reward + gamma * (fst $ maxScore obs2 q)
+                newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
+                newQ             = q A.// [((_obs s, action'), newValue)]
+            ST.put $ updateRandomGQTableTemp s gen'' newQ
+            return action'
+        in if temp < 0.01
+           then chooseNoExplore
+           else chooseExplore
+
 
 -- Policy for deterministic player
 titForTat :: Observation -> Action
