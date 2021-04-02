@@ -57,7 +57,7 @@ makeLenses ''PDEnv
 makeLenses ''State
 
 -- fixing outside parameters
-gamma = 0.95
+gamma = 0.7
 learningRate = 0.40
 
 ------------------------
@@ -156,8 +156,8 @@ chooseLearnQTable s obs2 reward  = do
 
 
 
--- 2.2. Boltzmann prob updating 
--- Choose the optimal action given the current state or explore greedily
+-- 2.2. Boltzmann prob updating
+-- Choose the optimal action given the current state 
 chooseBoltzQTable :: Monad m =>
   State -> ST.StateT State m Action
 chooseBoltzQTable s = do
@@ -166,29 +166,9 @@ chooseBoltzQTable s = do
       ST.put $  updateRandomG s gen'
       return optimalAction
 
--- choose optimally or explore greedily
+-- choose optimally or explore according to the Boltzmann rule
 chooseUpdateBoltzQTable ::  Monad m => State -> Observation -> Double -> ST.StateT State m Action
-chooseUpdateBoltzQTable s obs2 reward  = do
-        let (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-            temp             = _temperature $ _env s
-            q                = _qTable $ _env s
-            qCooperate       = q A.! (_obs s, Cooperate)
-            qDefect          = q A.! (_obs s, Defect)
-            eCooperate       = (exp 1.0)** qCooperate / temp
-            eDefect          = (exp 1.0)** qDefect / temp
-            probCooperate    = eCooperate / (eCooperate + eDefect)
-            (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
-            action'          = if actionP < probCooperate then Cooperate else Defect
-            prediction       = q A.! (_obs s, action')
-            updatedValue     = reward + gamma * (fst $ maxScore obs2 q)
-            newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
-            newQ             = q A.// [((_obs s, action'), newValue)]
-        ST.put $ updateRandomGQTableTemp s gen'' newQ
-        return action'
-
--- choose optimally or explore greedily
-chooseUpdateBoltzQTable2 ::  Monad m => State -> Observation -> Double -> ST.StateT State m Action
-chooseUpdateBoltzQTable2 s obs2 reward  =
+chooseUpdateBoltzQTable s obs2 reward  =
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
         q         = _qTable $ _env s
