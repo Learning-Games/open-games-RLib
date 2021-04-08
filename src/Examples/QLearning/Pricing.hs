@@ -59,35 +59,35 @@ demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
 profit a0 a1 a2 p1 p2 mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
 priceBounds :: (Price,Price)
-priceBounds = (bertrandPrice - ksi*(monopolyPrice - bertrandPrice), monopolyPrice*(monopolyPrice - bertrandPrice))
+priceBounds = (1,6)
+--priceBounds = (bertrandPrice - ksi*(monopolyPrice - bertrandPrice), monopolyPrice*(monopolyPrice - bertrandPrice))
 
 -- derive the individual action space for each player
-actionSpace discrete = [fst priceBounds,(fst priceBounds + discrete)..snd priceBounds]
+actionSpace  = [1..6]
 
 -- translate action space into index
-toIndex discrete = [1..(toEnum $ length $ actionSpace discrete)]
+toIndex  = [1..6]
 
 -- translate an observed index into a price
-fromIndexToPrice discrete n = fst priceBounds + n * discrete - discrete
+--fromIndexToPrice  n = fst priceBounds + n *  - 
 
 
 -- derive possible observations
-pricePairs discrete = [(x,y) | x <- indActSpace, y <- indActSpace] 
-   where indActSpace = toIndex discrete
+pricePairs  = [(x,y) | x <- indActSpace, y <- indActSpace] 
+   where indActSpace = toIndex 
 
 -- initiate a first fixed list of values at average
 -- TODO change later to random values
-lsValues discrete = [(((x,y),z),fromInteger avg)| (x,y) <- xs, (z,_) <- xs]
+lsValues  = [(((x,y),z),fromInteger avg)| (x,y) <- xs, (z,_) <- xs]
   where (l,u) = priceBounds
         avg   = l
-        xs    = pricePairs discrete
+        xs    = pricePairs 
 
 
 -- initialArray :: Int -> QTable Price
-initialArray
-  :: Integer -> A.Array ((Index, Index), Index) Double
-initialArray discrete =  A.array (l,u) xs
-   where  xs = lsValues discrete
+initialArray :: A.Array ((Index, Index), Index) Double
+initialArray  =  A.array (l,u) xs
+   where  xs = lsValues 
           l = minimum $ fmap fst xs
           u = maximum $ fmap fst xs
 
@@ -95,25 +95,25 @@ test = (((lo,lo),lo),((up,up),up))
   where lo = fst priceBounds
         up = snd priceBounds
 -- initiate the environment 
-initialEnv1 discrete = Env (initialArray discrete)  0.2  (Rand.mkStdGen 3) (5 * 0.999)
-initialEnv2 discrete = Env (initialArray discrete)  0.2  (Rand.mkStdGen 100) (5 * 0.999)
+initialEnv1  = Env (initialArray )  0.2  (Rand.mkStdGen 3) (5 * 0.999)
+initialEnv2  = Env (initialArray )  0.2  (Rand.mkStdGen 100) (5 * 0.999)
 
 
 -----------------------------
 -- 2 Constructing initial state
 -- First observation, randomly determined
-initialObservation :: Integer -> Int -> (Observation Index, Observation Index)
-initialObservation discrete i = (obs,obs)
+initialObservation :: Int -> (Observation Index, Observation Index)
+initialObservation  i = (obs,obs)
   where gen       = mkStdGen i
-        (d1,gen') = randomR  (1 :: Integer,toEnum $ length $ actionSpace discrete :: Integer) gen
-        (d2,_g)   = randomR  (1 :: Integer,toEnum $ length $ actionSpace discrete :: Integer) gen'
+        (d1,gen') = randomR  (1 :: Integer,toEnum $ length $ actionSpace  :: Integer) gen
+        (d2,_g)   = randomR  (1 :: Integer,toEnum $ length $ actionSpace  :: Integer) gen'
         obs       = (d1,d2)
 
 -- initialstrategy: start with lowest price
 -- TODO change that later
-initiateStrat :: Integer  -> List '[Identity (Index, Env Index), Identity (Index, Env Index)]
-initiateStrat discrete  = pure (l,initialEnv1 discrete) ::- pure (l,initialEnv2 discrete) ::- Nil
-   where (l,u) = (1 :: Integer,toEnum $ length $ actionSpace discrete :: Integer)
+initiateStrat :: List '[Identity (Index, Env Index), Identity (Index, Env Index)]
+initiateStrat   = pure (l,initialEnv1 ) ::- pure (l,initialEnv2 ) ::- Nil
+   where (l,u) = (1 :: Integer,toEnum $ length $ actionSpace  :: Integer)
 
 
 ------------------------------
@@ -141,23 +141,23 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 ------------------------------
 -- Game stage 
 -- TODO should be able to feed in learning rules
-generateGame "stageSimple" ["discrete"]
+generateGame "stageSimple" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage priceBounds "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit a0 a1 a2 (fromInteger $ fromIndexToPrice discrete p1) (fromInteger $ fromIndexToPrice discrete p2) mu c1, (p1,p2)) :: (Double, Observation Integer)|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage priceBounds "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit a0 a1 a2 (fromInteger $ fromIndexToPrice discrete p2) (fromInteger $ fromIndexToPrice discrete p1) mu c1, (p1,p2)) :: (Double, Observation Integer) |]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage priceBounds "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit a0 a1 a2 (fromInteger p1) (fromInteger p2) mu c1, (p1,p2)) :: (Double, Observation Integer)|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage priceBounds "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit a0 a1 a2 (fromInteger p2) (fromInteger p1) mu c1, (p1,p2)) :: (Double, Observation Integer) |]]]
                 [[|(p1, p2)|]] [])
 
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage discrete strat context = evaluate (stageSimple discrete) strat context
+evalStage  strat context = evaluate (stageSimple "helper") strat context
 
 
 -- Explicit list constructor much better
-evalStageLS discrete startValue n =
+evalStageLS  startValue n =
           let context  = fromEvalToContext startValue
-              newStrat = evalStage discrete startValue context
-              in if n > 0 then newStrat : evalStageLS discrete newStrat (n-1)
+              newStrat = evalStage  startValue context
+              in if n > 0 then newStrat : evalStageLS  newStrat (n-1)
                           else [newStrat]
 
 
