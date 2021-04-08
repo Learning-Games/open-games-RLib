@@ -131,19 +131,17 @@ chooseActionQTable (low,high) s = do
       ST.put $  updateRandomG s gen'
       return optimalAction
 
-
-
 -- choose optimally or explore greedily
 chooseLearnQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
                        (a,a) -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
-chooseLearnQTable (low,high) s obs reward  = do
+chooseLearnQTable (low,high) s obs2 reward  = do
     let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
     if exploreR < _exploreRate (_env s)
       then do
         let (action', gen'') = Rand.randomR (low,high) gen'
             q                = _qTable $ _env s
             prediction       = q A.! (_obs s, action')
-            updatedValue     = reward + gamma * (fst $ maxScore obs q (low,high))
+            updatedValue     = reward + gamma * (fst $ maxScore obs2 q (low,high))
             newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ             = q A.// [((_obs s, action'), newValue)]
         ST.put $ updateRandomGAndQTable s gen'' newQ
@@ -152,11 +150,12 @@ chooseLearnQTable (low,high) s obs reward  = do
         let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) (low,high)
             q             = _qTable $ _env s 
             prediction    = q A.! (_obs s, optimalAction)
-            updatedValue  = reward + gamma * (fst $ maxScore obs q (low,high))
+            updatedValue  = reward + gamma * (fst $ maxScore obs2 q (low,high))
             newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ          = q A.// [((_obs s, optimalAction), newValue)]
         ST.put $ updateRandomGAndQTable s gen' newQ
         return optimalAction
+
 
 -----------------
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
