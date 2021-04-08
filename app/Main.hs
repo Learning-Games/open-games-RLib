@@ -1,13 +1,13 @@
 module Main where
 
-import Examples.QLearning.PDDeterministicPlayer
+import Examples.QLearning.Pricing
 import Engine.TLL
 import Engine.QLearning
 
 main = do
-  let results = evalStageLS initiateStrat 300000
+  let results = evalStageLS (initiateStrat 3) 10
   let pairLS = fmap toPair results
   print $ head pairLS
-  print $ drop 290000 $ fmap extractSnd pairLS
+  print $ drop 1 $ fmap extractSnd pairLS
 
 

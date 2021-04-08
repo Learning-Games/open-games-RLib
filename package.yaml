@@ -32,6 +32,7 @@ library:
     - Examples.Sequential
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
+    - Examples.QLearning.Pricing
 
 dependencies:
     - base >=4.7 && <5
