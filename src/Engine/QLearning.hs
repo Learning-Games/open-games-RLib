@@ -65,6 +65,7 @@ learningRate = 0.40
 
 ------------------------
 -- 1 Auxiliary functions
+-- and updating functions
 -- given a q-table, derive maximal score and the action that guarantees it
 maxScore ::
   (Ord a, Enum a, A.Ix a) =>
@@ -77,41 +78,6 @@ maxScore obs table (low,high) = maximum [(value,action)| (value,(_,action)) <-va
     indices = (obs, ) <$> [low..high]
     valuesAndIndices =  (\i -> (table A.! i, i)) <$> indices
 
-
--- Update randomG
-updateRandomG :: State a -> Rand.StdGen -> State a
-updateRandomG s r = env % randomGen .~ r  $  s
-
-
--- Update QTable
-updateQTable :: State a -> QTable a  -> State a
-updateQTable s q = env % qTable .~ q  $  s
-
-
-
--- Update Observation
-updateObservation :: State a  -> Observation a -> State a
-updateObservation s o = obs .~ o $  s
-
-
-
--- Update temperature
-updateTemperature :: State a ->  State a
-updateTemperature = env % temperature %~ (* 0.999)
-
-
-
--- Update State
-updateRandomGAndQTable :: State a -> Rand.StdGen -> QTable a  -> State a
-updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r
-
-
--- Update state including temperature
-updateRandomGQTableTemp :: State a -> Rand.StdGen -> QTable a -> State a
-updateRandomGQTableTemp s r q = updateTemperature $ updateRandomGAndQTable s r q
-
-
-
 -- better prepare output to be used
 extractFst :: Maybe (a,b) -> Maybe a
 extractFst Nothing      = Nothing
@@ -121,7 +87,29 @@ extractSnd :: Maybe (a,b) -> Maybe b
 extractSnd Nothing      = Nothing
 extractSnd (Just (a,b)) = Just b
 
+-- Update randomG
+updateRandomG :: State a -> Rand.StdGen -> State a
+updateRandomG s r = env % randomGen .~ r  $  s
 
+-- Update QTable
+updateQTable :: State a -> QTable a  -> State a
+updateQTable s q = env % qTable .~ q  $  s
+
+-- Update Observation
+updateObservation :: State a  -> Observation a -> State a
+updateObservation s o = obs .~ o $  s
+
+-- Update temperature
+updateTemperature :: State a ->  State a
+updateTemperature = env % temperature %~ (* 0.999)
+
+-- Update State
+updateRandomGAndQTable :: State a -> Rand.StdGen -> QTable a  -> State a
+updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r
+
+-- Update state including temperature
+updateRandomGQTableTemp :: State a -> Rand.StdGen -> QTable a -> State a
+updateRandomGQTableTemp s r q = updateTemperature $ updateRandomGAndQTable s r q
 
 -----------------------------------
 -- 2 Implementation based on StateT
@@ -136,10 +124,10 @@ chooseActionQTable (low,high) s = do
   if exploreR < _exploreRate (_env s)
     then do
       let (action', gen'') = Rand.randomR (low,high) gen'
-      ST.put $ updateRandomG s gen'' 
+      ST.put $ updateRandomG s gen''
       return action'
     else do
-      let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) (low,high) 
+      let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) (low,high)
       ST.put $  updateRandomG s gen'
       return optimalAction
 
@@ -169,12 +157,6 @@ chooseLearnQTable (low,high) s obs reward  = do
             newQ          = q A.// [((_obs s, optimalAction), newValue)]
         ST.put $ updateRandomGAndQTable s gen' newQ
         return optimalAction
-
-
-
-
-
-
 
 -----------------
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
