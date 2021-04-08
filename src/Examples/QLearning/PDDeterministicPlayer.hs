@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeOperators, ScopedTypeVariables, TupleSections, DataKinds, GADTs, FlexibleContexts, TemplateHaskell, QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators, ScopedTypeVariables, TupleSections, DataKinds, GADTs, FlexibleContexts, TemplateHaskell, QuasiQuotes, DeriveAnyClass #-}
 
 
 module Examples.QLearning.PDDeterministicPlayer
@@ -24,11 +25,25 @@ import Preprocessor.Compile
 import Preprocessor.THSyntax
 
 
+
+------------------
+-- Types
+
+type Action = Bool
+
+
+
+
 pdMatrix :: Action -> Action -> Double
-pdMatrix Cooperate Cooperate = 0.3 
-pdMatrix Cooperate Defect = 0
-pdMatrix Defect Cooperate = 0.5
-pdMatrix Defect Defect = 0.1
+pdMatrix True True = 0.3 
+pdMatrix True False = 0
+pdMatrix False True = 0.5
+pdMatrix False False = 0.1
+
+-- Policy for deterministic player
+titForTat :: Observation Action -> Action
+titForTat (_,True) = True
+titForTat (_,False)    = False
 
 
 
@@ -36,43 +51,43 @@ pdMatrix Defect Defect = 0.1
 -- Constructing initial state
 -- TODO change this
 lstIndexValues = [
-  (((Cooperate,Cooperate), Cooperate),0),(((Cooperate,Defect),Cooperate),0),(((Defect,Cooperate),Cooperate), 0),(((Defect,Defect),Cooperate),0),
-   (((Cooperate,Cooperate), Defect),0),(((Cooperate,Defect),Defect),0),(((Defect,Cooperate),Defect), 0),(((Defect,Defect),Defect),0)]
+  (((True,True), True),0),(((True,False),True),0),(((False,True),True), 0),(((False,False),True),0),
+   (((True,True), False),0),(((True,False),False),0),(((False,True),False), 0),(((False,False),False),0)]
 
 
 
 lstIndexValues2 = [
-  (((Cooperate,Cooperate), Cooperate),4),(((Cooperate,Defect),Cooperate),0),(((Defect,Cooperate),Cooperate), 2),(((Defect,Defect),Cooperate),1),
-   (((Cooperate,Cooperate), Defect),5),(((Cooperate,Defect),Defect),2),(((Defect,Cooperate),Defect), 4),(((Defect,Defect),Defect),1)]
+  (((True,True), True),4),(((True,False),True),0),(((False,True),True), 2),(((False,False),True),1),
+   (((True,True), False),5),(((True,False),False),2),(((False,True),False), 4),(((False,False),False),1)]
 
 -- TODO check whether this makes sense
 -- TODO need a constructor for this more generally
-initialArray :: QTable
-initialArray =  A.array (((Cooperate,Cooperate),Cooperate),((Defect,Defect),Defect)) lstIndexValues
+initialArray :: QTable Action
+initialArray =  A.array (((False,False),False),((True,True),True)) lstIndexValues
 
 
 -- initialEnv and parameters
-initialEnv1 = PDEnv initialArray  0.2  (Rand.mkStdGen 3) (5 * 0.999)
-initialEnv2 = PDEnv initialArray  0.2  (Rand.mkStdGen 100) (5 * 0.999)
+initialEnv1 = Env initialArray  0.2  (Rand.mkStdGen 3) (5 * 0.999)
+initialEnv2 = Env initialArray  0.2  (Rand.mkStdGen 100) (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 
-initialObservation :: (Observation, Observation)
-initialObservation = ((Cooperate,Cooperate),(Cooperate,Cooperate))
+initialObservation :: (Observation Action, Observation Action)
+initialObservation = ((True,True),(True,True))
 
 
-initialContext :: Monad m => MonadicLearnLensContext m (Observation,Observation) () (Action,Action) ()
+initialContext :: Monad m => MonadicLearnLensContext m (Observation Action,Observation Action) () (Action,Action) ()
 initialContext = MonadicLearnLensContext (pure initialObservation) (pure (\(_,_) -> pure ()))
 
 -- initialstrategy
-initiateStrat :: List '[Identity (Action, PDEnv), Identity Action]
-initiateStrat = pure (Cooperate,initialEnv1) ::- pure Cooperate ::- Nil
+initiateStrat :: List '[Identity (Action, Env Action ), Identity Action]
+initiateStrat = pure (True,initialEnv1) ::- pure True ::- Nil
 
 
 ------------------------------
 -- Updating state
 
-toObs :: (Comonad m, Monad m) => m (Action,PDEnv) -> m Action -> m (Observation,Observation)
+toObs :: (Comonad m, Monad m) => m (Action,Env Action) -> m Action -> m (Observation Action,Observation Action)
 toObs a1 a2 = do
              (act1,env1) <- a1
              act2 <- a2
@@ -80,14 +95,14 @@ toObs a1 a2 = do
                  obs2 = (act2,act1)
                  in pure (obs1,obs2)
 
-toObsFromLS :: (Comonad m, Monad m) => List '[m (Action,PDEnv),m Action] -> m (Observation,Observation)
+toObsFromLS :: (Comonad m, Monad m) => List '[m (Action,Env Action),m Action] -> m (Observation Action,Observation Action)
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
 fromEvalToContext :: (Comonad m, Monad m) =>
-                     List '[m (Action,PDEnv),m Action] ->
-                     MonadicLearnLensContext m (Observation, Observation) () (Action,Action) ()
+                     List '[m (Action,Env Action),m Action] ->
+                     MonadicLearnLensContext m (Observation Action, Observation Action) () (Action,Action) ()
 fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pure ()))
 
 
@@ -97,9 +112,9 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 
 generateGame "stageDeterministic" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage "Player1" chooseBoltzQTable chooseUpdateBoltzQTable|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage (False,True) "Player1" chooseActionQTable chooseLearnQTable|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
                 , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
-                [[|(act1, act2)|]] [])
+                [[|(act1, act2)|]] [] :: Block String (Q Exp))
 
 
 
