@@ -98,8 +98,8 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 -- TODO should be able to feed in learning rules
 generateGame "stageSimple" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage (True,False) "Player1" chooseActionQTable chooseLearnQTable|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage (True,False) "Player2" chooseActionQTable chooseLearnQTable|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage [True,False] (True,False) "Player1" chooseActionQTable chooseLearnQTable|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage [True,False] (True,False) "Player2" chooseActionQTable chooseLearnQTable|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
                 [[|(act1, act2)|]] [])
 
 

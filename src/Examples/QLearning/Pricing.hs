@@ -6,7 +6,7 @@ module Examples.QLearning.Pricing
                      ( evalStageLS
                      , initiateStrat
                      , evalStageLS'
-                     , initiateStrat'
+                     , startStrat'
                      )
                      where
 
@@ -34,7 +34,6 @@ import Preprocessor.THSyntax
 
 newtype PriceSpace = PriceSpace Double
     deriving (Random,Num,Fractional,Enum,Ord,Show,Eq)
-
 
 
 -- make PriceSpace an instance of Ix so that the information can be used as an index for Array
@@ -95,13 +94,13 @@ toIndex  = [1..6]
 
 -- creates the distance in the grid
 dist :: PriceSpace
-dist = 2 
+dist = 1 
 
 ksi' = 0
 
 -- Note that the the prices are determined by calculations for the exact values
-bertrandPrice' = 10
-monopolyPrice' = 20
+bertrandPrice' = 1
+monopolyPrice' = 6
 
 
 -- determine the bounds within which to search
@@ -168,19 +167,23 @@ initialEnv2  = Env (initialArray )  0.2  (Rand.mkStdGen 100) (5 * 0.999)
 -- 2 Constructing initial state
 -- First observation, randomly determined
 -- TODO check that actual values are taken up (RandomR problem)
-initialObservation' :: Int -> (Observation PriceSpace, Observation PriceSpace)
-initialObservation'  i = (obs,obs)
-  where gen       = mkStdGen i
-        (d1,gen') = randomR  (lowerBound,upperBound) gen
-        (d2,_g)   = randomR  (lowerBound,upperBound) gen'
-        obs       = (d1,d2)
+initialObservation' :: [PriceSpace] -> Int -> (Observation PriceSpace, Observation PriceSpace)
+initialObservation' support i = (obs,obs)
+  where gen            = mkStdGen i
+        (index1,gen')  = randomR (0, (length support)) gen
+        d1             = support !! index1
+        (index2,_g)    = randomR (0, (length support)) gen'
+        d2             = support !! index1
+        obs            = (d1,d2)
 
 -- initialstrategy: start with random price
-initiateStrat' :: Int -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
-initiateStrat' i = pure (d1,initialEnv1' ) ::- pure (d2,initialEnv2' ) ::- Nil
-   where gen       = mkStdGen i
-         (d1,gen') = randomR  (lowerBound,upperBound) gen
-         (d2,_g)   = randomR  (lowerBound,upperBound) gen'
+initiateStrat' :: [PriceSpace] -> Int -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+initiateStrat' support i = pure (d1,initialEnv1' ) ::- pure (d2,initialEnv2' ) ::- Nil
+   where gen            = mkStdGen i
+         (index1,gen')  = randomR (0, (length support)) gen
+         d1             = support !! index1
+         (index2,_g)    = randomR (0, (length support)) gen'
+         d2             = support !! index1
 
 
 
@@ -230,14 +233,14 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 -- TODO should be able to feed in learning rules
 generateGame "stageSimple" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage priceBounds "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit a0 a1 a2 (fromInteger p1) (fromInteger p2) mu c1, (p1,p2)) :: (Double, Observation Integer)|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage priceBounds "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit a0 a1 a2 (fromInteger p2) (fromInteger p1) mu c1, (p1,p2)) :: (Double, Observation Integer) |]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace priceBounds "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit a0 a1 a2 (fromInteger p1) (fromInteger p2) mu c1, (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace priceBounds "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit a0 a1 a2 (fromInteger p2) (fromInteger p1) mu c1, (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
 
 generateGame "stageSimple2" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage priceBounds' "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit' a0 a1 a2 p1 p2 mu c1, (p1,p2)) :: (Double, Observation PriceSpace)|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage priceBounds' "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit' a0 a1 a2 p2 p1 mu c1, (p1,p2)) :: (Double, Observation PriceSpace) |]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace' priceBounds' "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit' a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace' priceBounds' "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit' a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
 
 
@@ -258,6 +261,8 @@ evalStageLS  startValue n =
 
 
 evalStage' strat context = evaluate (stageSimple2 "helper") strat context
+
+startStrat' = initiateStrat' actionSpace'
 
 -- Explicit list constructor much better
 evalStageLS'  startValue n =

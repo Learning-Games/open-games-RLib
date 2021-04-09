@@ -122,23 +122,8 @@ updateRandomGQTableTemp s r q = updateTemperature $ updateRandomGAndQTable s r q
 -- 2.1. e-greedy experimentation
 -- Choose the optimal action given the current state or explore greedily
 chooseActionQTable :: (Monad m, Enum a, Rand.Random a, A.Ix a) =>
-  (a,a) -> State a -> ST.StateT (State a) m a
-chooseActionQTable (low,high) s = do
-  let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
-  if exploreR < _exploreRate (_env s)
-    then do
-      let (action', gen'') = Rand.randomR (low,high) gen'
-      ST.put $ updateRandomG s gen''
-      return action'
-    else do
-      let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) (low,high)
-      ST.put $  updateRandomG s gen'
-      return optimalAction
-
-
-chooseActionQTable' :: (Monad m, Enum a, Rand.Random a, A.Ix a) =>
   [a] -> (a,a) -> State a -> ST.StateT (State a) m a
-chooseActionQTable' support (low,high) s = do
+chooseActionQTable support (low,high) s = do
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
     then do
@@ -152,9 +137,9 @@ chooseActionQTable' support (low,high) s = do
       return optimalAction
 
 -- choose optimally or explore greedily
-chooseLearnQTable' ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
+chooseLearnQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
                         [a] -> (a,a) -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
-chooseLearnQTable' support (low,high) s obs2 reward  = do
+chooseLearnQTable support (low,high) s obs2 reward  = do
     let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
     if exploreR < _exploreRate (_env s)
       then do
@@ -177,71 +162,16 @@ chooseLearnQTable' support (low,high) s obs2 reward  = do
         ST.put $ updateRandomGAndQTable s gen' newQ
         return optimalAction
 
-
--- choose optimally or explore greedily
-chooseLearnQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
-                       (a,a) -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
-chooseLearnQTable (low,high) s obs2 reward  = do
-    let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
-    if exploreR < _exploreRate (_env s)
-      then do
-        let (action', gen'') = Rand.randomR (low,high) gen'
-            q                = _qTable $ _env s
-            prediction       = q A.! (_obs s, action')
-            updatedValue     = reward + gamma * (fst $ maxScore obs2 q (low,high))
-            newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
-            newQ             = q A.// [((_obs s, action'), newValue)]
-        ST.put $ updateRandomGAndQTable s gen'' newQ
-        return action'
-     else do
-        let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) (low,high)
-            q             = _qTable $ _env s 
-            prediction    = q A.! (_obs s, optimalAction)
-            updatedValue  = reward + gamma * (fst $ maxScore obs2 q (low,high))
-            newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
-            newQ          = q A.// [((_obs s, optimalAction), newValue)]
-        ST.put $ updateRandomGAndQTable s gen' newQ
-        return optimalAction
-
-
 -----------------
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
 pureDecisionQStage :: (Comonad m, Monad m) =>
-                      (a,a)
-                      -> Agent
-                      -> ((a,a)-> State a -> ST.StateT (State a) m a)
-                      -> ((a,a) -> State a -> Observation a -> Double -> ST.StateT (State a) m a)
-                      -> QLearningStageGame m '[m (a,Env a)] '[m (a,Env a)] (Observation a) () a (Double,(Observation a))
-pureDecisionQStage interval name chooseAction updateQTable = OpenGame {
-  play =  \(strat ::- Nil) -> let (_,env') = extract strat
-                                  v obs =
-                                    let s obs = State env' obs
-                                        in ST.evalStateT  (chooseAction interval (s obs)) (s obs)
-                                        in MonadicLearnLens v (\_ ->pure  (\_ -> pure ())),
-  -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
-  evaluate = \(strat ::- Nil) (MonadicLearnLensContext h k) ->
-              let
-                output = do
-                   obs <- h
-                   -- ^ Take the (old observation) from the context
-                   k' <- k
-                   -- ^ continuation from the outside; :: Action -> (Double,Observation)
-                   (_,pdenv') <- strat
-                   action <- ST.evalStateT  (chooseAction interval (State pdenv' obs)) (State pdenv' obs)
-                   (reward,obsNew) <- k' action 
-                   (State env' _) <- ST.execStateT (updateQTable interval (State pdenv' obs) obsNew reward)
-                                                   (State pdenv' obs)
-                   return (action,env')
-                in (output ::- Nil)}
-
-pureDecisionQStage' :: (Comonad m, Monad m) =>
                       [a]
                       -> (a,a)
                       -> Agent
                       -> ([a] -> (a,a) -> State a -> ST.StateT (State a) m a)
                       -> ([a] -> (a,a) -> State a -> Observation a -> Double -> ST.StateT (State a) m a)
                       -> QLearningStageGame m '[m (a,Env a)] '[m (a,Env a)] (Observation a) () a (Double,(Observation a))
-pureDecisionQStage' actionSpace bounds name chooseAction updateQTable = OpenGame {
+pureDecisionQStage actionSpace bounds name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let (_,env') = extract strat
                                   v obs =
                                     let s obs = State env' obs
