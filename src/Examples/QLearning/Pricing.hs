@@ -5,6 +5,8 @@
 module Examples.QLearning.Pricing
                      ( evalStageLS
                      , initiateStrat
+                     , evalStageLS'
+                     , initiateStrat'
                      )
                      where
 
@@ -93,9 +95,9 @@ toIndex  = [1..6]
 
 -- creates the distance in the grid
 dist :: PriceSpace
-dist = 0.1
+dist = 2 
 
-ksi' = 1
+ksi' = 0
 
 -- Note that the the prices are determined by calculations for the exact values
 bertrandPrice' = 10
@@ -105,7 +107,7 @@ monopolyPrice' = 20
 -- determine the bounds within which to search
 lowerBound,upperBound :: PriceSpace
 lowerBound = bertrandPrice' - ksi'*(monopolyPrice' - bertrandPrice')
-upperBound = monopolyPrice'*(monopolyPrice' - bertrandPrice')
+upperBound = monopolyPrice' + ksi'*(monopolyPrice' - bertrandPrice')
 
 priceBounds' = (lowerBound,upperBound)
 
