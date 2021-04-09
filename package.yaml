@@ -48,6 +48,7 @@ dependencies:
     - comonad
     - random
     - optics
+    - ixset
 
 executables:
   learning-exe:

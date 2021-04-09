@@ -14,6 +14,7 @@ import qualified System.Random as Rand
 import qualified GHC.Arr as A
 
 
+
 import           Optics.TH  (makeLenses)
 import           Optics.Optic ((%))
 import           Optics.Operators
@@ -31,6 +32,8 @@ type Agent = String
 type Temperature = Double
 
 type QTable a = A.Array (Observation a, a) Double
+
+
 type Observation a = (a,a)
 
 -- Complete state comprises the internal state of the agent -- mainly the qmatrix
