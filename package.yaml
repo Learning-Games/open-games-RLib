@@ -38,17 +38,17 @@ dependencies:
     - base >=4.7 && <5
     - mtl
     - transformers
-    - probability
     - ad
     - poly
     - profunctors
     - template-haskell
     - parsec
-    - QuickCheck
     - comonad
-    - random
     - optics
     - ixset
+    - random-fu
+    - probability
+    - random 
 
 executables:
   learning-exe:
@@ -59,16 +59,13 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - open-games-hs
+      - open-games-hs
 
 tests:
   test-open-games:
     main: THTests
     source-dirs: tests
     dependencies:
-      - open-games-hs
       - template-haskell
       - base
-      - probability
       - hspec
-      - QuickCheck
