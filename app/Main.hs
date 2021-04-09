@@ -1,6 +1,6 @@
 module Main where
 
-import Examples.QLearning.Pricing
+import Examples.QLearning.PD
 import Engine.TLL
 import Engine.QLearning
 
