@@ -50,7 +50,7 @@ lstIndexValues2 = [
 -- TODO check whether this makes sense
 -- TODO need a constructor for this more generally
 initialArray :: QTable Action
-initialArray =  A.array (((True,True),True),((False,False),False)) lstIndexValues
+initialArray =  A.array (((False,False),False),((True,True),True)) lstIndexValues
 
 
 initialEnv1 = Env initialArray  0.2  (Rand.mkStdGen 3) (5 * 0.999)
@@ -98,8 +98,8 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 -- TODO should be able to feed in learning rules
 generateGame "stageSimple" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage [True,False]  "Player1" chooseActionQTable chooseLearnQTable|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage [True,False]  "Player2" chooseActionQTable chooseLearnQTable|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage [False,True]  "Player1" chooseActionQTable chooseLearnQTable|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage [False,True]  "Player2" chooseActionQTable chooseLearnQTable|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
                 [[|(act1, act2)|]] [])
 
 
