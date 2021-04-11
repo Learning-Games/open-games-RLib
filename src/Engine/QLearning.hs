@@ -127,7 +127,7 @@ chooseActionQTable support s = do
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
     then do
-      let  (index,gen'')       = Rand.randomR (0, (length support)) gen'
+      let  (index,gen'')       = Rand.randomR (0, (length support - 1)) gen'
            action'            = support !! index
       ST.put $ updateRandomG s gen''
       return action'
@@ -143,7 +143,7 @@ chooseLearnQTable support s obs2 reward  = do
     let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
     if exploreR < _exploreRate (_env s)
       then do
-        let (index,gen'')    = Rand.randomR (0, (length support)) gen'
+        let (index,gen'')    = Rand.randomR (0, (length support - 1)) gen'
             action'          = support !! index
             q                = _qTable $ _env s
             prediction       = q A.! (_obs s, action')

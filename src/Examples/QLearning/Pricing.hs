@@ -77,7 +77,7 @@ profit a0 a1 a2 p1 p2 mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
 profit' a0 a1 a2 (PriceSpace p1) (PriceSpace p2) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
-priceBounds :: (Price,Price)
+priceBounds :: (Index,Index)
 priceBounds = (1,6)
 -- derive the individual action space for each player
 actionSpace  = [1..6]
@@ -124,12 +124,14 @@ lsValues'  = [(((x,y),z),avg)| (x,y) <- xs, (z,_) <- xs]
   where  xs = pricePairs'
          PriceSpace avg = (lowerBound + upperBound) / 2
 
--- initialArray :: Int -> QTable Price
+
+-- initialArray'
+initialArray' :: A.Array (Observation PriceSpace, PriceSpace) Double
 initialArray' =  A.array (l,u) lsValues'
     where l = minimum $ fmap fst lsValues'
           u = maximum $ fmap fst lsValues'
 
--- initiate the environment 
+-- initiate the environment
 initialEnv1'  = Env (initialArray' )  0.2  (Rand.mkStdGen 3) (5 * 0.999)
 initialEnv2'  = Env (initialArray' )  0.2  (Rand.mkStdGen 100) (5 * 0.999)
 
@@ -149,7 +151,6 @@ lsValues  = [(((x,y),z),fromInteger avg)| (x,y) <- xs, (z,_) <- xs]
         xs    = pricePairs 
 
 -- initialArray :: Int -> QTable Price
-initialArray :: A.Array ((Index, Index), Index) Double
 initialArray  =  A.array (l,u) xs
    where  xs = lsValues 
           l = minimum $ fmap fst xs
@@ -167,8 +168,8 @@ initialEnv2  = Env (initialArray )  0.2  (Rand.mkStdGen 100) (5 * 0.999)
 -- 2 Constructing initial state
 -- First observation, randomly determined
 -- TODO check that actual values are taken up (RandomR problem)
-initialObservation' :: [PriceSpace] -> Int -> (Observation PriceSpace, Observation PriceSpace)
-initialObservation' support i = (obs,obs)
+initialObservation' :: [PriceSpace] -> Int -> Observation PriceSpace
+initialObservation' support i = obs
   where gen            = mkStdGen i
         (index1,gen')  = randomR (0, (length support)) gen
         d1             = support !! index1
@@ -190,8 +191,8 @@ initiateStrat' support i = pure (d1,initialEnv1' ) ::- pure (d2,initialEnv2' ) :
 
 
 -- First observation, randomly determined
-initialObservation :: Int -> (Observation Index, Observation Index)
-initialObservation  i = (obs,obs)
+initialObservation :: Int -> Observation Index
+initialObservation  i = obs
   where gen       = mkStdGen i
         (d1,gen') = randomR  (1 :: Integer,toEnum $ length $ actionSpace  :: Integer) gen
         (d2,_g)   = randomR  (1 :: Integer,toEnum $ length $ actionSpace  :: Integer) gen'
@@ -274,3 +275,18 @@ evalStageLS'  startValue n =
 
 
 
+---------
+-- Testing
+
+testObs = (initialObservation' actionSpace' 1)
+
+test = (testObs,) <$> actionSpace'
+
+valuesAndIndices table =  (\i -> (table A.! i, i)) <$> test
+
+
+testObs' = (initialObservation' actionSpace' 1)
+
+test' = (testObs,) <$> actionSpace'
+
+valuesAndIndices' table =  (\i -> (table A.! i, i)) <$> test

@@ -1,6 +1,6 @@
 module Main where
 
-import Examples.QLearning.PD
+import Examples.QLearning.PDDeterministicPlayer
 import Engine.TLL
 import Engine.QLearning
 
