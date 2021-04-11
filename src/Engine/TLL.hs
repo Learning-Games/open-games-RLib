@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators, DataKinds, GADTs, TypeFamilies, FlexibleInstances, FlexibleContexts, PolyKinds, ScopedTypeVariables, MultiParamTypeClasses, UndecidableInstances #-}
+{-# LANGUAGE TypeOperators, DataKinds, GADTs, TypeFamilies, FlexibleInstances, FlexibleContexts, PolyKinds, ScopedTypeVariables, MultiParamTypeClasses, UndecidableInstances, FunctionalDependencies #-}
 
 
 -- Parts of this file were written by Sjoerd Visscher 
 
 module Engine.TLL where
 
-
+import Control.Applicative
 
 infixr 6 ::-
 data List ts where
@@ -48,7 +48,7 @@ class Apply f a b where
   apply :: f -> a -> b
 
 
--- Map 
+-- Map
 class MapL f xs ys where
   mapL :: f -> List xs -> List ys
 
@@ -79,3 +79,16 @@ toPair :: List '[a,b] -> Maybe (a,b)
 toPair Nil               = Nothing
 toPair (x ::- Nil)       = Nothing
 toPair (x ::- y ::- Nil) = Just (x,y)
+
+----------------------------------------
+-- Features to ease feeding back outputs
+--
+class Applicative m => SequenceList m a b | a -> b, m b -> a where
+    sequenceListA :: List a -> m (List b)
+
+instance Applicative m => SequenceList m '[] '[] where
+    sequenceListA _ = pure Nil
+
+instance (Applicative m, SequenceList m as bs) => SequenceList m (m a ': as) (a ': bs) where
+    sequenceListA (a ::- b) = liftA2 (::-) a (sequenceListA b)
+
