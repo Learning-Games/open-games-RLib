@@ -32,6 +32,8 @@ type Agent = String
 
 type Temperature = Double
 
+type ExploreRate = Double
+
 type QTable a = A.Array (Observation a, a) Double
 
 
@@ -104,16 +106,16 @@ updateObservation :: State a  -> Observation a -> State a
 updateObservation s o = obs .~ o $  s
 
 -- Update temperature
-updateTemperature :: State a ->  State a
-updateTemperature = env % temperature %~ (* 0.999)
+updateTemperature :: Temperature -> State a ->  State a
+updateTemperature decrease = env % temperature %~ (* decrease)
 
 -- Update State
 updateRandomGAndQTable :: State a -> Rand.StdGen -> QTable a  -> State a
 updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r
 
 -- Update state including temperature
-updateRandomGQTableTemp :: State a -> Rand.StdGen -> QTable a -> State a
-updateRandomGQTableTemp s r q = updateTemperature $ updateRandomGAndQTable s r q
+updateRandomGQTableTemp :: Temperature -> State a -> Rand.StdGen -> QTable a -> State a
+updateRandomGQTableTemp decrease s r q = (updateTemperature decrease) $ updateRandomGAndQTable s r q
 
 -----------------------------------
 -- 2 Implementation based on StateT
@@ -142,6 +144,7 @@ chooseLearnQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
 chooseLearnQTable support s obs2 reward  = do
     let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
     if exploreR < _exploreRate (_env s)
+      -- ^ if True, then explore, else just choose optimally given qmatrix
       then do
         let (index,gen'')    = Rand.randomR (0, (length support - 1)) gen'
             action'          = support !! index
@@ -161,6 +164,51 @@ chooseLearnQTable support s obs2 reward  = do
             newQ          = q A.// [((_obs s, optimalAction), newValue)]
         ST.put $ updateRandomGAndQTable s gen' newQ
         return optimalAction
+
+-- choose optimally given qmatrix; do not explore
+chooseActionNoExploreQTable :: (Monad m, Enum a, Rand.Random a, A.Ix a) =>
+  [a] -> State a -> ST.StateT (State a) m a
+chooseActionNoExploreQTable support s = do
+  let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+      optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) support
+  ST.put $  updateRandomG s gen'
+  return optimalAction
+
+
+-- explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
+chooseLearnDecrEQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
+                       Temperature -> Temperature -> [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
+chooseLearnDecrEQTable tempThreshold decrease support s obs2 reward  =
+    let temp      = _temperature $ _env s
+        (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+        q         = _qTable $ _env s
+        chooseExplore  =
+          do
+            let (index,gen'')    = Rand.randomR (0, (length support - 1)) gen'
+                action'          = support !! index
+                q                = _qTable $ _env s
+                prediction       = q A.! (_obs s, action')
+                updatedValue     = reward + gamma * (fst $ maxScore obs2 q support)
+                newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
+                newQ             = q A.// [((_obs s, action'), newValue)]
+            ST.put $ updateRandomGQTableTemp decrease s gen'' newQ
+            return action'
+        chooseNoExplore =
+            do
+              let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) support
+                  q             = _qTable $ _env s 
+                  prediction    = q A.! (_obs s, optimalAction)
+                  updatedValue  = reward + gamma * (fst $ maxScore obs2 q support)
+                  newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
+                  newQ          = q A.// [((_obs s, optimalAction), newValue)]
+              ST.put $ updateRandomGQTableTemp decrease s gen' newQ
+              return optimalAction
+                in if temp < tempThreshold
+           then chooseNoExplore
+           else chooseExplore
+
+
+
 
 -----------------
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
