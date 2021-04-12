@@ -5,6 +5,8 @@
 module Examples.QLearning.CalvanoReplicate
                      ( evalStageLS
                      , initiateStrat
+                     , beta
+                     , actionSpace
                      )
                      where
 
@@ -51,12 +53,10 @@ type Index = Integer
 ksi :: PriceSpace
 ksi = 1
 
--- Threshold at which to stop exploring
--- TODO Change this? Get rid of the stopping criterion?
-tempThreshold = 0.000000001
-
 -- Decrease temp per iteration
-beta = (log 1)** (- 0.00001)
+beta =  (- 0.00001)
+
+decreaseFactor b = (log 1) ** b
 
 -- NOTE that the the prices are determined by calculations for the exact values
 bertrandPrice = 1
@@ -111,7 +111,6 @@ pricePairs = [(x,y) | x <- actionSpace, y <- actionSpace]
 lsValues  = [(((x,y),z),avg)| (x,y) <- xs, (z,_) <- xs]
   where  xs = pricePairs
          PriceSpace avg = (lowerBound + upperBound) / 2
-
 
 -- initialArray
 initialArray :: A.Array (Observation PriceSpace, PriceSpace) Double
@@ -171,10 +170,10 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 ------------------------------
 -- Game stage 
 -- TODO should be able to feed in learning rules
-generateGame "stageSimple2" ["helper"]
+generateGame "stageSimple2" ["beta'"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseActionNoExploreQTable (chooseLearnDecrExploreQTable (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseActionNoExploreQTable (chooseLearnDecrExploreQTable (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
 
 
@@ -182,15 +181,15 @@ generateGame "stageSimple2" ["helper"]
 ----------------------------------
 -- Defining the iterator structure
 
-evalStage strat context = evaluate (stageSimple2 "helper") strat context
+evalStage beta' strat context = evaluate (stageSimple2 beta') strat context
 
 startStrat = initiateStrat actionSpace
 
 -- Explicit list constructor much better
-evalStageLS  startValue n =
+evalStageLS beta' startValue n =
           let context  = fromEvalToContext startValue
-              newStrat = evalStage  startValue context
-              in if n > 0 then newStrat : evalStageLS  newStrat (n-1)
+              newStrat = evalStage beta' startValue context
+              in if n > 0 then newStrat : evalStageLS beta'  newStrat (n-1)
                           else [newStrat]
 
 

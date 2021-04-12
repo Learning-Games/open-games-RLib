@@ -33,6 +33,7 @@ library:
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.Pricing
+    - Examples.QLearning.CalvanoReplicate
 
 dependencies:
     - base >=4.7 && <5

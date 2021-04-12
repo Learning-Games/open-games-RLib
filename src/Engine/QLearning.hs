@@ -53,7 +53,7 @@ data State a = State
 
 data Env a = Env
   { _qTable :: QTable a
-  , _exploreRate :: Double
+  , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
   , _temperature :: Temperature
   }  deriving (Show)
@@ -107,7 +107,11 @@ updateObservation s o = obs .~ o $  s
 
 -- Update temperature
 updateTemperature :: Temperature -> State a ->  State a
-updateTemperature decrease = env % temperature %~ (* decrease)
+updateTemperature decreaseFactor = env % temperature %~ (* decreaseFactor)
+
+-- Update explorRate
+updateExploreRate :: ExploreRate -> State a -> State a
+updateExploreRate decreaseFactor = env % exploreRate %~ (* decreaseFactor) 
 
 -- Update State
 updateRandomGAndQTable :: State a -> Rand.StdGen -> QTable a  -> State a
@@ -115,7 +119,13 @@ updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r
 
 -- Update state including temperature
 updateRandomGQTableTemp :: Temperature -> State a -> Rand.StdGen -> QTable a -> State a
-updateRandomGQTableTemp decrease s r q = (updateTemperature decrease) $ updateRandomGAndQTable s r q
+updateRandomGQTableTemp decreaseFactor s r q = (updateTemperature decreaseFactor) $ updateRandomGAndQTable s r q
+
+-- Update state including exploreRate
+updateRandomGQTableExplore :: ExploreRate -> State a -> Rand.StdGen -> QTable a -> State a
+updateRandomGQTableExplore decreaseFactor s r q = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r q
+
+
 
 -----------------------------------
 -- 2 Implementation based on StateT
@@ -138,7 +148,7 @@ chooseActionQTable support s = do
       ST.put $  updateRandomG s gen'
       return optimalAction
 
--- choose optimally or explore greedily
+-- choose optimally or explore greedily with fixed exploreRate
 chooseLearnQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
                         [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
 chooseLearnQTable support s obs2 reward  = do
@@ -176,9 +186,9 @@ chooseActionNoExploreQTable support s = do
 
 
 -- explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
-chooseLearnDecrEQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
+chooseLearnDecrTempEQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
                        Temperature -> Temperature -> [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
-chooseLearnDecrEQTable tempThreshold decrease support s obs2 reward  =
+chooseLearnDecrTempEQTable tempThreshold decreaseFactor support s obs2 reward  =
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
         q         = _qTable $ _env s
@@ -191,7 +201,7 @@ chooseLearnDecrEQTable tempThreshold decrease support s obs2 reward  =
                 updatedValue     = reward + gamma * (fst $ maxScore obs2 q support)
                 newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
                 newQ             = q A.// [((_obs s, action'), newValue)]
-            ST.put $ updateRandomGQTableTemp decrease s gen'' newQ
+            ST.put $ updateRandomGQTableTemp decreaseFactor s gen'' newQ
             return action'
         chooseNoExplore =
             do
@@ -201,12 +211,38 @@ chooseLearnDecrEQTable tempThreshold decrease support s obs2 reward  =
                   updatedValue  = reward + gamma * (fst $ maxScore obs2 q support)
                   newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
                   newQ          = q A.// [((_obs s, optimalAction), newValue)]
-              ST.put $ updateRandomGQTableTemp decrease s gen' newQ
+              ST.put $ updateRandomGQTableTemp decreaseFactor s gen' newQ
               return optimalAction
                 in if temp < tempThreshold
            then chooseNoExplore
            else chooseExplore
 
+
+chooseLearnDecrExploreQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
+                        ExploreRate -> [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
+chooseLearnDecrExploreQTable decreaseFactor support s obs2 reward  = do
+    let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
+    if exploreR < _exploreRate (_env s)
+      -- ^ if True, then explore, else just choose optimally given qmatrix
+      then do
+        let (index,gen'')    = Rand.randomR (0, (length support - 1)) gen'
+            action'          = support !! index
+            q                = _qTable $ _env s
+            prediction       = q A.! (_obs s, action')
+            updatedValue     = reward + gamma * (fst $ maxScore obs2 q support)
+            newValue         = (1 - learningRate) * prediction + learningRate * updatedValue
+            newQ             = q A.// [((_obs s, action'), newValue)]
+        ST.put $  updateRandomGQTableExplore decreaseFactor s gen'' newQ
+        return action'
+     else do
+        let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) support
+            q             = _qTable $ _env s 
+            prediction    = q A.! (_obs s, optimalAction)
+            updatedValue  = reward + gamma * (fst $ maxScore obs2 q support)
+            newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
+            newQ          = q A.// [((_obs s, optimalAction), newValue)]
+        ST.put $ updateRandomGQTableExplore decreaseFactor s gen' newQ
+        return optimalAction
 
 
 
