@@ -24,7 +24,19 @@ import Preprocessor.AbstractSyntax
 import Preprocessor.Compile
 import Preprocessor.THSyntax
 
+-----------
+-- Types
+
 type Action = Bool
+
+-------------
+-- Parameters
+
+gamma = 0.7
+
+learningRate = 0.40
+
+
 
 pdMatrix :: Action -> Action -> Double
 pdMatrix True True = 0.3 
@@ -98,8 +110,8 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 -- TODO should be able to feed in learning rules
 generateGame "stageSimple" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage [False,True]  "Player1" chooseActionQTable chooseLearnQTable|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage [False,True]  "Player2" chooseActionQTable chooseLearnQTable|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage [False,True]  "Player1" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage [False,True]  "Player2" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
                 [[|(act1, act2)|]] [])
 
 

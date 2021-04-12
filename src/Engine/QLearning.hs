@@ -34,6 +34,10 @@ type Temperature = Double
 
 type ExploreRate = Double
 
+type LearningRate = Double
+
+type DiscountFactor = Double
+
 type QTable a = A.Array (Observation a, a) Double
 
 
@@ -65,9 +69,6 @@ type QLearningStageGame m a b x s y r = OpenGame (MonadicLearnLens m) (MonadicLe
 makeLenses ''Env
 makeLenses ''State
 
--- fixing outside parameters
-gamma = 0.7
-learningRate = 0.40
 
 ------------------------
 -- 1 Auxiliary functions
@@ -150,8 +151,8 @@ chooseActionQTable support s = do
 
 -- choose optimally or explore greedily with fixed exploreRate
 chooseLearnQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
-                        [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
-chooseLearnQTable support s obs2 reward  = do
+                     LearningRate ->  DiscountFactor -> [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
+chooseLearnQTable learningRate gamma support s obs2 reward  = do
     let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
     if exploreR < _exploreRate (_env s)
       -- ^ if True, then explore, else just choose optimally given qmatrix
@@ -187,8 +188,8 @@ chooseActionNoExploreQTable support s = do
 
 -- explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
 chooseLearnDecrTempEQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
-                       Temperature -> Temperature -> [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
-chooseLearnDecrTempEQTable tempThreshold decreaseFactor support s obs2 reward  =
+                      LearningRate ->  DiscountFactor -> Temperature -> Temperature -> [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
+chooseLearnDecrTempEQTable  learningRate gamma tempThreshold decreaseFactor support s obs2 reward  =
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
         q         = _qTable $ _env s
@@ -219,8 +220,8 @@ chooseLearnDecrTempEQTable tempThreshold decreaseFactor support s obs2 reward  =
 
 
 chooseLearnDecrExploreQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
-                        ExploreRate -> [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
-chooseLearnDecrExploreQTable decreaseFactor support s obs2 reward  = do
+                     LearningRate ->  DiscountFactor ->  ExploreRate -> [a] -> State a -> Observation a -> Double ->  ST.StateT (State a) m a
+chooseLearnDecrExploreQTable learningRate gamma decreaseFactor support s obs2 reward  = do
     let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
     if exploreR < _exploreRate (_env s)
       -- ^ if True, then explore, else just choose optimally given qmatrix

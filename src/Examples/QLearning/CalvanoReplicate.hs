@@ -51,7 +51,7 @@ type Index = Integer
 -- 1. Environment variables and parameters
 -- Fixing the parameters
 ksi :: PriceSpace
-ksi = 1
+ksi = 0.1
 
 -- Decrease temp per iteration
 beta =  (- 0.00001)
@@ -63,15 +63,23 @@ bertrandPrice = 1
 monopolyPrice = 6
 
 
-mu = 0.1
+-- fixing outside parameters
+gamma = 0.95
 
-a1 = 1
+learningRate = 0.15
+
+mu = 0.25
+
+a1 = 1.5
 
 a2 = 1
 
 a0 = 1
 
-c1 = 1
+c1 = 0.5
+
+-- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+m = 14
 
 -- Demand follows eq 5 in Calvano et al.
 demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
@@ -85,9 +93,9 @@ profit a0 a1 a2 (PriceSpace p1) (PriceSpace p2) mu c1 = (p1 - c1)* (demand a0 a1
 -- Also allows for different price types
 -- Follows the concept in Calvano
 
--- creates the distance in the grid
+-- creates the distance in the grid, takes parameter m as input to make the relevant number of steps
 dist :: PriceSpace
-dist = 1 
+dist =  (upperBound - lowerBound) / m
 
 
 
@@ -119,13 +127,12 @@ initialArray =  A.array (l,u) lsValues
           u = maximum $ fmap fst lsValues
 
 -- initiate the environment
-initialEnv1  = Env (initialArray )  0.2  (Rand.mkStdGen 3) (5 * 0.999)
-initialEnv2  = Env (initialArray )  0.2  (Rand.mkStdGen 100) (5 * 0.999)
+initialEnv1  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen 3) (5 * 0.999)
+initialEnv2  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen 100) (5 * 0.999)
 
 -----------------------------
 -- 2 Constructing initial state
 -- First observation, randomly determined
--- TODO check that actual values are taken up (RandomR problem)
 initialObservation :: [PriceSpace] -> Int -> Observation PriceSpace
 initialObservation support i = obs
   where gen            = mkStdGen i
@@ -169,11 +176,10 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 
 ------------------------------
 -- Game stage 
--- TODO should be able to feed in learning rules
 generateGame "stageSimple2" ["beta'"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseActionNoExploreQTable (chooseLearnDecrExploreQTable (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseActionNoExploreQTable (chooseLearnDecrExploreQTable (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseActionNoExploreQTable (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseActionNoExploreQTable (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
 
 

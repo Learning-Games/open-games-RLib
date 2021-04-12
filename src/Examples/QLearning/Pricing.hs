@@ -54,6 +54,11 @@ type Index = Integer
 ksi :: Integer
 ksi = 1
 
+gamma = 0.7
+learningRate = 0.40
+
+
+
 -- Note that the the prices are determined by calculations for the exact values
 bertrandPrice = 10
 monopolyPrice = 20
@@ -234,14 +239,14 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 -- TODO should be able to feed in learning rules
 generateGame "stageSimple" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit a0 a1 a2 (fromInteger p1) (fromInteger p2) mu c1, (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace  "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit a0 a1 a2 (fromInteger p2) (fromInteger p1) mu c1, (p1,p2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["p1"]  [[|(profit a0 a1 a2 (fromInteger p1) (fromInteger p2) mu c1, (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace  "Player2" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["p2"]  [[|(profit a0 a1 a2 (fromInteger p2) (fromInteger p1) mu c1, (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
 
 generateGame "stageSimple2" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace' "Player1" chooseActionQTable chooseLearnQTable|] ["p1"]  [[|(profit' a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace' "Player2" chooseActionQTable chooseLearnQTable|] ["p2"]  [[|(profit' a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace' "Player1" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["p1"]  [[|(profit' a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace' "Player2" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["p2"]  [[|(profit' a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
 
 
