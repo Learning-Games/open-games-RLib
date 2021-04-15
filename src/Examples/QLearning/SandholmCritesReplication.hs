@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeOperators, ScopedTypeVariables, TupleSections, DataKinds, GADTs, FlexibleContexts, TemplateHaskell, QuasiQuotes, DeriveAnyClass #-}
 
 
-module Examples.QLearning.PDDeterministicPlayer2
+module Examples.QLearning.SandholmCritesReplication
                      ( evalStageLS
                      , initiateStrat
                      )
@@ -16,7 +16,7 @@ import qualified GHC.Arr as A
 import GHC.Generics
 import qualified System.Random as Rand
 
-import Engine.QLearning2
+import Engine.QLearning
 import Engine.OpenGames
 import Engine.TLL
 import Engine.OpticClass

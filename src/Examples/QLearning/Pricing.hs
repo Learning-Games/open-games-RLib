@@ -5,8 +5,6 @@
 module Examples.QLearning.Pricing
                      ( evalStageLS
                      , initiateStrat
-                     , evalStageLS'
-                     , startStrat'
                      )
                      where
 
@@ -57,7 +55,7 @@ ksi = 1
 gamma = 0.7
 learningRate = 0.40
 
-
+decreaseFactor b = (log 1) ** b
 
 -- Note that the the prices are determined by calculations for the exact values
 bertrandPrice = 10
@@ -237,61 +235,25 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 ------------------------------
 -- Game stage 
 -- TODO should be able to feed in learning rules
-generateGame "stageSimple" ["helper"]
+generateGame "stageSimple" ["beta'"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["p1"]  [[|(profit a0 a1 a2 (fromInteger p1) (fromInteger p2) mu c1, (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace  "Player2" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["p2"]  [[|(profit a0 a1 a2 (fromInteger p2) (fromInteger p1) mu c1, (p1,p2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 (fromInteger p1) (fromInteger p2) mu c1, (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace  "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 (fromInteger p2) (fromInteger p1) mu c1, (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
-
-generateGame "stageSimple2" ["helper"]
-                (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace' "Player1" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["p1"]  [[|(profit' a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace' "Player2" chooseActionQTable (chooseLearnQTable learningRate gamma)|] ["p2"]  [[|(profit' a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
-                [[|(p1, p2)|]] [])
-
 
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage  strat context = evaluate (stageSimple "helper") strat context
+evalStage beta strat context = evaluate (stageSimple beta) strat context
 
 
 
 
 -- Explicit list constructor much better
-evalStageLS  startValue n =
+evalStageLS beta startValue n =
           let context  = fromEvalToContext startValue
-              newStrat = evalStage  startValue context
-              in if n > 0 then newStrat : evalStageLS  newStrat (n-1)
+              newStrat = evalStage beta startValue context
+              in if n > 0 then newStrat : evalStageLS beta newStrat (n-1)
                           else [newStrat]
 
 
-evalStage' strat context = evaluate (stageSimple2 "helper") strat context
-
-startStrat' = initiateStrat' actionSpace'
-
--- Explicit list constructor much better
-evalStageLS'  startValue n =
-          let context  = fromEvalToContext startValue
-              newStrat = evalStage'  startValue context
-              in if n > 0 then newStrat : evalStageLS'  newStrat (n-1)
-                          else [newStrat]
-
-
-
-
----------
--- Testing
-
-testObs = (initialObservation' actionSpace' 1)
-
-test = (testObs,) <$> actionSpace'
-
-valuesAndIndices table =  (\i -> (table A.! i, i)) <$> test
-
-
-testObs' = (initialObservation' actionSpace' 1)
-
-test' = (testObs,) <$> actionSpace'
-
-valuesAndIndices' table =  (\i -> (table A.! i, i)) <$> test

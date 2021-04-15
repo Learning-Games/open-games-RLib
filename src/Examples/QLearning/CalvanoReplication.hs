@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeOperators, ScopedTypeVariables, TupleSections, DataKinds, GADTs, FlexibleContexts, TemplateHaskell, QuasiQuotes, GeneralizedNewtypeDeriving #-}
 
 
-module Examples.QLearning.CalvanoReplicate
+module Examples.QLearning.CalvanoReplication
                      ( evalStageLS
                      , initiateStrat
                      , beta
@@ -178,8 +178,8 @@ fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pur
 -- Game stage 
 generateGame "stageSimple2" ["beta'"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseActionNoExploreQTable (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseActionNoExploreQTable (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
 
 

@@ -32,9 +32,9 @@ library:
     - Examples.Sequential
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
-    - Examples.QLearning.PDDeterministicPlayer2
+    - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.Pricing
-    - Examples.QLearning.CalvanoReplicate
+    - Examples.QLearning.CalvanoReplication
 
 dependencies:
     - base >=4.7 && <5
