@@ -78,7 +78,7 @@ type Action = Bool
 -------------
 -- Parameters
 
-gamma = 0.7
+gamma = 0.4
 
 learningRate = 0.40
 
