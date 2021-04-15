@@ -1,14 +1,13 @@
 module Main where
 
-import Examples.QLearning.CalvanoReplicate
+import Examples.QLearning.PDDeterministicPlayer2
 import Engine.TLL
 import Engine.QLearning
 
 
 main = do
-  let results = evalStageLS beta (initiateStrat actionSpace 1) 1000
+  let results = evalStageLS initiateStrat 300000
   let pairLS = fmap toPair results
-  print $ drop 990 pairLS
---  print $ fmap extractSnd pairLS
-
+  print $ head pairLS
+  print $ drop 299900 $ pairLS
 

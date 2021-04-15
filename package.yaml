@@ -32,6 +32,7 @@ library:
     - Examples.Sequential
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
+    - Examples.QLearning.PDDeterministicPlayer2
     - Examples.QLearning.Pricing
     - Examples.QLearning.CalvanoReplicate
 
