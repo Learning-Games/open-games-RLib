@@ -118,7 +118,7 @@ instance Monad m => Optic (MonadOptic m) where
           u (z1, z2) (b1, b2) = do {t1 <- u1 z1 b1; t2 <- u2 z2 b2; return (t1, t2)}
 
 data MonadContext m s t a b where
-  MonadContext :: (Monad m ) => m (z, s) -> (z -> a -> m b) -> MonadContext m s t a b
+  MonadContext :: (Monad m, Show z) => m (z, s) -> (z -> a -> m b) -> MonadContext m s t a b
 
 instance Monad m => Precontext (MonadContext m) where
   void = MonadContext (return ((), ())) (\() () -> return ())

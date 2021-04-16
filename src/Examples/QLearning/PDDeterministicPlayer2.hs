@@ -89,27 +89,30 @@ initialContext :: Monad m => MonadContext m (Observation Action,Observation Acti
 initialContext = MonadContext (pure (() ,initialObservation)) (\_ -> (\_ -> pure ()))
 
 -- initialstrategy
-initiateStrat :: List '[(Action, Env Action ), Action]
-initiateStrat = (True,initialEnv1) ::- True ::- Nil
+initiateStrat :: List '[Identity (Action, Env Action ), Identity Action]
+initiateStrat =  pure (True,initialEnv1) ::- pure True ::- Nil
 
 
 ------------------------------
 -- Updating state
 
-toObs :: (Action,Env Action) -> Action -> (Observation Action,Observation Action)
-toObs (act1,env1) act2 = 
+toObs :: Monad m => m (Action,Env Action) -> m Action -> m ((), (Observation Action,Observation Action))
+toObs a1 a2 = do
+             (act1,env1) <- a1
+             act2 <- a2
              let obs1 = (act1,act2)
                  obs2 = (act2,act1)
-                 in (obs1,obs2)
+                 in return ((),(obs1,obs2))
 
-toObsFromLS :: List '[(Action,Env Action),Action] ->  (Observation Action,Observation Action)
+
+toObsFromLS :: Monad m => List '[m (Action,Env Action), m Action] -> m ((), (Observation Action,Observation Action))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: List '[(Action,Env Action),Action] ->
-                     MonadContext Identity (Observation Action, Observation Action) () (Action,Action) ()
-fromEvalToContext ls = MonadContext (pure ((),toObsFromLS ls)) (\_ -> (\_ -> pure ()))
+fromEvalToContext :: Monad m =>  List '[m (Action,Env Action), m Action] ->
+                     MonadContext m (Observation Action, Observation Action) () (Action,Action) ()
+fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
 
@@ -122,18 +125,27 @@ generateGame "stageDeterministic" ["helper"]
                 , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
                 [[|(act1, act2)|]] [] :: Block String (Q Exp))
 
-
+{-
+generateGame "stageSimple" ["helper"]
+                (Block ["state1", "state2"] []
+                [ Line [[|state1|]] [] [|pureDecisionQStage [False,True]  "Player1" chooseExploreAction (updateQTableST learningRate gamma)|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage [False,True]  "Player2" chooseExploreAction (updateQTableST learningRate gamma)|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
+                [[|(act1, act2)|]] [] :: Block String (Q Exp))
 
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage  strat context  = evaluate (stageDeterministic "helper") strat context
+
+
+
+evalStage  strat context  = evaluate (stageSimple "helper") strat context
+
 
 
 -- Explicit list constructor much better
-evalStageLS startValue n = do
-              context <- fromEvalToContext startValue
-              let newStrat = evalStage startValue context
-                  in if n > 0 then newStrat : evalStageLS newStrat (n-1)
-                              else [newStrat]
-
+evalStageLS startValue n =
+          let context  = fromEvalToContext startValue
+              newStrat = evalStage startValue context
+              in if n > 0 then newStrat : evalStageLS newStrat (n-1)
+                          else [newStrat]
+--}

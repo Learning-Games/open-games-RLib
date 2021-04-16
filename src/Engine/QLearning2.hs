@@ -232,20 +232,19 @@ pureDecisionQStage :: Monad m =>
                       -> Agent
                       -> ([a] -> State a -> ST.StateT (State a) m a)
                       -> ([a] -> State a -> Observation a -> a -> Double -> ST.StateT (State a) m a)
-                      -> QLearningStageGame m '[(a,Env a)] '[m (a,Env a)] (Observation a) () a (Double,(Observation a))
+                      -> QLearningStageGame m '[m (a,Env a)] '[m (a,Env a)] (Observation a) () a (Double,(Observation a))
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
-  play =  \(strat ::- Nil) -> let (_,env') = strat
-                                  v obs =
-                                    let s obs = State env' obs
-                                        in do
-                                           action <- ST.evalStateT  (chooseAction actionSpace (s obs)) (s obs)
+  play =  \(strat ::- Nil) -> let  v obs = do
+                                           (_,env') <- strat
+                                           let s obs = State env' obs
+                                           action   <- ST.evalStateT  (chooseAction actionSpace (s obs)) (s obs)
                                            pure ((),action)
                                         in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
   evaluate = \(strat ::- Nil) (MonadContext h k) ->
               let
                 output = do
-                   let (_,pdenv') = strat
+                   (_,pdenv') <- strat
                    (z,obs) <- h
                    -- ^ Take the (old observation) from the context
                    action <- ST.evalStateT  (chooseAction actionSpace (State pdenv' obs)) (State pdenv' obs)
