@@ -3,9 +3,9 @@
 
 
 module Examples.QLearning.PDDeterministicPlayer2
-                     ( evalStageLS
-                     , initiateStrat
-                     )
+--                     ( evalStageLS
+--                     , initiateStrat
+--                     )
                      where
 
 import Control.Comonad
@@ -125,21 +125,19 @@ generateGame "stageDeterministic" ["helper"]
                 , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
                 [[|(act1, act2)|]] [] :: Block String (Q Exp))
 
-{-
-generateGame "stageSimple" ["helper"]
-                (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage [False,True]  "Player1" chooseExploreAction (updateQTableST learningRate gamma)|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage [False,True]  "Player2" chooseExploreAction (updateQTableST learningRate gamma)|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
-                [[|(act1, act2)|]] [] :: Block String (Q Exp))
-
 
 ----------------------------------
 -- Defining the iterator structure
 
-
-
-evalStage  strat context  = evaluate (stageSimple "helper") strat context
-
+evalStage :: List '[Identity (Action, Env Action), Identity Action]
+            -> MonadContext
+                  Identity
+                  (Observation Action, Observation Action)
+                  ()
+                  (Action, Action)
+                  ()
+            -> List '[Identity (Action, Env Action), Identity Action]
+evalStage = evaluate (stageDeterministic "helper") 
 
 
 -- Explicit list constructor much better
@@ -148,4 +146,4 @@ evalStageLS startValue n =
               newStrat = evalStage startValue context
               in if n > 0 then newStrat : evalStageLS newStrat (n-1)
                           else [newStrat]
---}
+

@@ -1,8 +1,8 @@
 module Main where
 
-import Examples.QLearning.SandholmCritesReplication
+import Examples.QLearning.PDDeterministicPlayer2
 import Engine.TLL
-import Engine.QLearning
+import Engine.QLearning2
 
 
 main = do

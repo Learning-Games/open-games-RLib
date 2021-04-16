@@ -256,7 +256,7 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
 
 
 
-deterministicStratStage ::  Monad m =>  Agent -> (Observation a -> a) -> QLearningStageGame m '[a] '[m a] (Observation a) () a  (Double,Observation a)
+deterministicStratStage ::  Monad m =>  Agent -> (Observation a -> a) -> QLearningStageGame m '[m a] '[m a] (Observation a) () a  (Double,Observation a)
 deterministicStratStage name policy = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
                               in MonadOptic v (\_ -> (\_ -> pure ())),
