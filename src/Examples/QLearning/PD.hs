@@ -74,8 +74,8 @@ initialObservation :: (Observation Action, Observation Action)
 initialObservation = ((True,True),(True,True))
 
 
-initialContext :: Monad m => MonadicLearnLensContext m (Observation Action,Observation Action) () (Action,Action) ()
-initialContext = MonadicLearnLensContext (pure initialObservation) (pure (\(_,_) -> pure ()))
+initialContext :: Monad m => MonadContext m (Observation Action,Observation Action) () (Action,Action) ()
+initialContext = MonadContext (pure (() ,initialObservation)) (\_ -> (\_ -> pure ()))
 
 -- initialstrategy
 initiateStrat :: List '[Identity (Action, Env Action), Identity (Action, Env Action)]
@@ -85,23 +85,22 @@ initiateStrat = pure (True,initialEnv1) ::- pure (True,initialEnv2) ::- Nil
 ------------------------------
 -- Updating state
 
-toObs :: (Comonad m, Monad m) => m (Action,Env Action) -> m (Action, Env Action) -> m (Observation Action,Observation Action)
+toObs :: Monad m => m (a,Env a) -> m (a, Env a) -> m ((), (Observation a, Observation a))
 toObs a1 a2 = do
              (act1,env1) <- a1
              (act2,env2) <- a2
              let obs1 = (act1,act2)
                  obs2 = (act2,act1)
-                 in pure (obs1,obs2)
+                 in return ((),(obs1,obs2))
 
-toObsFromLS :: (Comonad m, Monad m) => List '[m (Action,Env Action),m (Action,Env Action)] -> m (Observation Action,Observation Action)
+toObsFromLS :: Monad m => List '[m (a,Env a), m (a,Env a)] -> m ((),(Observation a,Observation a))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: (Comonad m, Monad m) =>
-                     List '[m (Action,Env Action),m (Action,Env Action)] ->
-                     MonadicLearnLensContext m (Observation Action, Observation Action) () (Action,Action) ()
-fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pure ()))
+fromEvalToContext :: Monad m =>  List '[m (a,Env a), m (a,Env a)] ->
+                     MonadContext m (Observation a, Observation a) () (a,a) ()
+fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
 
@@ -117,12 +116,17 @@ generateGame "stageSimple" ["helper"]
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage  strat context  = evaluate (stageSimple "helper") strat context
+evalStage :: List '[Identity (Action, Env Action), Identity (Action, Env Action)]
+            -> MonadContext
+                  Identity
+                  (Observation Action, Observation Action)
+                  ()
+                  (Action, Action)
+                  ()
+            -> List '[Identity (Action, Env Action), Identity (Action, Env Action)]
+evalStage  = evaluate (stageSimple "helper") 
 
 
--- One solution; nest the iterator; very bad memory-wise 
-iterateEval 0  = evalStage initiateStrat initialContext
-iterateEval n  = evalStage (iterateEval (n-1)) (fromEvalToContext (iterateEval (n-1)))
 
 -- Explicit list constructor much better
 evalStageLS startValue n =

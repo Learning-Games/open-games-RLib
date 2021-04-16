@@ -64,7 +64,7 @@ data Env a = Env
 
 
 
-type QLearningStageGame m a b x s y r = OpenGame (MonadicLearnLens m) (MonadicLearnLensContext m) a b x s y r
+type QLearningStageGame m a b x s y r = OpenGame (MonadOptic m) (MonadContext m) a b x s y r
 
 makeLenses ''Env
 makeLenses ''State
@@ -227,29 +227,28 @@ updateQTableTempST learningRate gamma decreaseFacTemp support s obs2 action rewa
 
 -----------------
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
-pureDecisionQStage :: (Comonad m, Monad m) =>
+pureDecisionQStage :: Monad m =>
                       [a]
                       -> Agent
                       -> ([a] -> State a -> ST.StateT (State a) m a)
                       -> ([a] -> State a -> Observation a -> a -> Double -> ST.StateT (State a) m a)
                       -> QLearningStageGame m '[m (a,Env a)] '[m (a,Env a)] (Observation a) () a (Double,(Observation a))
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
-  play =  \(strat ::- Nil) -> let (_,env') = extract strat
-                                  v obs =
-                                    let s obs = State env' obs
-                                        in ST.evalStateT  (chooseAction actionSpace (s obs)) (s obs)
-                                        in MonadicLearnLens v (\_ ->pure  (\_ -> pure ())),
+  play =  \(strat ::- Nil) -> let  v obs = do
+                                           (_,env') <- strat
+                                           let s obs = State env' obs
+                                           action   <- ST.evalStateT  (chooseAction actionSpace (s obs)) (s obs)
+                                           pure ((),action)
+                                        in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
-  evaluate = \(strat ::- Nil) (MonadicLearnLensContext h k) ->
+  evaluate = \(strat ::- Nil) (MonadContext h k) ->
               let
                 output = do
-                   obs <- h
-                   -- ^ Take the (old observation) from the context
-                   k' <- k
-                   -- ^ continuation from the outside; :: Action -> (Double,Observation)
                    (_,pdenv') <- strat
+                   (z,obs) <- h
+                   -- ^ Take the (old observation) from the context
                    action <- ST.evalStateT  (chooseAction actionSpace (State pdenv' obs)) (State pdenv' obs)
-                   (reward,obsNew) <- k' action 
+                   (reward,obsNew) <- k z action 
                    (State env' _) <- ST.execStateT (updateQTable actionSpace (State pdenv' obs) obsNew  action reward)
                                                    (State pdenv' obs)
                    return (action,env')
@@ -257,15 +256,15 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
 
 
 
-deterministicStratStage :: (Comonad m, Monad m) =>  Agent -> (Observation a -> a) -> QLearningStageGame m '[m a] '[m a] (Observation a) () a  (Double,Observation a)
+deterministicStratStage ::  Monad m =>  Agent -> (Observation a -> a) -> QLearningStageGame m '[m a] '[m a] (Observation a) () a  (Double,Observation a)
 deterministicStratStage name policy = OpenGame {
-  play =  \(_ ::- Nil) -> let v obs = pure $ policy obs
-                              in MonadicLearnLens v (\_ ->pure  (\_ -> pure ())),
+  play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
+                              in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
-  evaluate = \(a ::- Nil) (MonadicLearnLensContext h k) ->
+  evaluate = \(a ::- Nil) (MonadContext h k) ->
               let
                 output = do
-                   obs <- h
+                   (_,obs) <- h
                    -- ^ Take the (old observation) from the context
                    pure $ policy obs
                 in (output ::- Nil)}
@@ -278,7 +277,7 @@ deterministicStratStage name policy = OpenGame {
 
 fromLens :: Monad m => (x -> y) -> (x -> r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromLens v u = OpenGame {
-  play = \Nil -> MonadicLearnLens (\x -> pure $ v x) (\x -> pure $ (\r -> pure $ u x r)),
+  play = \Nil -> MonadOptic (\x -> pure (x, v x)) (\x -> (\r -> pure $ u x r)),
   evaluate = \Nil _ -> Nil}
 
 

@@ -155,28 +155,28 @@ initiateStrat support i = pure (d1,initialEnv1 ) ::- pure (d2,initialEnv2 ) ::- 
 ------------------------------
 -- Updating state
 
-toObs :: Identity (a,Env a) -> Identity (a, Env a) -> Identity (Observation a,Observation a)
+toObs :: Monad m => m (a,Env a) -> m (a, Env a) -> m ((), (Observation a, Observation a))
 toObs a1 a2 = do
              (act1,env1) <- a1
              (act2,env2) <- a2
              let obs1 = (act1,act2)
                  obs2 = (act2,act1)
-                 in pure (obs1,obs2)
+                 in return ((),(obs1,obs2))
 
-toObsFromLS :: List '[Identity (a,Env a), Identity (a,Env a)] -> Identity (Observation a,Observation a)
+toObsFromLS :: Monad m => List '[m (a,Env a), m (a,Env a)] -> m ((),(Observation a,Observation a))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: List '[Identity (a,Env a), Identity (a,Env a)] ->
-                     MonadicLearnLensContext Identity (Observation a, Observation a) () (a,a) ()
-fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pure ()))
+fromEvalToContext :: Monad m =>  List '[m (a,Env a), m (a,Env a)] ->
+                     MonadContext m (Observation a, Observation a) () (a,a) ()
+fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
 
 ------------------------------
 -- Game stage 
-generateGame "stageSimple2" ["beta'"]
+generateGame "stageSimple" ["beta'"]
                 (Block ["state1", "state2"] []
                 [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
                 , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
@@ -186,10 +186,17 @@ generateGame "stageSimple2" ["beta'"]
 
 ----------------------------------
 -- Defining the iterator structure
+evalStage :: Double
+            -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+            -> MonadContext
+                  Identity
+                  (Observation PriceSpace, Observation PriceSpace)
+                  ()
+                  (PriceSpace, PriceSpace)
+                  ()
+            -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+evalStage beta'  = evaluate (stageSimple beta') 
 
-evalStage beta' strat context = evaluate (stageSimple2 beta') strat context
-
-startStrat = initiateStrat actionSpace
 
 -- Explicit list constructor much better
 evalStageLS beta' startValue n =

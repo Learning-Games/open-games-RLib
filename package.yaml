@@ -19,7 +19,6 @@ library:
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
-    - Engine.QLearning2
     - Engine.TLL
     - Preprocessor.AbstractSyntax
     - Preprocessor.Compile
@@ -33,9 +32,7 @@ library:
     - Examples.Sequential
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
-    - Examples.QLearning.PDDeterministicPlayer2
     - Examples.QLearning.SandholmCritesReplication
-    - Examples.QLearning.Pricing
     - Examples.QLearning.CalvanoReplication
 
 dependencies:

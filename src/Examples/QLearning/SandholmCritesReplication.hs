@@ -78,7 +78,7 @@ type Action = Bool
 -------------
 -- Parameters
 
-gamma = 0.4
+gamma = 0.8
 
 learningRate = 0.40
 
@@ -139,23 +139,25 @@ initiateStrat = pure (True,initialEnv1) ::- pure True ::- Nil
 ------------------------------
 -- Updating state
 
-toObs :: (Comonad m, Monad m) => m (Action,Env Action) -> m Action -> m (Observation Action,Observation Action)
+
+toObs :: Monad m => m (Action,Env Action) -> m Action -> m ((), (Observation Action,Observation Action))
 toObs a1 a2 = do
              (act1,env1) <- a1
              act2 <- a2
              let obs1 = (act1,act2)
                  obs2 = (act2,act1)
-                 in pure (obs1,obs2)
+                 in return ((),(obs1,obs2))
 
-toObsFromLS :: (Comonad m, Monad m) => List '[m (Action,Env Action),m Action] -> m (Observation Action,Observation Action)
+
+toObsFromLS :: Monad m => List '[m (Action,Env Action), m Action] -> m ((), (Observation Action,Observation Action))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: (Comonad m, Monad m) =>
-                     List '[m (Action,Env Action),m Action] ->
-                     MonadicLearnLensContext m (Observation Action, Observation Action) () (Action,Action) ()
-fromEvalToContext ls = MonadicLearnLensContext (toObsFromLS ls) (pure (\_ -> pure ()))
+fromEvalToContext :: Monad m =>  List '[m (Action,Env Action), m Action] ->
+                     MonadContext m (Observation Action, Observation Action) () (Action,Action) ()
+fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
+
 
 
 
