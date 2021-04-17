@@ -10,7 +10,6 @@ module Examples.QLearning.CalvanoReplication
                      )
                      where
 
-import Control.Comonad
 import Data.Functor.Identity
 import Language.Haskell.TH
 import qualified Control.Monad.Trans.State as ST
@@ -136,9 +135,9 @@ initialEnv2  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen 100) (
 initialObservation :: [PriceSpace] -> Int -> Observation PriceSpace
 initialObservation support i = obs
   where gen            = mkStdGen i
-        (index1,gen')  = randomR (0, (length support)) gen
+        (index1,gen')  = randomR (0, (length support) - 1) gen
         d1             = support !! index1
-        (index2,_g)    = randomR (0, (length support)) gen'
+        (index2,_g)    = randomR (0, (length support) - 1) gen'
         d2             = support !! index1
         obs            = (d1,d2)
 
@@ -146,9 +145,9 @@ initialObservation support i = obs
 initiateStrat :: [PriceSpace] -> Int -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
 initiateStrat support i = pure (d1,initialEnv1 ) ::- pure (d2,initialEnv2 ) ::- Nil
    where gen            = mkStdGen i
-         (index1,gen')  = randomR (0, (length support)) gen
+         (index1,gen')  = randomR (0, (length support) - 1) gen
          d1             = support !! index1
-         (index2,_g)    = randomR (0, (length support)) gen'
+         (index2,_g)    = randomR (0, (length support) - 1) gen'
          d2             = support !! index1
 
 
