@@ -10,7 +10,8 @@ import Engine.TLL
 import           Control.Comonad
 import           Control.Monad.State.Class
 import qualified Control.Monad.Trans.State as ST
-import qualified Data.Random   as R
+import           Data.List (maximumBy)
+import           Data.Ord (comparing)
 import qualified System.Random as Rand
 import qualified GHC.Arr as A
 
@@ -260,7 +261,6 @@ deterministicStratStage ::  Monad m =>  Agent -> (Observation a -> a) -> QLearni
 deterministicStratStage name policy = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
                               in MonadOptic v (\_ -> (\_ -> pure ())),
-  -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
   evaluate = \(a ::- Nil) (MonadContext h k) ->
               let
                 output = do
@@ -270,6 +270,20 @@ deterministicStratStage name policy = OpenGame {
                 in (output ::- Nil)}
 
 
+bestReplyStratStage :: (Num b, Ord b, Monad m) =>  Agent -> (a -> a -> b) -> [a] -> QLearningStageGame m '[m a] '[m a] (Observation a) () a  (Observation a)
+bestReplyStratStage name u actionSpace = OpenGame {
+  play =  \(_ ::- Nil) -> let v obs = pure $ ((),bestReply u actionSpace obs)
+                              in MonadOptic v (\_ -> (\_ -> pure ())),
+  evaluate = \(_ ::- Nil) (MonadContext h k) ->
+              let
+                output = do
+                   (_,obs) <- h
+                   -- ^ Take the (old observation) from the context
+                   pure $ bestReply u actionSpace obs
+                in (output ::- Nil)}
+
+bestReply :: (Num b, Ord b) => (a -> a -> b) -> [a] -> Observation a -> a
+bestReply u actionSpace (_, a2) = fst $ maximumBy (comparing snd) [(y, u y a2) | y <- actionSpace]
 
 
 --------------------------
