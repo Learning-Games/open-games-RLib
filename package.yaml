@@ -50,7 +50,8 @@ dependencies:
     - ixset
     - random-fu
     - probability
-    - random 
+    - random
+    - vector
 
 executables:
   learning-exe:

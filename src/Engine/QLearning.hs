@@ -10,6 +10,7 @@ import Engine.TLL
 import           Control.Comonad
 import           Control.Monad.State.Class
 import qualified Control.Monad.Trans.State as ST
+import qualified Data.Vector.Unboxed as V
 import           Data.List (maximumBy)
 import           Data.Ord (comparing)
 import qualified System.Random as Rand
@@ -269,7 +270,7 @@ deterministicStratStage name policy = OpenGame {
                    pure $ policy obs
                 in (output ::- Nil)}
 
-
+-- | choose best reply
 bestReplyStratStage :: (Num b, Ord b, Monad m) =>  Agent -> (a -> a -> b) -> [a] -> QLearningStageGame m '[m a] '[m a] (Observation a) () a  (Observation a)
 bestReplyStratStage name u actionSpace = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),bestReply u actionSpace obs)
@@ -284,6 +285,51 @@ bestReplyStratStage name u actionSpace = OpenGame {
 
 bestReply :: (Num b, Ord b) => (a -> a -> b) -> [a] -> Observation a -> a
 bestReply u actionSpace (_, a2) = fst $ maximumBy (comparing snd) [(y, u y a2) | y <- actionSpace]
+
+
+-- | deletion of dominated strategies
+deleteDominatedStratStage :: (Num b, Ord b, Monad m) =>  Agent -> (a1 -> a2 -> b) -> QLearningStageGame m '[m [a1]] '[m [a1]] ([a1],[a2]) () () ()
+deleteDominatedStratStage name u = OpenGame {
+  play =  \(as ::- Nil) -> let v obs = pure ((),())
+                              in MonadOptic v (\_ -> (\_ -> pure ())),
+  evaluate = \(as ::- Nil) (MonadContext h k) ->
+              let
+                output = do
+                   (_,obs) <- h
+                   -- ^ Take the (old observation) from the context
+                   ownStrat <- as
+                   let otherStrat = snd obs
+                   pure $ deleteDomStrat u ownStrat otherStrat
+                in (output ::- Nil)}
+
+
+-- | Auxiliary functions for deleting of dominant strategies
+deleteDomStrat :: (Num b, Ord b) => (a1 -> a2 -> b) -> [a1] -> [a2] -> [a1]
+deleteDomStrat u actionSpace1 actionSpace2 =
+  let matrix  = createMatrix u actionSpace1 actionSpace2
+      lsBools = maxListMap matrix matrix
+      in deleteActions lsBools actionSpace1
+
+
+createMatrix :: (Num b, Ord b) => (a1 -> a2 -> b) -> [a1] -> [a2] -> [[b]]
+createMatrix u actions1 actions2 =
+  let us act1 = fmap (u act1) actions2
+      in fmap us actions1
+
+maxList :: (Num b, Ord b) => [[b]] -> [b] -> Bool
+maxList []     x = False
+maxList (y:ys) x =
+   if maximum x <= minimum y then True
+                             else maxList ys x
+
+maxListMap :: (Num b, Ord b) => [[b]] -> [[b]] -> [Bool]
+maxListMap ys xs = fmap (maxList ys) xs
+
+deleteActions :: [Bool] -> [a1] -> [a1]
+deleteActions [] _          = []
+deleteActions (x:xs) (y:ys) =
+  if x == True then deleteActions xs ys
+               else [y] ++ deleteActions xs ys 
 
 
 --------------------------
