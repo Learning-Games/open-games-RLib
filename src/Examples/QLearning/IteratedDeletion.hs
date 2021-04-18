@@ -112,4 +112,10 @@ evalStageLS startValue n =
 
 
 
+testMatrix = createMatrix payoffMatrix2 [1,2] ["A"]
 
+lsBools = maxListMap testMatrix testMatrix
+
+testMaxL1 = maxList testMatrix (head testMatrix)
+
+testMaxL2 = maxList testMatrix (head $ tail testMatrix)

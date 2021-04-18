@@ -316,15 +316,29 @@ createMatrix u actions1 actions2 =
   let us act1 = fmap (u act1) actions2
       in fmap us actions1
 
+
+-- | dominates the first list the second?
+-- | We assume lists are of the same length here
+compareLists :: (Num b, Ord b) => [b] -> [b] -> [Ordering]
+compareLists [] [] = []
+compareLists (x:xs) (y:ys) = compare x y : compareLists xs ys 
+
+-- | Implements when a payoff list dominates
+dominanceCriterion :: [Ordering] -> Bool
+dominanceCriterion ls = all (\x ->x == GT) ls
+
+-- | Check whether a given list is dominated by another element in that list
 maxList :: (Num b, Ord b) => [[b]] -> [b] -> Bool
 maxList []     x = False
 maxList (y:ys) x =
-   if maximum x <= minimum y then True
-                             else maxList ys x
+   if dominanceCriterion (compareLists y x) then True
+                                            else maxList ys x
 
+-- | Evaluate dominance for the whole matrix
 maxListMap :: (Num b, Ord b) => [[b]] -> [[b]] -> [Bool]
 maxListMap ys xs = fmap (maxList ys) xs
 
+-- | Delete the those actions which are dominated
 deleteActions :: [Bool] -> [a1] -> [a1]
 deleteActions [] _          = []
 deleteActions (x:xs) (y:ys) =
