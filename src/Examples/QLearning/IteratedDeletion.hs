@@ -1,15 +1,22 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeOperators, ScopedTypeVariables, TupleSections, DataKinds, GADTs, FlexibleContexts, TemplateHaskell, QuasiQuotes, GeneralizedNewtypeDeriving, TypeSynonymInstances #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 
 module Examples.QLearning.IteratedDeletion
- --                    ( evalStageLS
-   --                  , initiateStrat
-     --                , actionSpace
-       --              )
+                     ( evalStageLS
+                     , initialStrat
+                     , actionSpace1
+                     , actionSpace2
+                     )
                      where
 
 import Data.Functor.Identity
