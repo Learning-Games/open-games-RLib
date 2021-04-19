@@ -1,12 +1,14 @@
 module Main where
 
-import Examples.QLearning.BestReply
+import Examples.QLearning.CalvanoReplication
 import Engine.TLL
 import Engine.QLearning
 
+import qualified Data.ByteString.Lazy as BS
 
 main = do
-  let results = evalStageLS (initiateStrat actionSpace 6) 100
+  BS.writeFile "parameters.csv" $ csvParameters
+  let results = evalStageLS initialStrat 100
   let pairLS = fmap toPair results
   print $ pairLS
 

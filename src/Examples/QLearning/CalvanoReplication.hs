@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
@@ -9,16 +10,18 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
+{-# LANGUAGE RecordWildCards #-}
 
 module Examples.QLearning.CalvanoReplication
                      ( evalStageLS
-                     , initiateStrat
+                     , initialStrat
                      , beta
                      , actionSpace
+                     , csvParameters
                      )
                      where
 
+import Data.Csv
 import Data.Functor.Identity
 import Language.Haskell.TH
 import qualified Control.Monad.Trans.State as ST
@@ -41,23 +44,90 @@ import Preprocessor.THSyntax
 -- 0 Types
 
 newtype PriceSpace = PriceSpace Double
-    deriving (Random,Num,Fractional,Enum,Ord,Show,Eq)
+    deriving (Random,Num,Fractional,Enum,Ord,Show,Eq,ToField)
 
+instance ToField Rand.StdGen
 
 -- make PriceSpace an instance of Ix so that the information can be used as an index for Array
 -- TODO this is messy; needs to change
 instance  I.Ix PriceSpace where
   range (PriceSpace a, PriceSpace b) = [PriceSpace a, PriceSpace a + dist..PriceSpace b]
-  index (PriceSpace a, PriceSpace b)  (PriceSpace c) =  head $  L.elemIndices (PriceSpace c) [PriceSpace a, PriceSpace a + dist..PriceSpace b] 
-  inRange (PriceSpace a, PriceSpace b)  (PriceSpace c) = a <= c && c <= b  
+  index (PriceSpace a, PriceSpace b)  (PriceSpace c) =  head $  L.elemIndices (PriceSpace c) [PriceSpace a, PriceSpace a + dist..PriceSpace b]
+  inRange (PriceSpace a, PriceSpace b)  (PriceSpace c) = a <= c && c <= b
 
 type Price = Integer
 
 type Index = Integer
 
+-----------------
+-- 1. Export Data
+
+data ExportParameters = ExportParameters
+  { expKsi :: !PriceSpace
+  , expBeta :: !ExploreRate
+  , expDecreaseFactor :: !ExploreRate
+  , expBertrandPrice :: !PriceSpace
+  , expMonpolyPrice :: !PriceSpace
+  , expGamma :: !DiscountFactor
+  , expLearningRate :: !LearningRate
+  , expMu :: !Double
+  , expA1 :: !Double
+  , expA2 :: !Double
+  , expA0 :: !Double
+  , expC1 :: !Double
+  , expM  :: !PriceSpace
+  , expLowerBound :: !PriceSpace
+  , expUpperBound :: !PriceSpace
+  , expGeneratorEnv1 :: !Int
+  , expGeneratorEnv2 :: !Int
+  , expGeneratorPrice1 :: !Int
+  , expGeneratorPrice2 :: !Int
+  , expGeneratorObs1 :: !Int
+  , expGeneratorObs2 :: !Int
+  , expInitialObservation1 :: !PriceSpace
+  , expInitialObservation2 :: !PriceSpace
+  , expInitialPrice1 :: !PriceSpace
+  , expInitialPrice2 :: !PriceSpace
+  } deriving (Generic,Show)
+
+instance ToNamedRecord ExportParameters
+instance DefaultOrdered ExportParameters
+
+-- | Instantiate the export parameters with the used variables
+parameters = ExportParameters
+  ksi
+  beta
+  (decreaseFactor beta)
+  bertrandPrice
+  monopolyPrice
+  gamma
+  learningRate
+  mu
+  a1
+  a2
+  a0
+  c1
+  m
+  lowerBound
+  upperBound
+  generatorEnv1
+  generatorEnv2
+  generatorPrice1
+  generatorPrice2
+  generatorObs1
+  generatorObs2
+  (createRandomPrice actionSpace generatorObs1)
+  (createRandomPrice actionSpace generatorObs2)
+  (createRandomPrice actionSpace generatorPrice1)
+  (createRandomPrice actionSpace generatorPrice2)
+
+-- | export to CSV
+csvParameters = encodeDefaultOrderedByName  [parameters]
+
 ------------------------------------------
--- 1. Environment variables and parameters
+-- 2. Environment variables and parameters
 -- Fixing the parameters
+ 
 ksi :: PriceSpace
 ksi = 0.1
 
@@ -95,6 +165,14 @@ demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
 
 -- Profit function 
 profit a0 a1 a2 (PriceSpace p1) (PriceSpace p2) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
+
+-- Fixing initial generators
+generatorObs1 = 2
+generatorObs2 = 400
+generatorEnv1 = 3
+generatorEnv2 = 100
+generatorPrice1 = 90
+generatorPrice2 = 39
 
 ------------------------------------------------------
 -- Create index on the basis of the actual prices used
@@ -135,29 +213,27 @@ initialArray =  A.array (l,u) lsValues
           u = maximum $ fmap fst lsValues
 
 -- initiate the environment
-initialEnv1  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen 3) (5 * 0.999)
-initialEnv2  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen 100) (5 * 0.999)
+initialEnv1  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) (5 * 0.999)
+initialEnv2  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) (5 * 0.999)
 
 -----------------------------
--- 2 Constructing initial state
--- First observation, randomly determined
-initialObservation :: [PriceSpace] -> Int -> Observation PriceSpace
-initialObservation support i = obs
-  where gen            = mkStdGen i
-        (index1,gen')  = randomR (0, (length support) - 1) gen
-        d1             = support !! index1
-        (index2,_g)    = randomR (0, (length support) - 1) gen'
-        d2             = support !! index1
-        obs            = (d1,d2)
+-- 3. Constructing initial state
+-- First create a price randomly with seed
+createRandomPrice :: [PriceSpace] -> Int -> PriceSpace
+createRandomPrice support i =
+  let  gen         = mkStdGen i
+       (index,_) = randomR (0, (length support) - 1) gen
+       in support !! index
 
--- initialstrategy: start with random price
-initiateStrat :: [PriceSpace] -> Int -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
-initiateStrat support i = pure (d1,initialEnv1 ) ::- pure (d2,initialEnv2 ) ::- Nil
-   where gen            = mkStdGen i
-         (index1,gen')  = randomR (0, (length support) - 1) gen
-         d1             = support !! index1
-         (index2,_g)    = randomR (0, (length support) - 1) gen'
-         d2             = support !! index1
+-- First observation, randomly determined
+initialObservation :: Observation PriceSpace
+initialObservation = (createRandomPrice actionSpace generatorPrice1, createRandomPrice actionSpace generatorPrice2)
+
+-- Initiate strategy: start with random price
+initialStrat :: List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+initialStrat =     pure (createRandomPrice actionSpace generatorObs1,initialEnv1 )
+                 ::- pure (createRandomPrice actionSpace generatorObs2,initialEnv2 )
+                 ::- Nil
 
 
 ------------------------------
@@ -194,23 +270,22 @@ generateGame "stageSimple" ["beta'"]
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage :: Double
-            -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
-            -> MonadContext
+evalStage :: List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+             -> MonadContext
                   Identity
                   (Observation PriceSpace, Observation PriceSpace)
                   ()
                   (PriceSpace, PriceSpace)
                   ()
-            -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
-evalStage beta'  = evaluate (stageSimple beta') 
+             -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+evalStage = evaluate (stageSimple beta)
 
 
 -- Explicit list constructor much better
-evalStageLS beta' startValue n =
+evalStageLS startValue n =
           let context  = fromEvalToContext startValue
-              newStrat = evalStage beta' startValue context
-              in if n > 0 then newStrat : evalStageLS beta'  newStrat (n-1)
+              newStrat = evalStage startValue context
+              in if n > 0 then newStrat : evalStageLS newStrat (n-1)
                           else [newStrat]
 
 

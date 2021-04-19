@@ -1,4 +1,11 @@
-{-# LANGUAGE TypeOperators, ScopedTypeVariables, TupleSections, DataKinds, GADTs, FlexibleInstances, FlexibleContexts, TemplateHaskell, MultiParamTypeClasses, UndecidableInstances, TypeApplications#-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
+
+
 
 
 module Engine.IterativeSolutionConcepts where
@@ -10,7 +17,6 @@ import Engine.TLL
 import           Control.Comonad
 import           Control.Monad.State.Class
 import qualified Control.Monad.Trans.State as ST
-import qualified Data.Vector.Unboxed as V
 import           Data.List (maximumBy)
 import           Data.Ord (comparing)
 import qualified System.Random as Rand

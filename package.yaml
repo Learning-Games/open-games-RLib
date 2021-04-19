@@ -51,8 +51,9 @@ dependencies:
     - random-fu
     - probability
     - random
-    - vector
-
+    - cassava
+    - bytestring
+    
 executables:
   learning-exe:
     main:                Main.hs
