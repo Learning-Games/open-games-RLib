@@ -22,7 +22,7 @@ import GHC.Generics
 import qualified System.Random as Rand
 import           System.Random
 
-import Engine.QLearning
+import Engine.IterativeSolutionConcepts
 import Engine.OpenGames
 import Engine.TLL
 import Engine.OpticClass
@@ -88,7 +88,7 @@ initialStrat :: List '[Identity [[Char]], Identity [Integer]]
 initialStrat = pure actionSpace1 ::- pure actionSpace2 ::- Nil
 
 ------------------------------
--- Game stage 
+-- Game stage
 generateGame "stageSimple" ["helper"]
                 (Block ["stratPair1", "stratPair2"] []
                 [ Line [[|stratPair1|]] [] [|deleteDominatedStratStage "Player1" payoffMatrix1 |] []  []

@@ -22,7 +22,7 @@ import GHC.Generics
 import qualified System.Random as Rand
 import           System.Random
 
-import Engine.QLearning
+import Engine.IterativeSolutionConcepts
 import Engine.OpenGames
 import Engine.TLL
 import Engine.OpticClass
