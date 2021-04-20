@@ -1,12 +1,12 @@
 module Main where
 
-import Examples.QLearning.BestReply
+import Examples.QLearning.CalvanoReplication
 import Engine.TLL
 import Engine.QLearning
 
 
 main = do
-  let results = evalStageLS (initiateStrat actionSpace 6) 100
+  let results = evalStageLS beta (initiateStrat actionSpace 6) 100
   let pairLS = fmap toPair results
   print $ pairLS
 
