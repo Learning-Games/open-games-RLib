@@ -151,7 +151,6 @@ chooseActionNoExplore :: (Monad m, Enum a, Rand.Random a, A.Ix a) =>
 chooseActionNoExplore support s = do
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
       optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) support
-  ST.put $  updateRandomG s gen'
   return optimalAction
 
 
@@ -164,11 +163,9 @@ chooseExploreAction support s = do
     then do
       let  (index,gen'')       = Rand.randomR (0, (length support - 1)) gen'
            action'            = support !! index
-      ST.put $ updateRandomG s gen''
       return action'
     else do
       let optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) support
-      ST.put $  updateRandomG s gen'
       return optimalAction
 
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
@@ -213,7 +210,7 @@ updateQTableST learningRate gamma support s obs2 action reward  = do
 chooseLearnDecrExploreQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate -> [a] -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
-       let  (_,gen')     = Rand.randomR (0, (length support - 1)) gen'
+       let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             q            = _qTable $ _env s
             prediction   = q A.! (_obs s, action)
             updatedValue = reward + gamma * (fst $ maxScore obs2 q support)
