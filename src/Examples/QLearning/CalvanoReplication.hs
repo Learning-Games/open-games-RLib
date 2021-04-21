@@ -61,6 +61,7 @@ type Index = Integer
 
 -----------------
 -- 1. Export Data
+-- 1.1. Parameters
 
 data ExportParameters = ExportParameters
   { expKsi :: !PriceSpace
@@ -123,6 +124,19 @@ parameters = ExportParameters
 
 -- | export to CSV
 csvParameters = encodeDefaultOrderedByName  [parameters]
+
+-- 1.2. Q-values
+
+data ExportQValues = ExportQValues
+   { expName :: !Agent
+   , expIteration :: !Int
+   , expObs1  :: !PriceSpace
+   , expObs2  :: !PriceSpace
+   , qValues  :: ![PriceSpace]
+   } deriving (Generic,Show)
+
+--instance ToNamedRecord ExportQValues
+--instance DefaultOrdered ExportQValues
 
 ------------------------------------------
 -- 2. Environment variables and parameters

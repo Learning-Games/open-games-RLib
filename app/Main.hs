@@ -8,7 +8,7 @@ import qualified Data.ByteString.Lazy as BS
 
 main = do
   BS.writeFile "parameters.csv" $ csvParameters
-  let results = evalStageLS initialStrat 10000
+  let results = evalStageLS initialStrat 10
   let pairLS = fmap toPair results
   print $ last pairLS
 
