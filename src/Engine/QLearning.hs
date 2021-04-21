@@ -68,13 +68,13 @@ data State a = State
 data Env a = Env
   { _name   :: String
   , _qTable :: QTable a
+  , _iteration  :: Int
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
   , _obsAgent :: Observation a
   , _temperature :: Temperature
   }  deriving (Show)
--- added here the agent observation
--- the idea is that global and local information might diverge
+-- ^ Added here the agent observation the idea is that global and local information might diverge
 
 
 
@@ -120,6 +120,10 @@ updateQTable s q = env % qTable .~ q  $  s
 updateObservationAgent ::  Observation a -> State a -> State a
 updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
+-- Update iterator
+updateIteration :: State a -> State a
+updateIteration = env % iteration %~ (+ 1)
+
 -- Update temperature
 updateTemperature :: Temperature -> State a ->  State a
 updateTemperature decreaseFactor = env % temperature %~ (* decreaseFactor)
@@ -143,6 +147,10 @@ updateRandomGQTableExplore decreaseFactor s r q = (updateExploreRate decreaseFac
 -- Update gen, qtable,exploreRate,agentObs
 updateRandomGQTableExploreObs :: ExploreRate -> Observation a -> State a -> Rand.StdGen -> QTable a -> State a
 updateRandomGQTableExploreObs decreaseFactor obs s r q = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor s r q 
+
+-- Update gen, qtable,exploreRate,agentObs, iteration
+updateRandomGQTableExploreObsIteration :: ExploreRate -> Observation a -> State a -> Rand.StdGen -> QTable a -> State a
+updateRandomGQTableExploreObsIteration decreaseFactor obs s r q = updateIteration $ updateRandomGQTableExploreObs decreaseFactor obs s r q
 
 -----------------------------------
 -- 2 Implementation based on StateT
@@ -220,7 +228,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
             updatedValue = reward + gamma * (fst $ maxScore obs2 q support)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ         = q A.// [((_obs s, action), newValue)]
-       ST.put $  updateRandomGQTableExploreObs decreaseFactorExplore obs2 s gen' newQ
+       ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore obs2 s gen' newQ
        return action
 
 

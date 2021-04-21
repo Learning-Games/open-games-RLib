@@ -76,8 +76,8 @@ initialArray :: QTable Action
 initialArray =  A.array (((False,False),False),((True,True),True)) lstIndexValues
 
 
-initialEnv1 = Env "Player1" initialArray  0.2  (Rand.mkStdGen 3) initialObservation (5 * 0.999)
-initialEnv2 = Env "Player2" initialArray  0.2  (Rand.mkStdGen 100) initialObservation (5 * 0.999)
+initialEnv1 = Env "Player1" initialArray 0  0.2  (Rand.mkStdGen 3) initialObservation (5 * 0.999)
+initialEnv2 = Env "Player2" initialArray 0  0.2  (Rand.mkStdGen 100) initialObservation (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 ---------------------------------------

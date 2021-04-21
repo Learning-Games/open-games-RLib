@@ -152,9 +152,10 @@ fromTLLToExport :: List '[Identity (PriceSpace, Env PriceSpace), Identity (Price
 fromTLLToExport (p1 ::- p2 ::- Nil) =
   let (Identity (_, env1)) = p1
       (Identity (_, env1)) = p2
-      name1 = "player1"
-      name2 = "player2"
- --}     
+      name1 = _name p1
+      name2 = _name p2
+      
+-}
 
 -- once I have the [] of out outputs, I can encode the [ExportQValues]
 
@@ -249,8 +250,8 @@ initialArray =  A.array (l,u) lsValues
           u = maximum $ fmap fst lsValues
 
 -- initiate the environment
-initialEnv1  = Env "Player1" (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
-initialEnv2  = Env "Player2" (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
+initialEnv1  = Env "Player1" (initialArray ) 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
+initialEnv2  = Env "Player2" (initialArray ) 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
 
 -----------------------------
 -- 4. Constructing initial state
