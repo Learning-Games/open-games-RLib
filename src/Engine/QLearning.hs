@@ -65,14 +65,16 @@ data State a = State
   }  deriving (Show)
 
 
-
-
 data Env a = Env
-  { _qTable :: QTable a
+  { _name   :: String
+  , _qTable :: QTable a
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
+  , _obsAgent :: Observation a
   , _temperature :: Temperature
   }  deriving (Show)
+-- added here the agent observation
+-- the idea is that global and local information might diverge
 
 
 
@@ -114,9 +116,9 @@ updateRandomG s r = env % randomGen .~ r  $  s
 updateQTable :: State a -> QTable a  -> State a
 updateQTable s q = env % qTable .~ q  $  s
 
--- Update Observation
-updateObservation :: State a  -> Observation a -> State a
-updateObservation s o = obs .~ o $  s
+-- Update Observation for each agent
+updateObservationAgent ::  Observation a -> State a -> State a
+updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
 -- Update temperature
 updateTemperature :: Temperature -> State a ->  State a
@@ -126,19 +128,21 @@ updateTemperature decreaseFactor = env % temperature %~ (* decreaseFactor)
 updateExploreRate :: ExploreRate -> State a -> State a
 updateExploreRate decreaseFactor = env % exploreRate %~ (* decreaseFactor) 
 
--- Update State
+-- Update gen, qtable
 updateRandomGAndQTable :: State a -> Rand.StdGen -> QTable a  -> State a
 updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r
 
--- Update state including temperature
+-- Update gen, qtable, temp
 updateRandomGQTableTemp :: Temperature -> State a -> Rand.StdGen -> QTable a -> State a
 updateRandomGQTableTemp decreaseFactor s r q = (updateTemperature decreaseFactor) $ updateRandomGAndQTable s r q
 
--- Update state including exploreRate
+-- Update gen, qtable,exploreRate
 updateRandomGQTableExplore :: ExploreRate -> State a -> Rand.StdGen -> QTable a -> State a
 updateRandomGQTableExplore decreaseFactor s r q = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r q
 
-
+-- Update gen, qtable,exploreRate,agentObs
+updateRandomGQTableExploreObs :: ExploreRate -> Observation a -> State a -> Rand.StdGen -> QTable a -> State a
+updateRandomGQTableExploreObs decreaseFactor obs s r q = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor s r q 
 
 -----------------------------------
 -- 2 Implementation based on StateT
@@ -216,22 +220,8 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
             updatedValue = reward + gamma * (fst $ maxScore obs2 q support)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ         = q A.// [((_obs s, action), newValue)]
-       ST.put $  updateRandomGQTableExplore decreaseFactorExplore s gen' newQ
+       ST.put $  updateRandomGQTableExploreObs decreaseFactorExplore obs2 s gen' newQ
        return action
-
--- | Update qmatrix and evolving temperature
--- TODO Check whether this is actually needed
-updateQTableTempST ::  (Monad m, Enum a, Rand.Random a, A.Ix a) =>
-                     LearningRate ->  DiscountFactor -> Temperature ->  [a] -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
-updateQTableTempST learningRate gamma decreaseFacTemp support s obs2 action reward  = do
-        let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-            q             = _qTable $ _env s
-            prediction    = q A.! (_obs s, action)
-            updatedValue  = reward + gamma * (fst $ maxScore obs2 q support)
-            newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
-            newQ          = q A.// [((_obs s, action), newValue)]
-        ST.put $ updateRandomGQTableTemp decreaseFacTemp s gen' newQ
-        return action
 
 
 -----------------

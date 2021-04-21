@@ -11,6 +11,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Examples.QLearning.CalvanoReplication
                      ( evalStageLS
@@ -20,7 +21,7 @@ module Examples.QLearning.CalvanoReplication
                      , csvParameters
                      )
                      where
-
+import Data.Aeson
 import Data.Csv
 import Data.Functor.Identity
 import Language.Haskell.TH
@@ -44,7 +45,8 @@ import Preprocessor.THSyntax
 -- 0 Types
 
 newtype PriceSpace = PriceSpace Double
-    deriving (Random,Num,Fractional,Enum,Ord,Show,Eq,ToField)
+    deriving (Generic,Random,Num,Fractional,Enum,Ord,Show,Eq,ToField,ToJSON)
+
 
 instance ToField Rand.StdGen
 
@@ -59,8 +61,8 @@ type Price = Integer
 
 type Index = Integer
 
------------------
--- 1. Export Data
+------------------------
+-- 1. Export Data as csv
 -- 1.1. Parameters
 
 data ExportParameters = ExportParameters
@@ -125,21 +127,41 @@ parameters = ExportParameters
 -- | export to CSV
 csvParameters = encodeDefaultOrderedByName  [parameters]
 
--- 1.2. Q-values
+--instance ToNamedRecord ExportQValues
+--instance DefaultOrdered ExportQValues
+
+-------------------------
+-- 2. Export Data as JSON
+-- TODO need to deal with Rand.StdGen
+
+-- 2.1. Parameters
+
+-- 2.2. Q-values
 
 data ExportQValues = ExportQValues
    { expName :: !Agent
    , expIteration :: !Int
-   , expObs1  :: !PriceSpace
-   , expObs2  :: !PriceSpace
+   , expObs  :: !(PriceSpace,PriceSpace)
    , qValues  :: ![PriceSpace]
    } deriving (Generic,Show)
 
---instance ToNamedRecord ExportQValues
---instance DefaultOrdered ExportQValues
+instance ToJSON ExportQValues
+
+{-
+fromTLLToExport :: List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)] -> [ExportQValues]
+fromTLLToExport (p1 ::- p2 ::- Nil) =
+  let (Identity (_, env1)) = p1
+      (Identity (_, env1)) = p2
+      name1 = "player1"
+      name2 = "player2"
+ --}     
+
+-- once I have the [] of out outputs, I can encode the [ExportQValues]
+
+
 
 ------------------------------------------
--- 2. Environment variables and parameters
+-- 3. Environment variables and parameters
 -- Fixing the parameters
  
 ksi :: PriceSpace
@@ -227,11 +249,11 @@ initialArray =  A.array (l,u) lsValues
           u = maximum $ fmap fst lsValues
 
 -- initiate the environment
-initialEnv1  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) (5 * 0.999)
-initialEnv2  = Env (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) (5 * 0.999)
+initialEnv1  = Env "Player1" (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
+initialEnv2  = Env "Player2" (initialArray )  (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
 
 -----------------------------
--- 3. Constructing initial state
+-- 4. Constructing initial state
 -- First create a price randomly with seed
 createRandomPrice :: [PriceSpace] -> Int -> PriceSpace
 createRandomPrice support i =

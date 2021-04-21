@@ -76,17 +76,24 @@ initialArray :: QTable Action
 initialArray =  A.array (((False,False),False),((True,True),True)) lstIndexValues
 
 
-initialEnv1 = Env initialArray  0.2  (Rand.mkStdGen 3) (5 * 0.999)
-initialEnv2 = Env initialArray  0.2  (Rand.mkStdGen 100) (5 * 0.999)
+initialEnv1 = Env "Player1" initialArray  0.2  (Rand.mkStdGen 3) initialObservation (5 * 0.999)
+initialEnv2 = Env "Player2" initialArray  0.2  (Rand.mkStdGen 100) initialObservation (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
+---------------------------------------
+-- Preparing the context for evaluation
+-- Initial observation
+-- TODO randomize it
+initialObservation :: Observation Action
+initialObservation = (True,True)
 
-initialObservation :: (Observation Action, Observation Action)
-initialObservation = ((True,True),(True,True))
+-- | the initial observation is used twice as the context for two players requires it in that form
+initialObservationContext :: (Observation Action, Observation Action)
+initialObservationContext = (initialObservation,initialObservation)
 
 
 initialContext :: Monad m => MonadContext m (Observation Action,Observation Action) () (Action,Action) ()
-initialContext = MonadContext (pure (() ,initialObservation)) (\_ -> (\_ -> pure ()))
+initialContext = MonadContext (pure (() ,initialObservationContext)) (\_ -> (\_ -> pure ()))
 
 -- initialstrategy
 initiateStrat :: List '[Identity (Action, Env Action), Identity (Action, Env Action)]

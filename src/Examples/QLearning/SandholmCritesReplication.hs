@@ -108,9 +108,9 @@ titForTat (_,False)    = False
 
 
 
------------------------------
+-----------------------------------
 -- Constructing initial state
--- TODO change this
+-- TODO change this; make it random
 lstIndexValues = [
   (((True,True), True),0),(((True,False),True),0),(((False,True),True), 0),(((False,False),True),0),
    (((True,True), False),0),(((True,False),False),0),(((False,True),False), 0),(((False,False),False),0)]
@@ -128,17 +128,25 @@ initialArray =  A.array (((False,False),False),((True,True),True)) lstIndexValue
 
 
 -- initialEnv and parameters
-initialEnv1 = Env initialArray  0.2  (Rand.mkStdGen 3) (5 * 0.999)
-initialEnv2 = Env initialArray  0.2  (Rand.mkStdGen 100) (5 * 0.999)
+initialEnv1 = Env "Plauer1" initialArray  0.2  (Rand.mkStdGen 3) initialObservation (5 * 0.999)
+initialEnv2 = Env "PLayer2" initialArray  0.2  (Rand.mkStdGen 100) initialObservation (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 
-initialObservation :: (Observation Action, Observation Action)
-initialObservation = ((True,True),(True,True))
+---------------------------------------
+-- Preparing the context for evaluation
+-- Initial observation
+-- TODO randomize it
+initialObservation :: Observation Action
+initialObservation = (True,True)
+
+-- | the initial observation is used twice as the context for two players requires it in that form
+initialObservationContext :: (Observation Action, Observation Action)
+initialObservationContext = (initialObservation,initialObservation)
 
 
 initialContext :: Monad m => MonadicLearnLensContext m (Observation Action,Observation Action) () (Action,Action) ()
-initialContext = MonadicLearnLensContext (pure initialObservation) (pure (\(_,_) -> pure ()))
+initialContext = MonadicLearnLensContext (pure initialObservationContext) (pure (\(_,_) -> pure ()))
 
 -- initialstrategy
 initiateStrat :: List '[Identity (Action, Env Action ), Identity Action]
