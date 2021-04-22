@@ -4,19 +4,41 @@ import Criterion
 import Criterion.Main
 import Engine.QLearning
 import Engine.TLL
-import Examples.QLearning.BestReply
+import qualified Examples.QLearning.BestReply as BestReply
+import qualified Examples.QLearning.PDDeterministicPlayer as PDDeterministicPlayer
 
 main =
   defaultMain
-    [ bench
-      ("iters: " ++ show i)
-      (nf
-         (\iters ->
-            let results = evalStageLS (initiateStrat actionSpace 6) iters
-             in let pairLS = fmap toPair results
-                 in last $ pairLS)
-         i)
-    | i <- [1, 10, 100, 1000, 10000]
+    [ bgroup
+        "BestReply"
+        [ bench
+          ("iters/" ++ show i)
+          (nf
+             (\iters ->
+                let results =
+                      BestReply.evalStageLS
+                        (BestReply.initiateStrat BestReply.actionSpace 6)
+                        iters
+                 in let pairLS = fmap toPair results
+                     in last $ pairLS)
+             i)
+        | i <- [1, 10, 100, 1000, 10000]
+        ]
+    , bgroup
+        "PDDeterministicPlayer"
+        [ bench
+          ("iters/" ++ show i)
+          (whnf
+             (\iters ->
+                let results =
+                      PDDeterministicPlayer.evalStageLS
+                        PDDeterministicPlayer.initiateStrat
+                        iters
+                 in let pairLS = fmap toPair results
+                     in last $ pairLS)
+             i)
+        | i <- [100, 1000, 10000, 100000]
+        ]
     ]
 
 {-
