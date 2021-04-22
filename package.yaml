@@ -74,3 +74,15 @@ tests:
       - template-haskell
       - base
       - hspec
+
+benchmarks:
+  learning-bench:
+    main:                Main.hs
+    source-dirs:         bench
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+      - open-games-hs
+      - criterion
