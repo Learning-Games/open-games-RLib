@@ -5,10 +5,13 @@ import Engine.TLL
 import Engine.QLearning
 
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.Aeson.Encoding.Internal as E
+
 
 main = do
   BS.writeFile "parameters.csv" $ csvParameters
   let results = evalStageLS initialStrat 10
+  BS.writeFile "qValues.json" $ E.encodingToLazyByteString $ exportQValuesJSON results
   let pairLS = fmap toPair results
   print $ last pairLS
 

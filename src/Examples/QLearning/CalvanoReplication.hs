@@ -19,6 +19,7 @@ module Examples.QLearning.CalvanoReplication
                      , beta
                      , actionSpace
                      , csvParameters
+                     , exportQValuesJSON
                      )
                      where
 import Data.Aeson
@@ -142,24 +143,33 @@ data ExportQValues = ExportQValues
    { expName :: !Agent
    , expIteration :: !Int
    , expObs  :: !(PriceSpace,PriceSpace)
-   , qValues  :: ![PriceSpace]
+   , expQValues  :: ![((Observation PriceSpace,PriceSpace),Double)]
    } deriving (Generic,Show)
 
 instance ToJSON ExportQValues
 
-{-
+-- | Extract relevant information into a record to be exported
 fromTLLToExport :: List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)] -> [ExportQValues]
 fromTLLToExport (p1 ::- p2 ::- Nil) =
   let (Identity (_, env1)) = p1
-      (Identity (_, env1)) = p2
-      name1 = _name p1
-      name2 = _name p2
-      
--}
+      (Identity (_, env2)) = p2
+      name1 = _name env1
+      name2 = _name env2
+      expIteration1 = _iteration env1
+      expIteration2 = _iteration env2
+      expObs1 = _obsAgent env1
+      expObs2 = _obsAgent env2
+      expQValues1 = A.assocs $ _qTable env1
+      expQValues2 = A.assocs $ _qTable env2
+      expPlayer1 = ExportQValues name1 expIteration1 expObs1 expQValues1
+      expPlayer2 = ExportQValues name2 expIteration2 expObs2 expQValues2
+      in [expPlayer1,expPlayer2]
 
--- once I have the [] of out outputs, I can encode the [ExportQValues]
 
+fromTLLListToExport :: [List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]]-> [ExportQValues]
+fromTLLListToExport = concatMap fromTLLToExport
 
+exportQValuesJSON ls = foldable $ fromTLLListToExport ls
 
 ------------------------------------------
 -- 3. Environment variables and parameters
@@ -251,7 +261,7 @@ initialArray =  A.array (l,u) lsValues
 
 -- initiate the environment
 initialEnv1  = Env "Player1" (initialArray ) 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
-initialEnv2  = Env "Player2" (initialArray ) 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
+initialEnv2  = Env "Player2" (initialArray )  0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
 
 -----------------------------
 -- 4. Constructing initial state
