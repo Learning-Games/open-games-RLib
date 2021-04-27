@@ -16,6 +16,7 @@ library:
   exposed-modules:
     - Engine.BayesianGames
     - Engine.Diagnostics
+    - Engine.Engine
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
@@ -27,15 +28,17 @@ library:
     - Preprocessor.THSyntax
     - Preprocessor.TH
     - Preprocessor.Types
-    - Examples.Bimatrix
+    - Preprocessor.Preprocessor
+    - Examples.SimultaneousMoves
     - Examples.Bayesian
-    - Examples.Sequential
+    - Examples.Decision
+    - Examples.SequentialMoves
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.CalvanoReplication
     - Examples.QLearning.BestReply
-
+    
 dependencies:
     - base >=4.7 && <5
     - mtl
@@ -66,14 +69,6 @@ executables:
     dependencies:
       - open-games-hs
 
-tests:
-  test-open-games:
-    main: THTests
-    source-dirs: tests
-    dependencies:
-      - template-haskell
-      - base
-      - hspec
 
 benchmarks:
   learning-bench:
