@@ -23,6 +23,7 @@ module Engine.TLL
   , SequenceList(..)
   , type (+:+)
   , (+:+)
+  , toPair
   ) where
 
 import Control.Applicative

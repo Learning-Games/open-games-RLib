@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d598e2044c84e3801b606d1b987f5f5030ff8459377d5cd7b06a568d68a98d30
+-- hash: c89f2fd72513b24eba93febed2483de5de12e9832e89559ea22888ea05bc1596
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -27,12 +27,12 @@ source-repository head
 
 library
   exposed-modules:
-      Engine.AtomicGames
       Engine.BayesianGames
       Engine.Diagnostics
       Engine.Engine
       Engine.OpenGames
       Engine.OpticClass
+      Engine.QLearning
       Engine.TLL
       Preprocessor.AbstractSyntax
       Preprocessor.Compile
@@ -45,27 +45,40 @@ library
       Examples.SimultaneousMoves
       Examples.Bayesian
       Examples.Decision
-      Examples.Sequential
-  other-modules:
       Examples.SequentialMoves
+      Examples.QLearning.PD
+      Examples.QLearning.PDDeterministicPlayer
+      Examples.QLearning.SandholmCritesReplication
+      Examples.QLearning.CalvanoReplication
+      Examples.QLearning.BestReply
+  other-modules:
+      Engine.AtomicGames
+      Engine.IterativeSolutionConcepts
+      Examples.QLearning.IteratedDeletion
       Paths_open_games_hs
   hs-source-dirs:
       src
   build-depends:
-      QuickCheck
-    , ad
+      ad
+    , aeson
     , base >=4.7 && <5
+    , bytestring
+    , cassava
     , comonad
+    , ixset
     , mtl
+    , optics
     , parsec
     , poly
     , probability
     , profunctors
+    , random
+    , random-fu
     , template-haskell
     , transformers
   default-language: Haskell2010
 
-executable open-games-exe
+executable learning-exe
   main-is: Main.hs
   other-modules:
       Paths_open_games_hs
@@ -73,16 +86,52 @@ executable open-games-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      QuickCheck
-    , ad
+      ad
+    , aeson
     , base >=4.7 && <5
+    , bytestring
+    , cassava
     , comonad
+    , ixset
     , mtl
     , open-games-hs
+    , optics
     , parsec
     , poly
     , probability
     , profunctors
+    , random
+    , random-fu
+    , template-haskell
+    , transformers
+  default-language: Haskell2010
+
+benchmark learning-bench
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Paths_open_games_hs
+  hs-source-dirs:
+      bench
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      ad
+    , aeson
+    , base >=4.7 && <5
+    , bytestring
+    , cassava
+    , comonad
+    , criterion
+    , ixset
+    , mtl
+    , open-games-hs
+    , optics
+    , parsec
+    , poly
+    , probability
+    , profunctors
+    , random
+    , random-fu
     , template-haskell
     , transformers
   default-language: Haskell2010
