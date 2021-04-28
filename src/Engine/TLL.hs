@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns #-}
 {-# LANGUAGE TypeOperators, DataKinds, GADTs, TypeFamilies, FlexibleInstances, FlexibleContexts, PolyKinds, ScopedTypeVariables, MultiParamTypeClasses, UndecidableInstances, FunctionalDependencies #-}
 
 
@@ -7,6 +7,7 @@
 module Engine.TLL where
 
 import Control.Applicative
+import Control.DeepSeq
 
 infixr 6 ::-
 data List ts where
@@ -39,6 +40,15 @@ instance (Show (List as), Show a)
     => Show (List (a ': as)) where
     show (a ::- rest) =
         show a ++ " ::- " ++ show rest
+
+instance NFData (List '[]) where
+    rnf _ = ()
+
+instance (NFData (List as), NFData a)
+    => NFData (List (a ': as)) where
+    rnf (a ::- rest) =
+        let !() = rnf a
+        in rnf rest
 
 ---------------------------------
 -- Operations to transform output
