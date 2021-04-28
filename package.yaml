@@ -34,6 +34,7 @@ library:
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.CalvanoReplication
+    - Examples.QLearning.CalvanoReplicationMutable
     - Examples.QLearning.BestReply
 
 dependencies:
@@ -54,7 +55,10 @@ dependencies:
     - cassava
     - bytestring
     - aeson
-    
+    - deepseq
+    - array
+
+
 executables:
   learning-exe:
     main:                Main.hs
@@ -83,6 +87,7 @@ benchmarks:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -eventlog
     dependencies:
       - open-games-hs
       - criterion
