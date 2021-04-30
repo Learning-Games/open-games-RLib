@@ -81,7 +81,7 @@ data Env a = Env
   , _randomGen :: Rand.StdGen
   , _obsAgent :: Observation a
   , _temperature :: Temperature
-  }  deriving (Show, Generic)
+  }  deriving (Show, Generic, Eq)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
 instance NFData a => NFData (Env a)
 instance Show (QTable a) where show _ = "QTable"
