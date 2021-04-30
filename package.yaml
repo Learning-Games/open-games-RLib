@@ -72,12 +72,22 @@ executables:
 
 tests:
   test-open-games:
+    buildable: False
     main: THTests
     source-dirs: tests
     dependencies:
       - template-haskell
       - base
       - hspec
+  golden-tests:
+    main: GoldenTests
+    source-dirs: tests
+    other-modules: GoldenTests
+    dependencies:
+      - template-haskell
+      - base
+      - hspec
+      - open-games-hs
 
 benchmarks:
   learning-bench:
