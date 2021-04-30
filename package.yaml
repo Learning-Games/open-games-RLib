@@ -38,6 +38,7 @@ library:
     - Examples.QLearning.CalvanoReplicationHash
     - Examples.QLearning.CalvanoReplicationMutable
     - Examples.QLearning.CalvanoReplicationHashMutable
+    - Examples.QLearning.CalvanoReplicationHashMutableVec
     - Examples.QLearning.BestReply
 
 dependencies:
@@ -56,6 +57,7 @@ dependencies:
     - probability
     - hashtables
     - random
+    - vector
     - unordered-containers
     - hashable
     - cassava

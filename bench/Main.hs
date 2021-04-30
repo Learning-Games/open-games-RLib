@@ -17,6 +17,7 @@ import qualified Examples.QLearning.CalvanoReplication as CalvanoReplication
 import qualified Examples.QLearning.CalvanoReplicationHash as CalvanoReplicationHash
 import qualified Examples.QLearning.CalvanoReplicationMutable as CalvanoReplicationMutable
 import qualified Examples.QLearning.CalvanoReplicationHashMutable as CalvanoReplicationHashMutable
+import qualified Examples.QLearning.CalvanoReplicationHashMutableVec as CalvanoReplicationHashMutableVec
 import qualified Examples.QLearning.PDDeterministicPlayer as PDDeterministicPlayer
 
 main = do
@@ -56,8 +57,7 @@ main = do
                      SkipNF
                      (pure
                         (runIdentity
-                           (do let !initial =
-                                     CalvanoReplication.initialStrat
+                           (do let !initial = CalvanoReplication.initialStrat
                                CalvanoReplication.sequenceL initial))))
                   (\(SkipNF st) ->
                      bench
@@ -102,8 +102,7 @@ main = do
                 [ Criterion.Main.env
                   (fmap
                      SkipNF
-                     (do initial <-
-                           CalvanoReplicationHashMutable.initialStrat
+                     (do initial <- CalvanoReplicationHashMutable.initialStrat
                          CalvanoReplicationHashMutable.sequenceL initial))
                   (\(SkipNF st) ->
                      bench
@@ -111,11 +110,24 @@ main = do
                        (nfIO (CalvanoReplicationHashMutable.evalStageM st i)))
                 | i <- iters
                 ]
+            , bgroup
+                "HashTableVec"
+                [ Criterion.Main.env
+                  (fmap
+                     SkipNF
+                     (do initial <- CalvanoReplicationHashMutableVec.initialStrat
+                         CalvanoReplicationHashMutableVec.sequenceL initial))
+                  (\(SkipNF st) ->
+                     bench
+                       ("iters/" ++ show i)
+                       (nfIO (CalvanoReplicationHashMutableVec.evalStageM st i)))
+                | i <- iters
+                ]
             ]
         ]
     ]
   where
-    iters = [10, 100, 1000]
+    iters = [20000]
 
 newtype SkipNF a = SkipNF a
 instance NFData (SkipNF a) where
