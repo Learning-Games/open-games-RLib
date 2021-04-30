@@ -13,18 +13,20 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.CalvanoReplicationMutable
-  ( evalStageLS
-  , initialStrat
-  , beta
-  , actionSpace
-  , csvParameters
-  , exportQValuesJSON
-  , sequenceL
-  , evalStageM
-  , PriceSpace(..)
-  ) where
+module Examples.QLearning.CalvanoReplicationHashMutable
+                     ( evalStageLS
+                     , initialStrat
+                     , beta
+                     , actionSpace
+                     , csvParameters
+                     , exportQValuesJSON
+                                          , sequenceL
+                                          , evalStageM
+                     )
+                     where
+import           Examples.QLearning.CalvanoReplicationMutable (PriceSpace(..))
 import           Data.Hashable
+import qualified Data.HashTable.IO as H
 import qualified Data.ByteString.Char8 as S8
 import           Data.ByteString (ByteString)
 import           Data.Array.IO
@@ -41,7 +43,7 @@ import           GHC.Generics
 import qualified System.Random as Rand
 import           System.Random
 
-import           Engine.QLearningMutable
+import           Engine.QLearningHashMutable
 import           Engine.OpenGames
 import           Engine.TLL
 import           Engine.OpticClass
@@ -52,11 +54,6 @@ import           Preprocessor.THSyntax
 ----------
 -- 0 Types
 
-newtype PriceSpace = PriceSpace Double
-    deriving (Generic,Random,Num,Fractional,Enum,Ord,Show,Eq,ToField,ToJSON,NFData, Hashable)
-
-
-instance ToField Rand.StdGen
 
 {-
 
@@ -79,12 +76,12 @@ variance introduced by outliers: 16% (moderately inflated)
 --     head $  L.elemIndices (PriceSpace c) [PriceSpace a, PriceSpace a + dist..PriceSpace b]
 --   inRange (PriceSpace a, PriceSpace b)  (PriceSpace c) = a <= c && c <= b
 
-instance  I.Ix PriceSpace where
-  range (PriceSpace a, PriceSpace b) = [PriceSpace a, PriceSpace a + dist..PriceSpace b]
-  index (PriceSpace a, PriceSpace b)  (PriceSpace c) = -- traceEvent "Ix.index" $
+-- instance  I.Ix PriceSpace where
+--   range (PriceSpace a, PriceSpace b) = [PriceSpace a, PriceSpace a + dist..PriceSpace b]
+--   index (PriceSpace a, PriceSpace b)  (PriceSpace c) = -- traceEvent "Ix.index" $
 
-    head $ L.elemIndices (PriceSpace c) [PriceSpace a, PriceSpace a + dist..PriceSpace b]
-  inRange (PriceSpace a, PriceSpace b)  (PriceSpace c) = {-traceEvent "Ix.inRange"-} a <= c && c <= b
+--     head $ L.elemIndices (PriceSpace c) [PriceSpace a, PriceSpace a + dist..PriceSpace b]
+--   inRange (PriceSpace a, PriceSpace b)  (PriceSpace c) = {-traceEvent "Ix.inRange"-} a <= c && c <= b
 
 type Price = Integer
 
@@ -282,15 +279,10 @@ lsValues  = [(((x,y),z),avg)| (x,y) <- xs, (z,_) <- xs]
          PriceSpace avg = (lowerBound + upperBound) / 2
 
 -- initialArray
-initialArray :: IO (IOArray (Observation PriceSpace, PriceSpace) Double)
+initialArray :: IO (QTable PriceSpace)
 initialArray = do
   -- S8.putStrLn "Making initialArray"
-  arr <- newArray_ (l, u)
-  traverse (\(k,v) -> writeArray arr k v) lsValues
-  pure arr
-  where
-    l = minimum $ fmap fst lsValues
-    u = maximum $ fmap fst lsValues
+  fmap QTable (H.fromList lsValues)
 
 -- initiate the environment
 initialEnv1  = initialArray>>= \arr-> pure (Env "Player1" arr 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999))

@@ -35,7 +35,6 @@ main =
                     st
                     -- Below: The original evalStageLS computes one-too-many steps.
                     (i + 1)
-                -- Check they match
                 shouldBe lastStep steps)
           | i <- [1, 3, 5]
           ]))
