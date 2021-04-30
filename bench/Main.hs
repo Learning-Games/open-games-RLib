@@ -14,6 +14,7 @@ import           Engine.QLearning
 import           Engine.TLL
 import qualified Examples.QLearning.BestReply as BestReply
 import qualified Examples.QLearning.CalvanoReplication as CalvanoReplication
+import qualified Examples.QLearning.CalvanoReplicationHash as CalvanoReplicationHash
 import qualified Examples.QLearning.CalvanoReplicationMutable as CalvanoReplicationMutable
 import qualified Examples.QLearning.PDDeterministicPlayer as PDDeterministicPlayer
 
@@ -58,6 +59,24 @@ main = do
                  bench
                    ("iters/" ++ show i)
                    (nf (CalvanoReplication.evalStageM st) i))
+            | i <- iters
+            ]
+        ]
+    , bgroup
+        "CalvanoReplicationHash"
+        [ bgroup
+            "evalStageM"
+            [ Criterion.Main.env
+              (fmap
+                 SkipNF
+                 (pure
+                    (runIdentity
+                       (do let !initial = CalvanoReplicationHash.initialStrat
+                           CalvanoReplicationHash.sequenceL initial))))
+              (\(SkipNF st) ->
+                 bench
+                   ("iters/" ++ show i)
+                   (nf (CalvanoReplicationHash.evalStageM st) i))
             | i <- iters
             ]
         ]

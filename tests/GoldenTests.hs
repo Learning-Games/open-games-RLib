@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 -- |
 
 module GoldenTests where
@@ -26,7 +27,7 @@ main =
             (do st <- CalvanoReplicationMutable.initialStrat
                 let xs = CalvanoReplicationMutable.evalStageLS st i
                 steps <- traverse (\tll -> sequenceListA tll) xs
-                -- Monadic version
+                -- Monadic mutable version
                 initial <- CalvanoReplicationMutable.initialStrat
                 st <- CalvanoReplicationMutable.sequenceL initial
                 lastStep <-
