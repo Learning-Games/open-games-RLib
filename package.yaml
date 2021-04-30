@@ -19,6 +19,7 @@ library:
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
+    - Engine.QLearningHash
     - Engine.TLL
     - Preprocessor.AbstractSyntax
     - Preprocessor.Compile
@@ -34,7 +35,9 @@ library:
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.CalvanoReplication
+    - Examples.QLearning.CalvanoReplicationHash
     - Examples.QLearning.CalvanoReplicationMutable
+    - Examples.QLearning.CalvanoReplicationHashMutable
     - Examples.QLearning.BestReply
 
 dependencies:
@@ -51,13 +54,15 @@ dependencies:
     - ixset
     - random-fu
     - probability
+    - hashtables
     - random
+    - unordered-containers
+    - hashable
     - cassava
     - bytestring
     - aeson
     - deepseq
     - array
-
 
 executables:
   learning-exe:
