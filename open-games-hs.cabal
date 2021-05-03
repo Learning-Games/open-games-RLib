@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c89f2fd72513b24eba93febed2483de5de12e9832e89559ea22888ea05bc1596
+-- hash: b1b7d872c5f9c98d54ef874051d3c5e13ae48b207e2ce512ffef646cd225ccdb
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -33,6 +33,7 @@ library
       Engine.OpenGames
       Engine.OpticClass
       Engine.QLearning
+      Engine.QLearningHash
       Engine.TLL
       Preprocessor.AbstractSyntax
       Preprocessor.Compile
@@ -50,10 +51,15 @@ library
       Examples.QLearning.PDDeterministicPlayer
       Examples.QLearning.SandholmCritesReplication
       Examples.QLearning.CalvanoReplication
+      Examples.QLearning.CalvanoReplicationHash
+      Examples.QLearning.CalvanoReplicationMutable
+      Examples.QLearning.CalvanoReplicationHashMutable
       Examples.QLearning.BestReply
   other-modules:
       Engine.AtomicGames
       Engine.IterativeSolutionConcepts
+      Engine.QLearningHashMutable
+      Engine.QLearningMutable
       Examples.QLearning.IteratedDeletion
       Paths_open_games_hs
   hs-source-dirs:
@@ -61,10 +67,14 @@ library
   build-depends:
       ad
     , aeson
+    , array
     , base >=4.7 && <5
     , bytestring
     , cassava
     , comonad
+    , deepseq
+    , hashable
+    , hashtables
     , ixset
     , mtl
     , optics
@@ -76,6 +86,7 @@ library
     , random-fu
     , template-haskell
     , transformers
+    , unordered-containers
   default-language: Haskell2010
 
 executable learning-exe
@@ -88,10 +99,14 @@ executable learning-exe
   build-depends:
       ad
     , aeson
+    , array
     , base >=4.7 && <5
     , bytestring
     , cassava
     , comonad
+    , deepseq
+    , hashable
+    , hashtables
     , ixset
     , mtl
     , open-games-hs
@@ -104,6 +119,79 @@ executable learning-exe
     , random-fu
     , template-haskell
     , transformers
+    , unordered-containers
+  default-language: Haskell2010
+
+test-suite golden-tests
+  type: exitcode-stdio-1.0
+  main-is: GoldenTests.hs
+  other-modules:
+      GoldenTests
+  hs-source-dirs:
+      tests
+  ghc-options: -main-is GoldenTests
+  build-depends:
+      ad
+    , aeson
+    , array
+    , base
+    , bytestring
+    , cassava
+    , comonad
+    , deepseq
+    , hashable
+    , hashtables
+    , hspec
+    , ixset
+    , mtl
+    , open-games-hs
+    , optics
+    , parsec
+    , poly
+    , probability
+    , profunctors
+    , random
+    , random-fu
+    , template-haskell
+    , transformers
+    , unordered-containers
+  default-language: Haskell2010
+
+test-suite test-open-games
+  type: exitcode-stdio-1.0
+  main-is: THTests.hs
+  other-modules:
+      ArrowTest
+      GoldenTests
+      Paths_open_games_hs
+  hs-source-dirs:
+      tests
+  ghc-options: -main-is THTests
+  build-depends:
+      ad
+    , aeson
+    , array
+    , base
+    , bytestring
+    , cassava
+    , comonad
+    , deepseq
+    , hashable
+    , hashtables
+    , hspec
+    , ixset
+    , mtl
+    , optics
+    , parsec
+    , poly
+    , probability
+    , profunctors
+    , random
+    , random-fu
+    , template-haskell
+    , transformers
+    , unordered-containers
+  buildable: False
   default-language: Haskell2010
 
 benchmark learning-bench
@@ -113,15 +201,19 @@ benchmark learning-bench
       Paths_open_games_hs
   hs-source-dirs:
       bench
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -eventlog
   build-depends:
       ad
     , aeson
+    , array
     , base >=4.7 && <5
     , bytestring
     , cassava
     , comonad
     , criterion
+    , deepseq
+    , hashable
+    , hashtables
     , ixset
     , mtl
     , open-games-hs
@@ -134,4 +226,5 @@ benchmark learning-bench
     , random-fu
     , template-haskell
     , transformers
+    , unordered-containers
   default-language: Haskell2010

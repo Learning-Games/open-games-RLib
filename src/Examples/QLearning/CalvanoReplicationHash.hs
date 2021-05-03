@@ -13,7 +13,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.CalvanoReplication
+module Examples.QLearning.CalvanoReplicationHash
                      ( evalStageLS
                      , initialStrat
                      , beta
@@ -24,6 +24,9 @@ module Examples.QLearning.CalvanoReplication
                                                                , evalStageM
                      )
                      where
+import           Data.Hashable
+import qualified Data.HashMap.Strict as HM
+import           Data.HashMap.Strict (HashMap)
 import           Debug.Trace
 import           Control.DeepSeq
 import           Data.Aeson
@@ -32,13 +35,13 @@ import           Data.Functor.Identity
 import           Language.Haskell.TH
 
 import qualified Data.List as L
-import qualified Data.Ix as I
-import qualified GHC.Arr as A
+-- import qualified Data.Ix as I
+-- import qualified GHC.Arr as A
 import           GHC.Generics
 import qualified System.Random as Rand
 import           System.Random
 
-import           Engine.QLearning
+import           Engine.QLearningHash
 import           Engine.OpenGames
 import           Engine.TLL
 import           Engine.OpticClass
@@ -50,17 +53,17 @@ import           Preprocessor.THSyntax
 -- 0 Types
 
 newtype PriceSpace = PriceSpace Double
-    deriving (Generic,Random,Num,Fractional,Enum,Ord,Show,Eq,ToField,ToJSON,NFData)
+    deriving (Generic,Random,Num,Fractional,Enum,Ord,Show,Eq,ToField,ToJSON,NFData, Hashable)
 
 
 instance ToField Rand.StdGen
 
 -- make PriceSpace an instance of Ix so that the information can be used as an index for Array
 -- TODO this is messy; needs to change
-instance  I.Ix PriceSpace where
-  range (PriceSpace a, PriceSpace b) = [PriceSpace a, PriceSpace a + dist..PriceSpace b]
-  index (PriceSpace a, PriceSpace b)  (PriceSpace c) =  head $  L.elemIndices (PriceSpace c) [PriceSpace a, PriceSpace a + dist..PriceSpace b]
-  inRange (PriceSpace a, PriceSpace b)  (PriceSpace c) = a <= c && c <= b
+-- instance  I.Ix PriceSpace where
+--   range (PriceSpace a, PriceSpace b) = [PriceSpace a, PriceSpace a + dist..PriceSpace b]
+--   index (PriceSpace a, PriceSpace b)  (PriceSpace c) =  head $  L.elemIndices (PriceSpace c) [PriceSpace a, PriceSpace a + dist..PriceSpace b]
+--   inRange (PriceSpace a, PriceSpace b)  (PriceSpace c) = a <= c && c <= b
 
 type Price = Integer
 
@@ -163,8 +166,8 @@ fromTLLToExport (p1 ::- p2 ::- Nil) =
       expIteration2 = _iteration env2
       expObs1 = _obsAgent env1
       expObs2 = _obsAgent env2
-      expQValues1 = A.assocs $ _qTable env1
-      expQValues2 = A.assocs $ _qTable env2
+      expQValues1 = HM.toList $ _qTable env1
+      expQValues2 = HM.toList $ _qTable env2
       expPlayer1 = ExportQValues name1 expIteration1 expObs1 expQValues1
       expPlayer2 = ExportQValues name2 expIteration2 expObs2 expQValues2
       in [expPlayer1,expPlayer2]
@@ -178,7 +181,7 @@ exportQValuesJSON ls = foldable $ fromTLLListToExport ls
 ------------------------------------------
 -- 3. Environment variables and parameters
 -- Fixing the parameters
- 
+
 ksi :: PriceSpace
 ksi = 0.1
 
@@ -214,7 +217,7 @@ m = 14
 demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
   where agg = (exp 1.0)**((a1-p1)/mu) + (exp 1.0)**((a2-p2)/mu) + (exp 1.0)**(a0/mu)
 
--- Profit function 
+-- Profit function
 profit a0 a1 a2 (PriceSpace p1) (PriceSpace p2) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
 -- Fixing initial generators
@@ -249,7 +252,7 @@ priceBounds = (lowerBound,upperBound)
 actionSpace = [lowerBound,lowerBound+dist..upperBound]
 
 -- derive possible observations
-pricePairs = [(x,y) | x <- actionSpace, y <- actionSpace] 
+pricePairs = [(x,y) | x <- actionSpace, y <- actionSpace]
 
 -- initiate a first fixed list of values at average
 -- TODO change later to random values
@@ -258,14 +261,14 @@ lsValues  = [(((x,y),z),avg)| (x,y) <- xs, (z,_) <- xs]
          PriceSpace avg = (lowerBound + upperBound) / 2
 
 -- initialArray
-initialArray :: A.Array (Observation PriceSpace, PriceSpace) Double
-initialArray =  A.array (l,u) lsValues
-    where l = minimum $ fmap fst lsValues
-          u = maximum $ fmap fst lsValues
+initialArray :: HashMap (Observation PriceSpace, PriceSpace) Double
+initialArray =  HM.fromList lsValues
+    -- where l = minimum $ fmap fst lsValues
+    --       u = maximum $ fmap fst lsValues
 
 -- initiate the environment
-initialEnv1  = Env "Player1" (initialArray ) 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
-initialEnv2  = Env "Player2" (initialArray )  0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
+initialEnv1  = Env "Player1" initialArray 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
+initialEnv2  = Env "Player2" initialArray  0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
 
 -----------------------------
 -- 4. Constructing initial state
@@ -310,7 +313,7 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
 ------------------------------
--- Game stage 
+-- Game stage
 generateGame "stageSimple" ["beta'"]
                 (Block ["state1"::String, "state2"] []
                 [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]

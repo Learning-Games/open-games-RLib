@@ -11,7 +11,7 @@
 {-# LANGUAGE GADTs                 #-}
 
 
--- Parts of this file were written by Sjoerd Visscher 
+-- Parts of this file were written by Sjoerd Visscher
 
 module Engine.TLL
   ( List(..)
@@ -27,6 +27,7 @@ module Engine.TLL
   ) where
 
 import Control.Applicative
+import Control.DeepSeq
 
 infixr 6 ::-
 data List ts where
@@ -59,6 +60,26 @@ instance (Show (List as), Show a)
     => Show (List (a ': as)) where
     show (a ::- rest) =
         show a ++ " ::- " ++ show rest
+
+instance NFData (List '[]) where
+    rnf _ = ()
+
+instance (NFData (List as), NFData a)
+    => NFData (List (a ': as)) where
+    rnf (a ::- rest) =
+        let !() = rnf a
+        in rnf rest
+
+-- Why the Show instance? This is for the test suite. When I tried
+-- with the Eq instance, visibly-the-same values were returning
+-- False. With Show used for equality, it passes. I'm not sure why
+-- that is, but structural equality via Show is enough for our
+-- purposes for now.
+instance (Eq (List as), Show a) => Eq (List (a ': as)) where
+  x ::- xs == y ::- ys = show x == show y && xs == ys
+
+instance Eq (List '[]) where
+  _ == _ = True
 
 ---------------------------------
 -- Operations to transform output
@@ -96,8 +117,6 @@ type family ConstMap (t :: *) (xs :: [*]) :: [*] where
 
 -- Produce pair of results, useful for two player interactions
 toPair :: List '[a,b] -> Maybe (a,b)
-toPair Nil               = Nothing
-toPair (x ::- Nil)       = Nothing
 toPair (x ::- y ::- Nil) = Just (x,y)
 
 ----------------------------------------
@@ -111,4 +130,3 @@ instance Applicative m => SequenceList m '[] '[] where
 
 instance (Applicative m, SequenceList m as bs) => SequenceList m (m a ': as) (a ': bs) where
     sequenceListA (a ::- b) = liftA2 (::-) a (sequenceListA b)
-
