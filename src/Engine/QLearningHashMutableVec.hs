@@ -104,6 +104,7 @@ makeLenses ''State
 -- 1 Auxiliary functions
 -- and updating functions
 -- given a q-table, derive maximal score and the action that guarantees it
+{-# INLINE maxScore #-}
 maxScore ::
      (Ord a, Enum a, Hashable a, Ord a)
   => Observation a
@@ -180,6 +181,7 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 
 -- 2.1. e-greedy experimentation
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
+{-# INLINE chooseActionNoExplore #-}
 chooseActionNoExplore :: (MonadIO m, Enum a, Rand.Random a, Hashable a, Ord a) =>
   V.Vector a -> State a -> ST.StateT (State a) m a
 chooseActionNoExplore support s = do
@@ -190,6 +192,7 @@ chooseActionNoExplore support s = do
 
 
 -- | Choose the optimal action given the current state or explore greedily
+{-# INLINE chooseExploreAction #-}
 chooseExploreAction :: (MonadIO m, Enum a, Rand.Random a, Hashable a, Ord a) =>
   V.Vector a -> State a -> ST.StateT (State a) m a
 chooseExploreAction support s = do
@@ -205,6 +208,7 @@ chooseExploreAction support s = do
       return optimalAction
 
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
+{-# INLINE chooseExploreActionDecrTemp #-}
 chooseExploreActionDecrTemp :: (MonadIO m, Enum a, Rand.Random a, Hashable a, Ord a) =>
   Temperature -> V.Vector a -> State a -> ST.StateT (State a) m a
 chooseExploreActionDecrTemp tempThreshold support  s = do
@@ -230,6 +234,7 @@ chooseExploreActionDecrTemp tempThreshold support  s = do
 -- 2.2. Different updates of the qmatrix depending on learning form
 -- | Given an action, state, obs and a reward, update the qmatrix
 -- | TODO Constant exploration rate
+{-# INLINE updateQTableST #-}
 updateQTableST ::  (MonadIO m, Enum a, Rand.Random a, Hashable a, Ord a) =>
                      LearningRate ->  DiscountFactor ->   V.Vector a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
@@ -247,6 +252,7 @@ updateQTableST learningRate gamma support s obs2 action reward  = do
 
 
 -- | Update the qmatrix with evolving exploration rate
+{-# INLINE chooseLearnDecrExploreQTable #-}
 chooseLearnDecrExploreQTable ::  (MonadIO m, Enum a, Rand.Random a, Hashable a, Ord a) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate -> V.Vector a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
@@ -265,6 +271,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 
 -----------------
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
+{-# INLINE pureDecisionQStage #-}
 pureDecisionQStage :: Monad m =>
                       V.Vector a
                       -> Agent
@@ -294,6 +301,7 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
 
 
 
+{-# INLINE deterministicStratStage #-}
 deterministicStratStage ::  Monad m =>  Agent -> (Observation a -> a) -> QLearningStageGame m '[m a] '[m a] (Observation a) () a  (Double,Observation a)
 deterministicStratStage name policy = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
@@ -309,11 +317,13 @@ deterministicStratStage name policy = OpenGame {
 --------------------------
 -- 4 Further functionality
 
+{-# INLINE fromLens #-}
 fromLens :: Monad m => (x -> y) -> (x -> r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromLens v u = OpenGame {
   play = \Nil -> MonadOptic (\x -> pure (x, v x)) (\x -> (\r -> pure $ u x r)),
   evaluate = \Nil _ -> Nil}
 
 
+{-# INLINE fromFunctions #-}
 fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
