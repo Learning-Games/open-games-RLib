@@ -14,6 +14,8 @@
 module Examples.QLearning.SandholmCritesReplication
                      ( evalStageLS
                      , initiateStrat
+                     , sequenceL
+                     , evalStageM
                      )
                      where
 
@@ -36,7 +38,7 @@ import Preprocessor.THSyntax
 ------------------
 -- Introducing specialized learning rule:
 
--- Choose the optimal action given the current state 
+-- Choose the optimal action given the current state
 chooseBoltzQTable :: Monad m =>
  [Bool] -> State  Bool-> ST.StateT (State Bool) m Bool
 chooseBoltzQTable ls s = do
@@ -96,7 +98,7 @@ learningRate = 0.40
 
 
 pdMatrix :: Action -> Action -> Double
-pdMatrix True True = 0.3 
+pdMatrix True True = 0.3
 pdMatrix True False = 0
 pdMatrix False True = 0.5
 pdMatrix False False = 0.1
@@ -149,7 +151,7 @@ initialContext :: Monad m => MonadicLearnLensContext m (Observation Action,Obser
 initialContext = MonadicLearnLensContext (pure initialObservationContext) (pure (\(_,_) -> pure ()))
 
 -- initialstrategy
-initiateStrat :: List '[Identity (Action, Env Action ), Identity Action]
+initiateStrat :: Monad m => List '[m (Action, Env Action ), m Action]
 initiateStrat = pure (True,initialEnv1) ::- pure True ::- Nil
 
 
@@ -192,6 +194,11 @@ generateGame "stageDeterministic" ["helper"]
 
 ----------------------------------
 -- Defining the iterator structure
+evalStage ::
+     Monad m0
+  => List '[ m0 (Bool, Env Bool), m0 Action]
+  -> MonadContext m0 (Observation Bool, Observation Action) () (Bool, Action) ()
+  -> List '[ m0 (Bool, Env Bool), m0 Action]
 evalStage  strat context  = evaluate (stageDeterministic "helper") strat context
 
 
@@ -204,3 +211,29 @@ evalStageLS startValue n =
                           else [newStrat]
 
 
+hoist ::
+     Applicative f
+  => List '[ (Bool, Env Action), Action]
+  -> List '[ f (Bool, Env Action), f Action]
+hoist (x ::- y ::- Nil) = pure x ::- pure y ::- Nil
+
+sequenceL ::
+     Monad f
+  => List '[ f (Bool, Env Action), f Action]
+  -> f (List '[ (Bool, Env Action), Action])
+sequenceL (x ::- y ::- Nil) = do
+  v <- x
+  v' <- y
+  pure (v ::- v' ::- Nil)
+
+evalStageM ::
+     Monad m => List '[ (Bool, Env Action), Action]
+  -> Int
+  -> m [List '[ (Bool, Env Action), Action]]
+evalStageM startValue 0 = pure []
+evalStageM startValue n = do
+  newStrat <-
+    sequenceL
+      (evalStage (hoist startValue) (fromEvalToContext (hoist startValue)))
+  rest <- evalStageM newStrat (pred n)
+  pure (newStrat : rest)
