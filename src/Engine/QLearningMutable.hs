@@ -77,7 +77,7 @@ type LearningRate = Double
 
 type DiscountFactor = Double
 
-type QTable a = A.IOArray (Observation Idx, Idx) Double
+type QTable a = A.IOUArray (Observation Idx, Idx) Double
 
 type Observation a = (a,a)
 
