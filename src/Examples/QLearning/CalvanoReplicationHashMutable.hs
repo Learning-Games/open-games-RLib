@@ -24,7 +24,6 @@ module Examples.QLearning.CalvanoReplicationHashMutable
                                           , evalStageM
                      )
                      where
-import           Examples.QLearning.CalvanoReplicationMutable (PriceSpace(..))
 import           Data.Hashable
 import qualified Data.HashTable.IO as H
 import qualified Data.ByteString.Char8 as S8
@@ -50,6 +49,9 @@ import           Engine.OpticClass
 import           Preprocessor.AbstractSyntax
 import           Preprocessor.Compile
 import           Preprocessor.THSyntax
+
+newtype PriceSpace = PriceSpace Double
+    deriving (Generic,Random,Num,Fractional,Enum,Ord,Show,Eq,ToField,ToJSON,NFData, Hashable)
 
 ----------
 -- 0 Types

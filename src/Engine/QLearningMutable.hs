@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -17,13 +18,15 @@ module Engine.QLearningMutable where
 import           Control.DeepSeq
 import           Control.Monad.Trans
 import           Control.Monad.Trans.Reader
-import           Data.Array.IO
-import           Data.Array.ST
+import qualified Data.Array.IO as A
+import           Data.Bifunctor
 import           Data.STRef
+import qualified Data.Vector as V
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
 import           GHC.Generics
+import           System.Random
 
 import           Control.Comonad
 import           Control.Monad.State.Class
@@ -39,6 +42,22 @@ import qualified GHC.Arr as A
 import           Optics.TH (makeLenses)
 import           Optics.Optic ((%))
 import           Optics.Operators
+
+
+--------------------------------------------------------------------------------
+-- New classes
+
+newtype Idx = Idx Int deriving (A.Ix, Eq, Ord, Show)
+class ToIdx a where
+  toIdx :: a -> Idx
+
+samplePopulation :: V.Vector a -> StdGen -> (a, StdGen)
+samplePopulation population gen =
+  let (index, gen') = randomR (0, (V.length population) - 1) gen
+   in (population V.! index, gen')
+
+samplePopulation_ :: V.Vector a -> StdGen -> a
+samplePopulation_ population gen = fst $ samplePopulation population gen
 
 -- TODO check the random update
 -- TODO take care of the range of values being used by array on one side and by the random module on the other side
@@ -58,8 +77,7 @@ type LearningRate = Double
 
 type DiscountFactor = Double
 
-type QTable a = IOArray (Observation a, a) Double
-
+type QTable a = A.IOArray (Observation Idx, Idx) Double
 
 type Observation a = (a,a)
 
@@ -97,21 +115,23 @@ makeLenses ''State
 -- 1 Auxiliary functions
 -- and updating functions
 -- given a q-table, derive maximal score and the action that guarantees it
+{-# INLINE maxScore #-}
 maxScore ::
-  (Ord a, Enum a, A.Ix a) =>
-  Observation a ->
-  IOArray ((Observation a), a) Double ->
-  [a] ->
-  IO (Double, a)
+     (ToIdx a, Ord a)
+  => Observation a
+  -> QTable a
+  -> V.Vector a
+  -> IO (Double, a)
 maxScore obs table0 support = do
-  let indices = (obs, ) <$> support
-  valuesAndIndices <-
-    traverse
-      (\i -> do
-         v <- readArray table0 i
-         pure (v, i))
-      indices
-  pure $ maximum [(value, action) | (value, (_, action)) <- valuesAndIndices]
+  valuesAndActions <-
+    V.mapM
+      (\action -> do
+         let index = (bimap toIdx toIdx obs, toIdx action)
+         value <- A.readArray table0 index
+         pure (value, action))
+      support
+  let !maximum' = V.maximum valuesAndActions
+  pure maximum'
 
 -- better prepare output to be used
 extractFst :: Maybe (a,b) -> Maybe a
@@ -170,98 +190,106 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 -- 2 Implementation based on StateT
 -- TODO simplify this analysis; redundancy between choosing and not
 
--- 2.1. e-greedy experimentation
--- | Choose optimally given qmatrix; do not explore. This is for the play part
-chooseActionNoExplore :: (MonadIO m, Enum a, Rand.Random a, A.Ix a) =>
-  [a] -> State a -> ST.StateT (State a) m a
-chooseActionNoExplore support s = do
-  maxed <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
-  let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-      optimalAction = snd $  maxed
-  return optimalAction
+-- -- 2.1. e-greedy experimentation
+-- -- | Choose optimally given qmatrix; do not explore. This is for the play part
+-- chooseActionNoExplore :: (MonadIO m, Enum a, Rand.Random a) =>
+--   [a] -> State a -> ST.StateT (State a) m a
+-- chooseActionNoExplore support s = do
+--   maxed <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
+--   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+--       optimalAction = snd $  maxed
+--   return optimalAction
 
 
 -- | Choose the optimal action given the current state or explore greedily
-chooseExploreAction :: (MonadIO m, Enum a, Rand.Random a, A.Ix a) =>
-  [a] -> State a -> ST.StateT (State a) m a
+
+{-# INLINE chooseExploreAction #-}
+chooseExploreAction :: (MonadIO m, Ord a, ToIdx a) =>
+  V.Vector a -> State a -> ST.StateT (State a) m a
 chooseExploreAction support s = do
+  -- NOTE: gen'' is not updated anywhere...!!!
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
     then do
-      let  (index,gen'')       = Rand.randomR (0, (length support - 1)) gen'
-           action'            = support !! index
+      let !(action', gen'') = samplePopulation support gen'
       return action'
     else do
       maxed <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
       let optimalAction = snd $  maxed
       return optimalAction
 
--- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
-chooseExploreActionDecrTemp :: (MonadIO m, Enum a, Rand.Random a, A.Ix a) =>
-  Temperature -> [a] -> State a -> ST.StateT (State a) m a
-chooseExploreActionDecrTemp tempThreshold support  s = do
-    let temp           = _temperature $ _env s
-        (_, gen')      = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-        q              = _qTable $ _env s
-        chooseExplore  =
-          do
-            let (index,gen'') = Rand.randomR (0, (length support - 1)) gen'
-                action'       = support !! index
-            return action'
-        chooseNoExplore =
-            do
-              maxed' <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
-              let optimalAction = snd $  maxed'
-              return optimalAction
-        in if temp < tempThreshold
-           then chooseNoExplore
-           else chooseExplore
+-- -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
+-- chooseExploreActionDecrTemp :: (MonadIO m, Enum a, Rand.Random a, A.Ix a) =>
+--   Temperature -> [a] -> State a -> ST.StateT (State a) m a
+-- chooseExploreActionDecrTemp tempThreshold support  s = do
+--     let temp           = _temperature $ _env s
+--         (_, gen')      = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+--         q              = _qTable $ _env s
+--         chooseExplore  =
+--           do
+--             let (index,gen'') = Rand.randomR (0, (length support - 1)) gen'
+--                 action'       = support !! index
+--             return action'
+--         chooseNoExplore =
+--             do
+--               maxed' <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
+--               let optimalAction = snd $  maxed'
+--               return optimalAction
+--         in if temp < tempThreshold
+--            then chooseNoExplore
+--            else chooseExplore
 
 
 
 -- 2.2. Different updates of the qmatrix depending on learning form
 -- | Given an action, state, obs and a reward, update the qmatrix
 -- | TODO Constant exploration rate
-updateQTableST ::  (MonadIO m, Enum a, Rand.Random a, A.Ix a) =>
-                     LearningRate ->  DiscountFactor ->   [a] -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
+
+{-# INLINE updateQTableST #-}
+updateQTableST ::  (MonadIO m, Ord a, ToIdx a) =>
+                     LearningRate ->  DiscountFactor ->   V.Vector a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
         maxed <- liftIO $ maxScore obs2 table0 support
-        prediction    <- liftIO $ readArray table0 (_obs s, action)
+        prediction    <- liftIO $ A.readArray table0 (bimap toIdx toIdx (_obs s), toIdx action)
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
 
             updatedValue  = reward + gamma * (fst $ maxed)
             newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
-        liftIO $ writeArray table0 (_obs s, action) newValue
+        liftIO $ A.writeArray table0 (bimap toIdx toIdx (_obs s), toIdx action) newValue
         ST.put $ updateRandomGAndQTable s gen'
         return action
 
 
 -- | Update the qmatrix with evolving exploration rate
-chooseLearnDecrExploreQTable ::  (MonadIO m, Enum a, Rand.Random a, A.Ix a) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> [a] -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
+
+{-# INLINE chooseLearnDecrExploreQTable #-}
+chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a) =>
+                     LearningRate ->  DiscountFactor ->  ExploreRate -> V.Vector a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s
        maxed <- liftIO $ maxScore obs2 table0 support
-       prediction    <- liftIO $ readArray table0 (_obs s, action)
+       prediction    <- liftIO $ A.readArray table0 (bimap toIdx toIdx (_obs s), toIdx action)
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
 
-       liftIO $ writeArray table0 (_obs s, action) newValue
+       liftIO $ A.writeArray table0 (bimap toIdx toIdx(_obs s), toIdx action) newValue
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore obs2 s gen'
        return action
 
 
 -----------------
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
+
+{-# INLINE pureDecisionQStage #-}
 pureDecisionQStage :: Monad m =>
-                      [a]
+                      V.Vector a
                       -> Agent
-                      -> ([a] -> State a -> ST.StateT (State a) m a)
-                      -> ([a] -> State a -> Observation a -> a -> Double -> ST.StateT (State a) m a)
+                      -> (V.Vector a -> State a -> ST.StateT (State a) m a)
+                      -> (V.Vector a -> State a -> Observation a -> a -> Double -> ST.StateT (State a) m a)
                       -> QLearningStageGame m '[m (a,Env a)] '[m (a,Env a)] (Observation a) () a (Double,(Observation a))
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
@@ -286,6 +314,8 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
 
 
 
+
+{-# INLINE deterministicStratStage #-}
 deterministicStratStage ::  Monad m =>  Agent -> (Observation a -> a) -> QLearningStageGame m '[m a] '[m a] (Observation a) () a  (Double,Observation a)
 deterministicStratStage name policy = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
@@ -301,11 +331,15 @@ deterministicStratStage name policy = OpenGame {
 --------------------------
 -- 4 Further functionality
 
+
+{-# INLINE fromLens #-}
 fromLens :: Monad m => (x -> y) -> (x -> r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromLens v u = OpenGame {
   play = \Nil -> MonadOptic (\x -> pure (x, v x)) (\x -> (\r -> pure $ u x r)),
   evaluate = \Nil _ -> Nil}
 
 
+
+{-# INLINE fromFunctions #-}
 fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
