@@ -59,6 +59,10 @@ dependencies:
     - random
     - vector
     - unordered-containers
+
+    - mwc-random >= 0.15.0.1
+    - vector-sized
+
     - hashable
     - cassava
     - bytestring
