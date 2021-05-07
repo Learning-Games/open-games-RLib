@@ -30,7 +30,7 @@ import           Data.Aeson
 import           Data.Csv
 import           Data.Functor.Identity
 import           Language.Haskell.TH
-
+import qualified Data.Vector.Sized as V
 import qualified Data.List as L
 import qualified Data.Ix as I
 import qualified GHC.Arr as A
@@ -143,6 +143,12 @@ csvParameters = encodeDefaultOrderedByName  [parameters]
 
 -- 2.2. Q-values
 
+type N = 1
+
+newtype Observation a = Obs
+  { unObs :: (a, a)
+  } deriving (Show,Generic,A.Ix,Ord, Eq, ToJSON)
+
 data ExportQValues = ExportQValues
    { expName :: !Agent
    , expIteration :: !Int
@@ -153,24 +159,24 @@ data ExportQValues = ExportQValues
 instance ToJSON ExportQValues
 
 -- | Extract relevant information into a record to be exported
-fromTLLToExport :: List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)] -> [ExportQValues]
+fromTLLToExport :: List '[Identity (PriceSpace, Env Observation PriceSpace), Identity (PriceSpace, Env Observation PriceSpace)] -> [ExportQValues]
 fromTLLToExport (p1 ::- p2 ::- Nil) =
-  let (Identity (_, env1)) = p1
-      (Identity (_, env2)) = p2
+  let (Identity (_, env1)) = undefined p1
+      (Identity (_, env2)) = undefined p2
       name1 = _name env1
       name2 = _name env2
       expIteration1 = _iteration env1
       expIteration2 = _iteration env2
       expObs1 = _obsAgent env1
       expObs2 = _obsAgent env2
-      expQValues1 = A.assocs $ _qTable env1
-      expQValues2 = A.assocs $ _qTable env2
+      expQValues1 = undefined {-A.assocs $ _qTable env1-} -- existential escapes here
+      expQValues2 = undefined {-A.assocs $ _qTable env2-}
       expPlayer1 = ExportQValues name1 expIteration1 expObs1 expQValues1
       expPlayer2 = ExportQValues name2 expIteration2 expObs2 expQValues2
       in [expPlayer1,expPlayer2]
 
 
-fromTLLListToExport :: [List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]]-> [ExportQValues]
+fromTLLListToExport :: [List '[Identity (PriceSpace, Env Observation PriceSpace), Identity (PriceSpace, Env Observation PriceSpace)]]-> [ExportQValues]
 fromTLLListToExport = concatMap fromTLLToExport
 
 exportQValuesJSON ls = foldable $ fromTLLListToExport ls
@@ -178,7 +184,7 @@ exportQValuesJSON ls = foldable $ fromTLLListToExport ls
 ------------------------------------------
 -- 3. Environment variables and parameters
 -- Fixing the parameters
- 
+
 ksi :: PriceSpace
 ksi = 0.1
 
@@ -214,7 +220,7 @@ m = 14
 demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
   where agg = (exp 1.0)**((a1-p1)/mu) + (exp 1.0)**((a2-p2)/mu) + (exp 1.0)**(a0/mu)
 
--- Profit function 
+-- Profit function
 profit a0 a1 a2 (PriceSpace p1) (PriceSpace p2) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
 -- Fixing initial generators
@@ -249,23 +255,28 @@ priceBounds = (lowerBound,upperBound)
 actionSpace = [lowerBound,lowerBound+dist..upperBound]
 
 -- derive possible observations
-pricePairs = [(x,y) | x <- actionSpace, y <- actionSpace] 
+pricePairs = [(x,y) | x <- actionSpace, y <- actionSpace]
 
 -- initiate a first fixed list of values at average
 -- TODO change later to random values
-lsValues  = [(((x,y),z),avg)| (x,y) <- xs, (z,_) <- xs]
-  where  xs = pricePairs
-         PriceSpace avg = (lowerBound + upperBound) / 2
+lsValues :: [((V.Vector N (Observation PriceSpace), PriceSpace), Double)]
+lsValues = [((V.replicate (Obs (x, y)), z), avg) | (x, y) <- xs, (z, _) <- xs]
+  where
+    xs = pricePairs
+    PriceSpace avg = (lowerBound + upperBound) / 2
 
 -- initialArray
-initialArray :: A.Array (Observation PriceSpace, PriceSpace) Double
+initialArray :: A.Array (V.Vector N (Observation PriceSpace), PriceSpace) Double
 initialArray =  A.array (l,u) lsValues
     where l = minimum $ fmap fst lsValues
           u = maximum $ fmap fst lsValues
 
 -- initiate the environment
-initialEnv1  = Env "Player1" (initialArray ) 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
-initialEnv2  = Env "Player2" (initialArray )  0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
+initialEnv1 :: Env Observation PriceSpace
+initialEnv1  = Env "Player1" initialArray 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
+
+initialEnv2 :: Env Observation PriceSpace
+initialEnv2  = Env "Player2" initialArray  0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
 
 -----------------------------
 -- 4. Constructing initial state
@@ -278,10 +289,11 @@ createRandomPrice support i =
 
 -- First observation, randomly determined
 initialObservation :: Observation PriceSpace
-initialObservation = (createRandomPrice actionSpace generatorPrice1, createRandomPrice actionSpace generatorPrice2)
+initialObservation =
+  Obs (createRandomPrice actionSpace generatorPrice1, createRandomPrice actionSpace generatorPrice2)
 
 -- Initiate strategy: start with random price
-initialStrat :: List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+initialStrat :: List '[Identity (PriceSpace, Env Observation PriceSpace), Identity (PriceSpace, Env Observation PriceSpace)]
 initialStrat =     pure (createRandomPrice actionSpace generatorObs1,initialEnv1 )
                  ::- pure (createRandomPrice actionSpace generatorObs2,initialEnv2 )
                  ::- Nil
@@ -290,45 +302,45 @@ initialStrat =     pure (createRandomPrice actionSpace generatorObs1,initialEnv1
 ------------------------------
 -- Updating state
 
-toObs :: Monad m => m (a,Env a) -> m (a, Env a) -> m ((), (Observation a, Observation a))
+toObs :: Monad m => m (a,Env Observation a) -> m (a, Env Observation a) -> m ((), (Observation a, Observation a))
 toObs a1 a2 = do
              (act1,env1) <- a1
              (act2,env2) <- a2
-             let obs1 = (act1,act2)
-                 obs2 = (act2,act1)
+             let obs1 = Obs (act1,act2)
+                 obs2 = Obs (act2,act1)
                  in return ((),(obs1,obs2))
 
-toObsFromLS :: Monad m => List '[m (a,Env a), m (a,Env a)] -> m ((),(Observation a,Observation a))
+toObsFromLS :: Monad m => List '[m (a,Env Observation a), m (a,Env Observation a)] -> m ((),(Observation a,Observation a))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: Monad m =>  List '[m (a,Env a), m (a,Env a)] ->
+fromEvalToContext :: Monad m =>  List '[m (a,Env Observation a), m (a,Env Observation a)] ->
                      MonadContext m (Observation a, Observation a) () (a,a) ()
 fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
 
 ------------------------------
--- Game stage 
+-- Game stage
 generateGame "stageSimple" ["beta'"]
                 (Block ["state1"::String, "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, (p1,p2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1, Obs (p1,p2))|]]
+                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1, Obs (p1,p2))|]]]
                 [[|(p1, p2)|]] [])
 
 
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage :: List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+evalStage :: List '[Identity (PriceSpace, Env Observation PriceSpace), Identity (PriceSpace, Env Observation PriceSpace)]
              -> MonadContext
                   Identity
                   (Observation PriceSpace, Observation PriceSpace)
                   ()
                   (PriceSpace, PriceSpace)
                   ()
-             -> List '[Identity (PriceSpace, Env PriceSpace), Identity (PriceSpace, Env PriceSpace)]
+             -> List '[Identity (PriceSpace, Env Observation PriceSpace), Identity (PriceSpace, Env Observation PriceSpace)]
 evalStage = evaluate (stageSimple beta)
 
 
@@ -340,9 +352,9 @@ evalStageLS startValue n =
                           else [newStrat]
 
 evalStageM ::
-     List '[ (PriceSpace, Env PriceSpace), (PriceSpace, Env PriceSpace)]
+     List '[ (PriceSpace, Env Observation PriceSpace), (PriceSpace, Env Observation PriceSpace)]
   -> Int
-  -> Identity [List '[ (PriceSpace, Env PriceSpace), (PriceSpace, Env PriceSpace)]]
+  -> Identity [List '[ (PriceSpace, Env Observation PriceSpace), (PriceSpace, Env Observation PriceSpace)]]
 evalStageM startValue 0 = pure []
 evalStageM startValue n = do
   newStrat <-
@@ -353,14 +365,14 @@ evalStageM startValue n = do
 
 hoist ::
      Applicative f
-  => List '[ (PriceSpace, Env PriceSpace), (PriceSpace, Env PriceSpace)]
-  -> List '[ f (PriceSpace, Env PriceSpace), f (PriceSpace, Env PriceSpace)]
+  => List '[ (PriceSpace, Env Observation PriceSpace), (PriceSpace, Env Observation PriceSpace)]
+  -> List '[ f (PriceSpace, Env Observation PriceSpace), f (PriceSpace, Env Observation PriceSpace)]
 hoist (x ::- y ::- Nil) = pure x ::- pure y ::- Nil
 
 sequenceL ::
      Monad m
-  => List '[ m (PriceSpace, Env PriceSpace), m (PriceSpace, Env PriceSpace)]
-  -> m (List '[ (PriceSpace, Env PriceSpace), (PriceSpace, Env PriceSpace)])
+  => List '[ m (PriceSpace, Env Observation PriceSpace), m (PriceSpace, Env Observation PriceSpace)]
+  -> m (List '[ (PriceSpace, Env Observation PriceSpace), (PriceSpace, Env Observation PriceSpace)])
 sequenceL (x ::- y ::- Nil) = do
   v <- x
   v' <- y
