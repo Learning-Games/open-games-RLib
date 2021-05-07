@@ -295,3 +295,52 @@ fromLens v u = OpenGame {
 
 fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
+
+--------------------------------------------------------------------------------
+-- Sliding window functionality
+
+-- Example:
+--
+-- > pushEnd (fromJust $ V.fromList [1,2,3,4] :: V.Vector 4 Int) 5
+-- Vector [2,3,4,5]
+-- > pushStart 0 (fromJust $ V.fromList [1,2,3,4] :: V.Vector 4 Int)
+-- Vector [0,1,2,3]
+
+-- Iterative use:
+--
+-- > foldl pushEnd (fromJust $ V.fromList [1,2,3,4,5,6,7,8] :: V.Vector 8 Int) [55,66,77]
+-- Vector [4,5,6,7,8,55,66,77]
+-- > foldr pushStart (fromJust $ V.fromList [1,2,3,4,5,6,7,8] :: V.Vector 8 Int) [55,66,77]
+-- Vector [55,66,77,1,2,3,4,5]
+
+-- Trivial, but expensive.
+pushEnd_slow :: V.Vector (1 + n) a -> a -> V.Vector (n + 1) a
+pushEnd_slow vec a = V.snoc (V.tail vec) a
+
+-- Trivial, but expensive.
+pushStart_slow :: a -> V.Vector (n + 1) a -> V.Vector (1 + n) a
+pushStart_slow a vec = V.cons a (V.init vec)
+
+-- Faster with a better type.
+pushStart :: a -> V.Vector n a -> V.Vector n a
+pushStart a vec =
+  V.knownLength
+    vec
+    (V.imap
+       (\idx _ ->
+          if idx == 0
+            then a
+            else V.index vec (idx - 1))
+       vec)
+
+-- Faster with a better type.
+pushEnd :: V.Vector n a -> a -> V.Vector n a
+pushEnd vec a =
+  V.knownLength
+    vec
+    (V.imap
+       (\idx _ ->
+          if fromIntegral idx == V.length vec - 1
+            then a
+            else V.index vec (idx + 1))
+       vec)
