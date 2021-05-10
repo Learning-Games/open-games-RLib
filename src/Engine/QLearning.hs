@@ -65,13 +65,13 @@ type QTable n o a = A.Array (V.Vector n (o a), a) Double
 -- and the external state, the observation made in the last round
 -- TODO needs to be generalized
 
-data State o a = State
-  { _env :: Env o a
+data State n o a = State
+  { _env :: Env n o a
   , _obs :: o a
   }
 
 
-data Env o a = forall n. KnownNat n => Env
+data Env n o a = Env
   { _name   :: String
   , _qTable :: QTable n o a
   , _iteration  :: Int
@@ -115,47 +115,47 @@ extractSnd Nothing      = Nothing
 extractSnd (Just (a,b)) = Just b
 
 -- Update randomG
-updateRandomG :: State o a -> Rand.StdGen -> State o a
+updateRandomG :: State n o a -> Rand.StdGen -> State n o a
 updateRandomG s r = env % randomGen .~ r  $  s
 
 -- Update QTable
-updateQTable :: State o a -> QTable n o a  -> State o a
-updateQTable s q = undefined {-env % qTable .~ q  $  s-}
+updateQTable :: State n o a -> QTable n o a  -> State n o a
+updateQTable s q = env % qTable .~ q  $  s
 
 -- Update Observation for each agent
-updateObservationAgent ::  o a -> State o a -> State o a
-updateObservationAgent obs s = undefined {-env % obsAgent .~ obs $  s-}
+updateObservationAgent ::  V.Vector n (o a) -> State n o a -> State n o a
+updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
 -- Update iterator
-updateIteration :: State o a -> State o a
+updateIteration :: State n o a -> State n o a
 updateIteration = env % iteration %~ (+ 1)
 
 -- Update temperature
-updateTemperature :: Temperature -> State o a ->  State o a
+updateTemperature :: Temperature -> State n o a ->  State n o a
 updateTemperature decreaseFactor = env % temperature %~ (* decreaseFactor)
 
 -- Update explorRate
-updateExploreRate :: ExploreRate -> State o a -> State o a
+updateExploreRate :: ExploreRate -> State n o a -> State n o a
 updateExploreRate decreaseFactor = env % exploreRate %~ (* decreaseFactor)
 
 -- Update gen, qtable
-updateRandomGAndQTable :: State o a -> Rand.StdGen -> QTable n o a  -> State o a
+updateRandomGAndQTable :: State n o a -> Rand.StdGen -> QTable n o a  -> State n o a
 updateRandomGAndQTable s r q = updateRandomG  (updateQTable s q) r
 
 -- Update gen, qtable, temp
-updateRandomGQTableTemp :: Temperature -> State o a -> Rand.StdGen -> QTable n o a -> State o a
+updateRandomGQTableTemp :: Temperature -> State n o a -> Rand.StdGen -> QTable n o a -> State n o a
 updateRandomGQTableTemp decreaseFactor s r q = (updateTemperature decreaseFactor) $ updateRandomGAndQTable s r q
 
 -- Update gen, qtable,exploreRate
-updateRandomGQTableExplore :: ExploreRate -> State o a -> Rand.StdGen -> QTable n o a -> State o a
+updateRandomGQTableExplore :: ExploreRate -> State n o a -> Rand.StdGen -> QTable n o a -> State n o a
 updateRandomGQTableExplore decreaseFactor s r q = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r q
 
 -- Update gen, qtable,exploreRate,agentObs
-updateRandomGQTableExploreObs :: ExploreRate -> o a -> State o a -> Rand.StdGen -> QTable n o a -> State o a
+updateRandomGQTableExploreObs :: ExploreRate -> V.Vector n(o a) -> State n o a -> Rand.StdGen -> QTable n o a -> State n o a
 updateRandomGQTableExploreObs decreaseFactor obs s r q = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor s r q
 
 -- Update gen, qtable,exploreRate,agentObs, iteration
-updateRandomGQTableExploreObsIteration :: ExploreRate -> o a -> State o a -> Rand.StdGen -> QTable n o a -> State o a
+updateRandomGQTableExploreObsIteration :: ExploreRate -> V.Vector n(o a) -> State n o a -> Rand.StdGen -> QTable n o a -> State n o a
 updateRandomGQTableExploreObsIteration decreaseFactor obs s r q = updateIteration $ updateRandomGQTableExploreObs decreaseFactor obs s r q
 
 -----------------------------------
@@ -164,8 +164,8 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r q = updateIteratio
 
 -- 2.1. e-greedy experimentation
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
-chooseActionNoExplore :: (Monad m, Enum a, Rand.Random a, A.Ix (o a), A.Ix a) =>
-  [a] -> State o a -> ST.StateT (State o a) m a
+chooseActionNoExplore :: (Monad m, Enum a, Rand.Random a, A.Ix (o a), KnownNat n, A.Ix a) =>
+  [a] -> State n o a -> ST.StateT (State n o a) m a
 chooseActionNoExplore support s = undefined -- do
   -- let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
   --     optimalAction = snd $  maxScore (_obs s) (_qTable $ _env s) support
@@ -173,8 +173,8 @@ chooseActionNoExplore support s = undefined -- do
 
 
 -- | Choose the optimal action given the current state or explore greedily
-chooseExploreAction :: (Monad m, Enum a, Rand.Random a, A.Ix (o a), A.Ix a) =>
-  [a] -> State o a -> ST.StateT (State o a) m a
+chooseExploreAction :: (Monad m, Enum a, Rand.Random a, A.Ix (o a), KnownNat n, A.Ix a) =>
+  [a] -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreAction support s = do
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
@@ -189,8 +189,8 @@ chooseExploreAction support s = do
          return optimalAction
 
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
-chooseExploreActionDecrTemp :: (Monad m, Enum a, Rand.Random a, A.Ix (o a), A.Ix a) =>
-  Temperature -> [a] -> State o a -> ST.StateT (State o a) m a
+chooseExploreActionDecrTemp :: (Monad m, Enum a, Rand.Random a, A.Ix (o a), KnownNat n, A.Ix a) =>
+  Temperature -> [a] -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreActionDecrTemp tempThreshold support  s = undefined {-do
     let temp           = _temperature $ _env s
         (_, gen')      = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
@@ -213,8 +213,8 @@ chooseExploreActionDecrTemp tempThreshold support  s = undefined {-do
 -- 2.2. Different updates of the qmatrix depending on learning form
 -- | Given an action, state, obs and a reward, update the qmatrix
 -- | TODO Constant exploration rate
-updateQTableST ::  (Monad m, Enum a, Rand.Random a, A.Ix (o a), A.Ix a) =>
-                     LearningRate ->  DiscountFactor ->   [a] -> State o a -> o a -> a -> Double ->  ST.StateT (State o a) m a
+updateQTableST ::  (Monad m, Enum a, Rand.Random a, A.Ix (o a), KnownNat n, A.Ix a) =>
+                     LearningRate ->  DiscountFactor ->   [a] -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = undefined {-do
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             q             = _qTable $ _env s
@@ -227,8 +227,8 @@ updateQTableST learningRate gamma support s obs2 action reward  = undefined {-do
 
 
 -- | Update the qmatrix with evolving exploration rate
-chooseLearnDecrExploreQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix (o a), A.Ix a) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> [a] -> State o a -> o a -> a -> Double ->  ST.StateT (State o a) m a
+chooseLearnDecrExploreQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix (o a), KnownNat n, A.Ix a) =>
+                     LearningRate ->  DiscountFactor ->  ExploreRate -> [a] -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
     case _env s of
       Env {_qTable=q, _obsAgent = obsVec} -> do
@@ -237,7 +237,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
             updatedValue = reward + gamma * (fst $ maxScore (pushEnd obsVec obs2) q support)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
             newQ         = q A.// [((pushEnd obsVec (_obs s), action), newValue)]
-       ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore obs2 s gen' newQ
+       ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (pushEnd obsVec obs2) s gen' newQ
        return action
 
 
@@ -246,9 +246,9 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 pureDecisionQStage :: Monad m =>
                       [a]
                       -> Agent
-                      -> ([a] -> State o a -> ST.StateT (State o a) m a)
-                      -> ([a] -> State o a -> o a -> a -> Double -> ST.StateT (State o a) m a)
-                      -> QLearningStageGame m '[m (a,Env o a)] '[m (a,Env o a)] (o a) () a (Double,(o a))
+                      -> ([a] -> State n o a -> ST.StateT (State n o a) m a)
+                      -> ([a] -> State n o a -> o a -> a -> Double -> ST.StateT (State n o a) m a)
+                      -> QLearningStageGame m '[m (a,Env n o a)] '[m (a,Env n o a)] (o a) () a (Double,(o a))
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
