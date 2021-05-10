@@ -77,9 +77,9 @@ data Env o a = forall n. KnownNat n => Env
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
-  , _obsAgent :: o a
+  , _obsAgent :: V.Vector n (o a)
   , _temperature :: Temperature
-  }
+  } -- deriving (Generic, Show)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
 -- instance (NFData a, NFData (o a)) => NFData (Env o a)
 
@@ -96,13 +96,13 @@ makeLenses ''State
 -- given a q-table, derive maximal score and the action that guarantees it
 maxScore ::
   (Ord a, Enum a, A.Ix (o a), A.Ix a, KnownNat n) =>
-  o a ->
+  V.Vector n (o a) ->
   QTable n o a ->
   [a] ->
   (Double, a)
 maxScore obs table support = maximum [(value,action)| (value,(_,action)) <-valuesAndIndices]
   where
-    indices = (V.replicate obs, ) <$> support
+    indices = (obs, ) <$> support
     valuesAndIndices =  map (\i -> ((table A.! i), i)) indices
 
 -- better prepare output to be used
@@ -124,7 +124,7 @@ updateQTable s q = undefined {-env % qTable .~ q  $  s-}
 
 -- Update Observation for each agent
 updateObservationAgent ::  o a -> State o a -> State o a
-updateObservationAgent obs s = env % obsAgent .~ obs $  s
+updateObservationAgent obs s = undefined {-env % obsAgent .~ obs $  s-}
 
 -- Update iterator
 updateIteration :: State o a -> State o a
@@ -184,8 +184,8 @@ chooseExploreAction support s = do
       return action'
     else do
       case _env s of
-        Env{_qTable} -> do
-         let optimalAction = snd $  maxScore (_obs s) _qTable support
+        Env{_qTable, _obsAgent=obsVec} -> do
+         let optimalAction = snd $  maxScore (pushEnd obsVec (_obs s)) _qTable support
          return optimalAction
 
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
@@ -231,12 +231,12 @@ chooseLearnDecrExploreQTable ::  (Monad m, Enum a, Rand.Random a, A.Ix (o a), A.
                      LearningRate ->  DiscountFactor ->  ExploreRate -> [a] -> State o a -> o a -> a -> Double ->  ST.StateT (State o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
     case _env s of
-      Env {_qTable=q} -> do
+      Env {_qTable=q, _obsAgent = obsVec} -> do
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-            prediction   = q A.! (V.replicate (_obs s), action)
-            updatedValue = reward + gamma * (fst $ maxScore obs2 q support)
+            prediction   = q A.! (pushEnd obsVec (_obs s), action)
+            updatedValue = reward + gamma * (fst $ maxScore (pushEnd obsVec obs2) q support)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-            newQ         = q A.// [((V.replicate (_obs s), action), newValue)]
+            newQ         = q A.// [((pushEnd obsVec (_obs s), action), newValue)]
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore obs2 s gen' newQ
        return action
 
@@ -322,8 +322,8 @@ pushStart_slow :: a -> V.Vector (n + 1) a -> V.Vector (1 + n) a
 pushStart_slow a vec = V.cons a (V.init vec)
 
 -- Faster with a better type.
-pushStart :: a -> V.Vector n a -> V.Vector n a
-pushStart a vec =
+_pushStart :: a -> V.Vector n a -> V.Vector n a
+_pushStart a vec =
   V.knownLength
     vec
     (V.imap

@@ -167,8 +167,8 @@ fromTLLToExport (p1 ::- p2 ::- Nil) =
       name2 = _name env2
       expIteration1 = _iteration env1
       expIteration2 = _iteration env2
-      expObs1 = _obsAgent env1
-      expObs2 = _obsAgent env2
+      expObs1 = undefined {-_obsAgent env1-}
+      expObs2 = undefined {-_obsAgent env2-}
       expQValues1 = undefined {-A.assocs $ _qTable env1-} -- existential escapes here
       expQValues2 = undefined {-A.assocs $ _qTable env2-}
       expPlayer1 = ExportQValues name1 expIteration1 expObs1 expQValues1
@@ -273,10 +273,10 @@ initialArray =  A.array (l,u) lsValues
 
 -- initiate the environment
 initialEnv1 :: Env Observation PriceSpace
-initialEnv1  = Env "Player1" initialArray 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) initialObservation (5 * 0.999)
+initialEnv1  = Env "Player1" initialArray 0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv1) (V.replicate initialObservation) (5 * 0.999)
 
 initialEnv2 :: Env Observation PriceSpace
-initialEnv2  = Env "Player2" initialArray  0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) initialObservation (5 * 0.999)
+initialEnv2  = Env "Player2" initialArray  0 (decreaseFactor beta)  (Rand.mkStdGen generatorEnv2) (V.replicate  initialObservation) (5 * 0.999)
 
 -----------------------------
 -- 4. Constructing initial state
