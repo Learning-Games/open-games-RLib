@@ -21,12 +21,15 @@ import           Control.Monad.Trans
 import           Control.Monad.Trans.Reader
 import qualified Data.Array.IO as A
 import           Data.Bifunctor
+import           Data.Ix
 import           Data.STRef
 import qualified Data.Vector as V
+import qualified Data.Vector.Sized as SV
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
 import           GHC.Generics
+import           GHC.TypeNats
 import           System.Random
 import           System.Random.MWC.CondensedTable
 import           System.Random.Stateful
@@ -66,17 +69,23 @@ uniformCTable population =
     probability = 1 / fromIntegral (V.length population)
 
 --------------------------------------------------------------------------------
--- New classes
-
-newtype Idx = Idx Int deriving (A.Ix, Eq, Ord, Show)
-class ToIdx a where
-  toIdx :: a -> Idx
+-- Random sampling
 
 samplePopulation :: CTable a -> StdGen -> (a, StdGen)
 samplePopulation population gen = runStateGen gen $ genFromTable (ctable population)
 
 samplePopulation_ :: CTable a -> StdGen -> a
 samplePopulation_ population gen = fst $ samplePopulation population gen
+
+--------------------------------------------------------------------------------
+-- Indexable values
+
+newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show)
+class ToIdx a where
+  toIdx :: a -> Idx a
+
+--------------------------------------------------------------------------------
+-- Comments
 
 -- TODO check the random update
 -- TODO take care of the range of values being used by array on one side and by the random module on the other side
@@ -96,33 +105,30 @@ type LearningRate = Double
 
 type DiscountFactor = Double
 
-type QTable a = A.IOUArray (Observation Idx, Idx) Double
-
-type Observation a = (a,a)
+type QTable n o a = A.IOUArray (SV.Vector n (o (Idx a)), Idx a) Double
 
 -- Complete state comprises the internal state of the agent -- mainly the qmatrix
 -- and the external state, the observation made in the last round
 -- TODO needs to be generalized
 
-data State a = State
-  { _env :: Env a
-  , _obs :: Observation a
-  }  deriving (Show)
+data State n o a = State
+  { _env :: Env n o a
+  , _obs :: o a
+  }
 
-
-data Env a = Env
+data Env n o a = Env
   { _name   :: String
-  , _qTable :: QTable a
+  , _qTable :: QTable n o a
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
-  , _obsAgent :: Observation a
+  , _obsAgent :: SV.Vector n (o a)
   , _temperature :: Temperature
   }  deriving (Show, Generic, Eq)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
-instance NFData a => NFData (Env a)
-instance Show (QTable a) where show _ = "QTable"
-instance NFData (QTable a) where rnf _ = ()
+instance (NFData a, NFData (o a)) => NFData (Env n o a)
+instance Show (QTable n o a) where show _ = "QTable"
+instance NFData (QTable n o a) where rnf _ = ()
 
 type QLearningStageGame m a b x s y r = OpenGame (MonadOptic m) (MonadContext m) a b x s y r
 
@@ -136,16 +142,16 @@ makeLenses ''State
 -- given a q-table, derive maximal score and the action that guarantees it
 {-# INLINE maxScore #-}
 maxScore ::
-     (ToIdx a, Ord a)
-  => Observation a
-  -> QTable a
+     (ToIdx a, Ord a, Functor o, Ix (o (Idx a)))
+  => SV.Vector n (o a)
+  -> QTable n o a
   -> CTable a
   -> IO (Double, a)
 maxScore obs table0 support = do
   valuesAndActions <-
     V.mapM
       (\action -> do
-         let index = (bimap toIdx toIdx obs, toIdx action)
+         let index = (fmap (fmap toIdx) obs, toIdx action)
          value <- A.readArray table0 index
          pure (value, action))
       (population support)
@@ -162,47 +168,47 @@ extractSnd Nothing      = Nothing
 extractSnd (Just (a,b)) = Just b
 
 -- Update randomG
-updateRandomG :: State a -> Rand.StdGen -> State a
+updateRandomG :: State n o a -> Rand.StdGen -> State n o a
 updateRandomG s r = env % randomGen .~ r  $  s
 
 -- Update QTable
-updateQTable :: State a -> QTable a  -> State a
+updateQTable :: State n o a -> QTable n o a  -> State n o a
 updateQTable s q = env % qTable .~ q  $  s
 
 -- Update Observation for each agent
-updateObservationAgent ::  Observation a -> State a -> State a
+updateObservationAgent ::  SV.Vector n (o a) -> State n o a -> State n o a
 updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
 -- Update iterator
-updateIteration :: State a -> State a
+updateIteration :: State n o a -> State n o a
 updateIteration = env % iteration %~ (+ 1)
 
 -- Update temperature
-updateTemperature :: Temperature -> State a ->  State a
+updateTemperature :: Temperature -> State n o a ->  State n o a
 updateTemperature decreaseFactor = env % temperature %~ (* decreaseFactor)
 
 -- Update explorRate
-updateExploreRate :: ExploreRate -> State a -> State a
+updateExploreRate :: ExploreRate -> State n o a -> State n o a
 updateExploreRate decreaseFactor = env % exploreRate %~ (* decreaseFactor)
 
 -- Update gen, qtable
-updateRandomGAndQTable :: State a -> Rand.StdGen -> State a
+updateRandomGAndQTable :: State n o a -> Rand.StdGen -> State n o a
 updateRandomGAndQTable s r = updateRandomG s r
 
 -- Update gen, qtable, temp
-updateRandomGQTableTemp :: Temperature -> State a -> Rand.StdGen -> State a
+updateRandomGQTableTemp :: Temperature -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableTemp decreaseFactor s r = (updateTemperature decreaseFactor) $ updateRandomGAndQTable s r
 
 -- Update gen, qtable,exploreRate
-updateRandomGQTableExplore :: ExploreRate -> State a -> Rand.StdGen -> State a
+updateRandomGQTableExplore :: ExploreRate -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExplore decreaseFactor s r = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r
 
 -- Update gen, qtable,exploreRate,agentObs
-updateRandomGQTableExploreObs :: ExploreRate -> Observation a -> State a -> Rand.StdGen -> State a
+updateRandomGQTableExploreObs :: ExploreRate -> SV.Vector n (o a) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObs decreaseFactor obs s r  = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor s r
 
 -- Update gen, qtable,exploreRate,agentObs, iteration
-updateRandomGQTableExploreObsIteration :: ExploreRate -> Observation a -> State a -> Rand.StdGen -> State a
+updateRandomGQTableExploreObsIteration :: ExploreRate -> SV.Vector n (o a) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration $ updateRandomGQTableExploreObs decreaseFactor obs s r
 
 -----------------------------------
@@ -212,7 +218,7 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 -- -- 2.1. e-greedy experimentation
 -- -- | Choose optimally given qmatrix; do not explore. This is for the play part
 -- chooseActionNoExplore :: (MonadIO m, Enum a, Rand.Random a) =>
---   [a] -> State a -> ST.StateT (State a) m a
+--   [a] -> State n o a -> ST.StateT (State n o a) m a
 -- chooseActionNoExplore support s = do
 --   maxed <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
 --   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
@@ -223,8 +229,8 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 -- | Choose the optimal action given the current state or explore greedily
 
 {-# INLINE chooseExploreAction #-}
-chooseExploreAction :: (MonadIO m, Ord a, ToIdx a) =>
-  CTable a -> State a -> ST.StateT (State a) m a
+chooseExploreAction :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+  CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreAction support s = do
   -- NOTE: gen'' is not updated anywhere...!!!
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
@@ -233,13 +239,13 @@ chooseExploreAction support s = do
       let !action' = samplePopulation_ support gen'
       return action'
     else do
-      maxed <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
+      maxed <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (_obs s)) (_qTable $ _env s) support
       let optimalAction = snd $  maxed
       return optimalAction
 
 -- -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
 -- chooseExploreActionDecrTemp :: (MonadIO m, Enum a, Rand.Random a, A.Ix a) =>
---   Temperature -> [a] -> State a -> ST.StateT (State a) m a
+--   Temperature -> [a] -> State n o a -> ST.StateT (State n o a) m a
 -- chooseExploreActionDecrTemp tempThreshold support  s = do
 --     let temp           = _temperature $ _env s
 --         (_, gen')      = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
@@ -265,18 +271,18 @@ chooseExploreAction support s = do
 -- | TODO Constant exploration rate
 
 {-# INLINE updateQTableST #-}
-updateQTableST ::  (MonadIO m, Ord a, ToIdx a) =>
-                     LearningRate ->  DiscountFactor ->   CTable a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
+updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+                     LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> SV.Vector n (o a) -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
         maxed <- liftIO $ maxScore obs2 table0 support
-        prediction    <- liftIO $ A.readArray table0 (bimap toIdx toIdx (_obs s), toIdx action)
+        prediction    <- liftIO $ A.readArray table0 (undefined {-(bimap toIdx toIdx)-} (_obs s), toIdx action)
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
 
             updatedValue  = reward + gamma * (fst $ maxed)
             newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
-        liftIO $ A.writeArray table0 (bimap toIdx toIdx (_obs s), toIdx action) newValue
+        liftIO $ A.writeArray table0 (undefined {-(bimap toIdx toIdx)-} (_obs s), toIdx action) newValue
         ST.put $ updateRandomGAndQTable s gen'
         return action
 
@@ -284,18 +290,18 @@ updateQTableST learningRate gamma support s obs2 action reward  = do
 -- | Update the qmatrix with evolving exploration rate
 
 {-# INLINE chooseLearnDecrExploreQTable #-}
-chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
+chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> SV.Vector n (o a) -> a -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s
        maxed <- liftIO $ maxScore obs2 table0 support
-       prediction    <- liftIO $ A.readArray table0 (bimap toIdx toIdx (_obs s), toIdx action)
+       prediction    <- liftIO $ A.readArray table0 (undefined {-(bimap toIdx toIdx)-} (_obs s), toIdx action)
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
 
-       liftIO $ A.writeArray table0 (bimap toIdx toIdx(_obs s), toIdx action) newValue
+       liftIO $ A.writeArray table0 (undefined {-(bimap toIdx toIdx)-}(_obs s), toIdx action) newValue
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore obs2 s gen'
        return action
 
@@ -307,9 +313,15 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 pureDecisionQStage :: Monad m =>
                       CTable a
                       -> Agent
-                      -> (CTable a -> State a -> ST.StateT (State a) m a)
-                      -> (CTable a -> State a -> Observation a -> a -> Double -> ST.StateT (State a) m a)
-                      -> QLearningStageGame m '[m (a,Env a)] '[m (a,Env a)] (Observation a) () a (Double,(Observation a))
+                      -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
+                      -> (CTable a -> State n o a -> o a -> a -> Double -> ST.StateT (State n o a) m a)
+                      -> QLearningStageGame m '[m (a,Env n o a)] '[m (a,Env n o a)] (o a) () a (Double,(o a))
+{-pureDecisionQStage :: Monad m =>
+                      CTable a
+                      -> Agent
+                      -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
+                      -> (CTable a -> State n o a -> SV.Vector n (o a) -> a -> Double -> ST.StateT (State n o a) m a)
+                      -> QLearningStageGame m '[m (a,Env n o a)] '[m (a,Env n o a)] (SV.Vector n (o a)) () a (Double,(SV.Vector n (o a)))-}
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
@@ -335,7 +347,7 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
 
 
 {-# INLINE deterministicStratStage #-}
-deterministicStratStage ::  Monad m =>  Agent -> (Observation a -> a) -> QLearningStageGame m '[m a] '[m a] (Observation a) () a  (Double,Observation a)
+deterministicStratStage ::  Monad m =>  Agent -> (SV.Vector n (o a) -> a) -> QLearningStageGame m '[m a] '[m a] (SV.Vector n (o a)) () a  (Double,SV.Vector n (o a))
 deterministicStratStage name policy = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
                               in MonadOptic v (\_ -> (\_ -> pure ())),
@@ -362,3 +374,52 @@ fromLens v u = OpenGame {
 {-# INLINE fromFunctions #-}
 fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
+
+--------------------------------------------------------------------------------
+-- Sliding window functionality
+
+-- Example:
+--
+-- > pushEnd (fromJust $ SV.fromList [1,2,3,4] :: SV.Vector 4 Int) 5
+-- Vector [2,3,4,5]
+-- > pushStart 0 (fromJust $ SV.fromList [1,2,3,4] :: SV.Vector 4 Int)
+-- Vector [0,1,2,3]
+
+-- Iterative use:
+--
+-- > foldl pushEnd (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: SV.Vector 8 Int) [55,66,77]
+-- Vector [4,5,6,7,8,55,66,77]
+-- > foldr pushStart (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: SV.Vector 8 Int) [55,66,77]
+-- Vector [55,66,77,1,2,3,4,5]
+
+-- Trivial, but expensive.
+pushEnd_slow :: SV.Vector (1 + n) a -> a -> SV.Vector (n + 1) a
+pushEnd_slow vec a = SV.snoc (SV.tail vec) a
+
+-- Trivial, but expensive.
+pushStart_slow :: a -> SV.Vector (n + 1) a -> SV.Vector (1 + n) a
+pushStart_slow a vec = SV.cons a (SV.init vec)
+
+-- Faster with a better type.
+_pushStart :: a -> SV.Vector n a -> SV.Vector n a
+_pushStart a vec =
+  SV.knownLength
+    vec
+    (SV.imap
+       (\idx _ ->
+          if idx == 0
+            then a
+            else SV.index vec (idx - 1))
+       vec)
+
+-- Faster with a better type.
+pushEnd :: SV.Vector n a -> a -> SV.Vector n a
+pushEnd vec a =
+  SV.knownLength
+    vec
+    (SV.imap
+       (\idx _ ->
+          if fromIntegral idx == SV.length vec - 1
+            then a
+            else SV.index vec (idx + 1))
+       vec)

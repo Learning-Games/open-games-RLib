@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -148,7 +150,7 @@ type Player2N = 2
 
 newtype Observation a = Obs
   { unObs :: (a, a)
-  } deriving (Show,Generic,A.Ix,Ord, Eq, ToJSON)
+  } deriving (Show,Generic,A.Ix,Ord, Eq, ToJSON, Functor)
 
 data ExportQValues = ExportQValues
    { expName :: !Agent
