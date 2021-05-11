@@ -258,14 +258,19 @@ priceBounds = (lowerBound,upperBound)
 -----------------------------------------------------
 -- Transforming bounds into the array and environment
 -- create the action space
-actionSpace :: V.Vector PriceSpace
+actionSpace :: CTable PriceSpace
 actionSpace =
-  V.imap
-    (\idx value -> PriceSpace {value, idx})
-    (V.fromList [lowerBound,lowerBound + dist .. upperBound])
+  uniformCTable
+    (V.imap
+       (\idx value -> PriceSpace {value, idx})
+       (V.fromList [lowerBound,lowerBound + dist .. upperBound]))
 
 -- derive possible observations
-pricePairs = [(x,y) | x <- V.toList actionSpace, y <- V.toList actionSpace]
+pricePairs =
+  [ (x, y)
+  | x <- V.toList (population actionSpace)
+  , y <- V.toList (population actionSpace)
+  ]
 
 -- initiate a first fixed list of values at average
 -- TODO change later to random values

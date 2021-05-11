@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -27,6 +28,8 @@ import           Engine.OpticClass
 import           Engine.TLL
 import           GHC.Generics
 import           System.Random
+import           System.Random.MWC.CondensedTable
+import           System.Random.Stateful
 
 import           Control.Comonad
 import           Control.Monad.State.Class
@@ -45,18 +48,34 @@ import           Optics.Operators
 
 
 --------------------------------------------------------------------------------
+-- A simple condensed table type
+
+data CTable a = CTable
+  { ctable :: !(CondensedTableV a)
+  , population :: !(V.Vector a)
+  }
+
+-- | Create a uniform distribution condensed table.
+uniformCTable :: V.Vector a -> CTable a
+uniformCTable population =
+  CTable
+    { population
+    , ctable = tableFromProbabilities (fmap (, probability) population)
+    }
+  where
+    probability = 1 / fromIntegral (V.length population)
+
+--------------------------------------------------------------------------------
 -- New classes
 
 newtype Idx = Idx Int deriving (A.Ix, Eq, Ord, Show)
 class ToIdx a where
   toIdx :: a -> Idx
 
-samplePopulation :: V.Vector a -> StdGen -> (a, StdGen)
-samplePopulation population gen =
-  let (index, gen') = randomR (0, (V.length population) - 1) gen
-   in (population V.! index, gen')
+samplePopulation :: CTable a -> StdGen -> (a, StdGen)
+samplePopulation population gen = runStateGen gen $ genFromTable (ctable population)
 
-samplePopulation_ :: V.Vector a -> StdGen -> a
+samplePopulation_ :: CTable a -> StdGen -> a
 samplePopulation_ population gen = fst $ samplePopulation population gen
 
 -- TODO check the random update
@@ -120,7 +139,7 @@ maxScore ::
      (ToIdx a, Ord a)
   => Observation a
   -> QTable a
-  -> V.Vector a
+  -> CTable a
   -> IO (Double, a)
 maxScore obs table0 support = do
   valuesAndActions <-
@@ -129,7 +148,7 @@ maxScore obs table0 support = do
          let index = (bimap toIdx toIdx obs, toIdx action)
          value <- A.readArray table0 index
          pure (value, action))
-      support
+      (population support)
   let !maximum' = V.maximum valuesAndActions
   pure maximum'
 
@@ -205,13 +224,13 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 
 {-# INLINE chooseExploreAction #-}
 chooseExploreAction :: (MonadIO m, Ord a, ToIdx a) =>
-  V.Vector a -> State a -> ST.StateT (State a) m a
+  CTable a -> State a -> ST.StateT (State a) m a
 chooseExploreAction support s = do
   -- NOTE: gen'' is not updated anywhere...!!!
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
     then do
-      let !(action', gen'') = samplePopulation support gen'
+      let !action' = samplePopulation_ support gen'
       return action'
     else do
       maxed <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
@@ -247,7 +266,7 @@ chooseExploreAction support s = do
 
 {-# INLINE updateQTableST #-}
 updateQTableST ::  (MonadIO m, Ord a, ToIdx a) =>
-                     LearningRate ->  DiscountFactor ->   V.Vector a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
+                     LearningRate ->  DiscountFactor ->   CTable a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
         maxed <- liftIO $ maxScore obs2 table0 support
@@ -266,7 +285,7 @@ updateQTableST learningRate gamma support s obs2 action reward  = do
 
 {-# INLINE chooseLearnDecrExploreQTable #-}
 chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> V.Vector a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
+                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State a -> Observation a -> a -> Double ->  ST.StateT (State a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s
        maxed <- liftIO $ maxScore obs2 table0 support
@@ -286,10 +305,10 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 
 {-# INLINE pureDecisionQStage #-}
 pureDecisionQStage :: Monad m =>
-                      V.Vector a
+                      CTable a
                       -> Agent
-                      -> (V.Vector a -> State a -> ST.StateT (State a) m a)
-                      -> (V.Vector a -> State a -> Observation a -> a -> Double -> ST.StateT (State a) m a)
+                      -> (CTable a -> State a -> ST.StateT (State a) m a)
+                      -> (CTable a -> State a -> Observation a -> a -> Double -> ST.StateT (State a) m a)
                       -> QLearningStageGame m '[m (a,Env a)] '[m (a,Env a)] (Observation a) () a (Double,(Observation a))
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
