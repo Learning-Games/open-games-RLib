@@ -122,11 +122,11 @@ data Env n o a = Env
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
-  , _obsAgent :: SV.Vector n (o a)
+  , _obsAgent :: SV.Vector n (o (Idx a))
   , _temperature :: Temperature
-  }  deriving (Show, Generic, Eq)
+  }  deriving (Generic)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
-instance (NFData a, NFData (o a)) => NFData (Env n o a)
+instance (NFData a, NFData (o (Idx a))) => NFData (Env n o a)
 instance Show (QTable n o a) where show _ = "QTable"
 instance NFData (QTable n o a) where rnf _ = ()
 
@@ -143,7 +143,7 @@ makeLenses ''State
 {-# INLINE maxScore #-}
 maxScore ::
      (ToIdx a, Ord a, Functor o, Ix (o (Idx a)))
-  => SV.Vector n (o a)
+  => SV.Vector n (o (Idx a))
   -> QTable n o a
   -> CTable a
   -> IO (Double, a)
@@ -151,7 +151,7 @@ maxScore obs table0 support = do
   valuesAndActions <-
     V.mapM
       (\action -> do
-         let index = (fmap (fmap toIdx) obs, toIdx action)
+         let index = (obs, toIdx action)
          value <- A.readArray table0 index
          pure (value, action))
       (population support)
@@ -176,7 +176,7 @@ updateQTable :: State n o a -> QTable n o a  -> State n o a
 updateQTable s q = env % qTable .~ q  $  s
 
 -- Update Observation for each agent
-updateObservationAgent ::  SV.Vector n (o a) -> State n o a -> State n o a
+updateObservationAgent ::  SV.Vector n (o (Idx a)) -> State n o a -> State n o a
 updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
 -- Update iterator
@@ -204,11 +204,11 @@ updateRandomGQTableExplore :: ExploreRate -> State n o a -> Rand.StdGen -> State
 updateRandomGQTableExplore decreaseFactor s r = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r
 
 -- Update gen, qtable,exploreRate,agentObs
-updateRandomGQTableExploreObs :: ExploreRate -> SV.Vector n (o a) -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExploreObs :: ExploreRate -> SV.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObs decreaseFactor obs s r  = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor s r
 
 -- Update gen, qtable,exploreRate,agentObs, iteration
-updateRandomGQTableExploreObsIteration :: ExploreRate -> SV.Vector n (o a) -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExploreObsIteration :: ExploreRate -> SV.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration $ updateRandomGQTableExploreObs decreaseFactor obs s r
 
 -----------------------------------
@@ -239,7 +239,7 @@ chooseExploreAction support s = do
       let !action' = samplePopulation_ support gen'
       return action'
     else do
-      maxed <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (_obs s)) (_qTable $ _env s) support
+      maxed <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) support
       let optimalAction = snd $  maxed
       return optimalAction
 
@@ -272,38 +272,40 @@ chooseExploreAction support s = do
 
 {-# INLINE updateQTableST #-}
 updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
-                     LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> SV.Vector n (o a) -> a -> Double ->  ST.StateT (State n o a) m a
+                     LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> SV.Vector n (o (Idx a)) -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
         maxed <- liftIO $ maxScore obs2 table0 support
-        prediction    <- liftIO $ A.readArray table0 (undefined {-(bimap toIdx toIdx)-} (_obs s), toIdx action)
+        prediction    <- liftIO $ A.readArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
 
             updatedValue  = reward + gamma * (fst $ maxed)
             newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
-        liftIO $ A.writeArray table0 (undefined {-(bimap toIdx toIdx)-} (_obs s), toIdx action) newValue
+        liftIO $ A.writeArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
         ST.put $ updateRandomGAndQTable s gen'
         return action
+  where  obsVec = _obsAgent (_env s)
 
 
 -- | Update the qmatrix with evolving exploration rate
 
 {-# INLINE chooseLearnDecrExploreQTable #-}
 chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> SV.Vector n (o a) -> a -> Double ->  ST.StateT (State n o a) m a
+                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s
-       maxed <- liftIO $ maxScore obs2 table0 support
-       prediction    <- liftIO $ A.readArray table0 (undefined {-(bimap toIdx toIdx)-} (_obs s), toIdx action)
+       maxed <- liftIO $ maxScore (pushEnd obsVec (fmap toIdx obs2)) table0 support
+       prediction    <- liftIO $ A.readArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
 
-       liftIO $ A.writeArray table0 (undefined {-(bimap toIdx toIdx)-}(_obs s), toIdx action) newValue
-       ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore obs2 s gen'
+       liftIO $ A.writeArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
+       ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
+  where obsVec = _obsAgent (_env s)
 
 
 -----------------
