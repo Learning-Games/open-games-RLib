@@ -20,7 +20,8 @@ import           Control.DeepSeq
 import           Control.Monad.Trans
 import           Control.Monad.Trans.Reader
 import           Data.STRef
-import qualified Data.Vector.Sized as V
+import qualified Data.Vector.Sized as SV
+import qualified Data.Vector as V
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
@@ -32,14 +33,51 @@ import           Control.Monad.State.Class
 import qualified Control.Monad.Trans.State as ST
 import           Data.List (maximumBy)
 import           Data.Ord (comparing)
-import qualified System.Random as Rand
 import qualified GHC.Arr as A
-
-
+import           System.Random
+import qualified System.Random as Rand
+import           System.Random.MWC.CondensedTable
+import           System.Random.Stateful
 
 import           Optics.TH (makeLenses)
 import           Optics.Optic ((%))
 import           Optics.Operators
+
+-- TODO check the random update
+-- TODO take care of the range of values being used by array on one side and by the random module on the other side
+-- TODO Replace the array access functionality with a lens
+-- NOTE The _x_ input needs to be manipulated in the outside game definition
+
+--------------------------------------------------------------------------------
+-- A simple condensed table type
+
+data CTable a = CTable
+  { ctable :: !(CondensedTableV a)
+  , population :: !(V.Vector a)
+  }
+
+-- | Create a uniform distribution condensed table.
+uniformCTable :: V.Vector a -> CTable a
+uniformCTable population =
+  CTable
+    { population
+    , ctable = tableFromProbabilities (fmap (, probability) population)
+    }
+  where
+    probability = 1 / fromIntegral (V.length population)
+
+--------------------------------------------------------------------------------
+-- New classes
+
+newtype Idx = Idx Int deriving (A.Ix, Eq, Ord, Show)
+class ToIdx a where
+  toIdx :: a -> Idx
+
+samplePopulation :: CTable a -> StdGen -> (a, StdGen)
+samplePopulation population gen = runStateGen gen $ genFromTable (ctable population)
+
+samplePopulation_ :: CTable a -> StdGen -> a
+samplePopulation_ population gen = fst $ samplePopulation population gen
 
 -- TODO check the random update
 -- TODO take care of the range of values being used by array on one side and by the random module on the other side
@@ -59,7 +97,7 @@ type LearningRate = Double
 
 type DiscountFactor = Double
 
-type QTable n o a = A.Array (V.Vector n (o a), a) Double
+type QTable n o a = A.Array (SV.Vector n (o a), a) Double
 
 -- Complete state comprises the internal state of the agent -- mainly the qmatrix
 -- and the external state, the observation made in the last round
@@ -77,7 +115,7 @@ data Env n o a = Env
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
-  , _obsAgent :: V.Vector n (o a)
+  , _obsAgent :: SV.Vector n (o a)
   , _temperature :: Temperature
   } -- deriving (Generic, Show)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
@@ -96,7 +134,7 @@ makeLenses ''State
 -- given a q-table, derive maximal score and the action that guarantees it
 maxScore ::
   (Ord a, Enum a, A.Ix (o a), A.Ix a, KnownNat n) =>
-  V.Vector n (o a) ->
+  SV.Vector n (o a) ->
   QTable n o a ->
   [a] ->
   (Double, a)
@@ -123,7 +161,7 @@ updateQTable :: State n o a -> QTable n o a  -> State n o a
 updateQTable s q = env % qTable .~ q  $  s
 
 -- Update Observation for each agent
-updateObservationAgent ::  V.Vector n (o a) -> State n o a -> State n o a
+updateObservationAgent ::  SV.Vector n (o a) -> State n o a -> State n o a
 updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
 -- Update iterator
@@ -151,11 +189,11 @@ updateRandomGQTableExplore :: ExploreRate -> State n o a -> Rand.StdGen -> QTabl
 updateRandomGQTableExplore decreaseFactor s r q = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r q
 
 -- Update gen, qtable,exploreRate,agentObs
-updateRandomGQTableExploreObs :: ExploreRate -> V.Vector n(o a) -> State n o a -> Rand.StdGen -> QTable n o a -> State n o a
+updateRandomGQTableExploreObs :: ExploreRate -> SV.Vector n(o a) -> State n o a -> Rand.StdGen -> QTable n o a -> State n o a
 updateRandomGQTableExploreObs decreaseFactor obs s r q = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor s r q
 
 -- Update gen, qtable,exploreRate,agentObs, iteration
-updateRandomGQTableExploreObsIteration :: ExploreRate -> V.Vector n(o a) -> State n o a -> Rand.StdGen -> QTable n o a -> State n o a
+updateRandomGQTableExploreObsIteration :: ExploreRate -> SV.Vector n(o a) -> State n o a -> Rand.StdGen -> QTable n o a -> State n o a
 updateRandomGQTableExploreObsIteration decreaseFactor obs s r q = updateIteration $ updateRandomGQTableExploreObs decreaseFactor obs s r q
 
 -----------------------------------
@@ -301,46 +339,46 @@ fromFunctions f g = fromLens f (const g)
 
 -- Example:
 --
--- > pushEnd (fromJust $ V.fromList [1,2,3,4] :: V.Vector 4 Int) 5
+-- > pushEnd (fromJust $ SV.fromList [1,2,3,4] :: SV.Vector 4 Int) 5
 -- Vector [2,3,4,5]
--- > pushStart 0 (fromJust $ V.fromList [1,2,3,4] :: V.Vector 4 Int)
+-- > pushStart 0 (fromJust $ SV.fromList [1,2,3,4] :: SV.Vector 4 Int)
 -- Vector [0,1,2,3]
 
 -- Iterative use:
 --
--- > foldl pushEnd (fromJust $ V.fromList [1,2,3,4,5,6,7,8] :: V.Vector 8 Int) [55,66,77]
+-- > foldl pushEnd (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: SV.Vector 8 Int) [55,66,77]
 -- Vector [4,5,6,7,8,55,66,77]
--- > foldr pushStart (fromJust $ V.fromList [1,2,3,4,5,6,7,8] :: V.Vector 8 Int) [55,66,77]
+-- > foldr pushStart (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: SV.Vector 8 Int) [55,66,77]
 -- Vector [55,66,77,1,2,3,4,5]
 
 -- Trivial, but expensive.
-pushEnd_slow :: V.Vector (1 + n) a -> a -> V.Vector (n + 1) a
-pushEnd_slow vec a = V.snoc (V.tail vec) a
+pushEnd_slow :: SV.Vector (1 + n) a -> a -> SV.Vector (n + 1) a
+pushEnd_slow vec a = SV.snoc (SV.tail vec) a
 
 -- Trivial, but expensive.
-pushStart_slow :: a -> V.Vector (n + 1) a -> V.Vector (1 + n) a
-pushStart_slow a vec = V.cons a (V.init vec)
+pushStart_slow :: a -> SV.Vector (n + 1) a -> SV.Vector (1 + n) a
+pushStart_slow a vec = SV.cons a (SV.init vec)
 
 -- Faster with a better type.
-_pushStart :: a -> V.Vector n a -> V.Vector n a
+_pushStart :: a -> SV.Vector n a -> SV.Vector n a
 _pushStart a vec =
-  V.knownLength
+  SV.knownLength
     vec
-    (V.imap
+    (SV.imap
        (\idx _ ->
           if idx == 0
             then a
-            else V.index vec (idx - 1))
+            else SV.index vec (idx - 1))
        vec)
 
 -- Faster with a better type.
-pushEnd :: V.Vector n a -> a -> V.Vector n a
+pushEnd :: SV.Vector n a -> a -> SV.Vector n a
 pushEnd vec a =
-  V.knownLength
+  SV.knownLength
     vec
-    (V.imap
+    (SV.imap
        (\idx _ ->
-          if fromIntegral idx == V.length vec - 1
+          if fromIntegral idx == SV.length vec - 1
             then a
-            else V.index vec (idx + 1))
+            else SV.index vec (idx + 1))
        vec)
