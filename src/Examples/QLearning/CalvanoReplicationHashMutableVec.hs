@@ -26,7 +26,6 @@ module Examples.QLearning.CalvanoReplicationHashMutableVec
                      where
 import qualified Data.Vector as V
 import           Data.Vector (Vector)
-import           Examples.QLearning.CalvanoReplicationMutable (PriceSpace(..))
 import           Data.Hashable
 import qualified Data.HashTable.IO as H
 import qualified Data.ByteString.Char8 as S8
@@ -55,6 +54,9 @@ import           Preprocessor.THSyntax
 
 ----------
 -- 0 Types
+
+newtype PriceSpace = PriceSpace Double
+    deriving (Generic,Random,Num,Fractional,Enum,Ord,Show,Eq,ToField,ToJSON,NFData, Hashable)
 
 
 {-
