@@ -319,12 +319,6 @@ pureDecisionQStage :: Monad m =>
                       -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
                       -> (CTable a -> State n o a -> o a -> a -> Double -> ST.StateT (State n o a) m a)
                       -> QLearningStageGame m '[m (a,Env n o a)] '[m (a,Env n o a)] (o a) () a (Double,(o a))
-{-pureDecisionQStage :: Monad m =>
-                      CTable a
-                      -> Agent
-                      -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
-                      -> (CTable a -> State n o a -> SV.Vector n (o a) -> a -> Double -> ST.StateT (State n o a) m a)
-                      -> QLearningStageGame m '[m (a,Env n o a)] '[m (a,Env n o a)] (SV.Vector n (o a)) () a (Double,(SV.Vector n (o a)))-}
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
@@ -350,7 +344,7 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
 
 
 {-# INLINE deterministicStratStage #-}
-deterministicStratStage ::  Monad m =>  Agent -> (SV.Vector n (o a) -> a) -> QLearningStageGame m '[m a] '[m a] (SV.Vector n (o a)) () a  (Double,SV.Vector n (o a))
+deterministicStratStage ::  Monad m =>  Agent -> (o a -> a) -> QLearningStageGame m '[m a] '[m a] (o a) () a  (Double,(o a))
 deterministicStratStage name policy = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
                               in MonadOptic v (\_ -> (\_ -> pure ())),
