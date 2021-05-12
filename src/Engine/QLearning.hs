@@ -215,15 +215,15 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 -- 2 Implementation based on StateT
 -- TODO simplify this analysis; redundancy between choosing and not
 
--- -- 2.1. e-greedy experimentation
--- -- | Choose optimally given qmatrix; do not explore. This is for the play part
--- chooseActionNoExplore :: (MonadIO m, Enum a, Rand.Random a) =>
---   [a] -> State n o a -> ST.StateT (State n o a) m a
--- chooseActionNoExplore support s = do
---   maxed <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
---   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
---       optimalAction = snd $  maxed
---   return optimalAction
+-- 2.1. e-greedy experimentation
+-- | Choose optimally given qmatrix; do not explore. This is for the play part
+chooseActionNoExplore :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+  CTable a -> State n o a -> ST.StateT (State n o a) m a
+chooseActionNoExplore support s = do
+  maxed <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) support
+  let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+      optimalAction = snd $  maxed
+  return optimalAction
 
 
 -- | Choose the optimal action given the current state or explore greedily
@@ -243,26 +243,27 @@ chooseExploreAction support s = do
       let optimalAction = snd $  maxed
       return optimalAction
 
--- -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
--- chooseExploreActionDecrTemp :: (MonadIO m, Enum a, Rand.Random a, A.Ix a) =>
---   Temperature -> [a] -> State n o a -> ST.StateT (State n o a) m a
--- chooseExploreActionDecrTemp tempThreshold support  s = do
---     let temp           = _temperature $ _env s
---         (_, gen')      = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
---         q              = _qTable $ _env s
---         chooseExplore  =
---           do
---             let (index,gen'') = Rand.randomR (0, (length support - 1)) gen'
---                 action'       = support !! index
---             return action'
---         chooseNoExplore =
---             do
---               maxed' <- liftIO $ maxScore (_obs s) (_qTable $ _env s) support
---               let optimalAction = snd $  maxed'
---               return optimalAction
---         in if temp < tempThreshold
---            then chooseNoExplore
---            else chooseExplore
+-- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
+chooseExploreActionDecrTemp :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+  Temperature -> CTable a -> State n o a -> ST.StateT (State n o a) m a
+chooseExploreActionDecrTemp tempThreshold support  s = do
+    let temp           = _temperature $ _env s
+        (_, gen')      = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+        q              = _qTable $ _env s
+        chooseExplore  =
+          do
+            let !action' = samplePopulation_ support gen'
+            return action'
+        chooseNoExplore =
+            do
+              maxed' <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s)))
+                                          (_qTable $ _env s)
+                                          support
+              let optimalAction = snd $  maxed'
+              return optimalAction
+        in if temp < tempThreshold
+           then chooseNoExplore
+           else chooseExplore
 
 
 
