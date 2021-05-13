@@ -28,6 +28,7 @@ module Examples.QLearning.CalvanoReplication
   , evalStageM
   , PriceSpace(..)
   ) where
+import           Control.DeepSeq
 import qualified Data.Vector.Sized as SV
 import           Data.Function
 import qualified Data.Vector as V
@@ -66,7 +67,7 @@ type Player2N = 2
 
 newtype Observation a = Obs
   { unObs :: (a, a)
-  } deriving (Show,Generic,A.Ix,Ord, Eq, ToJSON, Functor)
+  } deriving (Show,Generic,A.Ix,Ord, Eq, ToJSON, Functor, NFData)
 
 data PriceSpace = PriceSpace {
    value :: !Double

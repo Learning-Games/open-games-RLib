@@ -80,7 +80,7 @@ samplePopulation_ population gen = fst $ samplePopulation population gen
 --------------------------------------------------------------------------------
 -- Indexable values
 
-newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show)
+newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show, NFData)
 class ToIdx a where
   toIdx :: a -> Idx a
 
@@ -273,10 +273,10 @@ chooseExploreActionDecrTemp tempThreshold support  s = do
 
 {-# INLINE updateQTableST #-}
 updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
-                     LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> SV.Vector n (o (Idx a)) -> a -> Double ->  ST.StateT (State n o a) m a
+                     LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
-        maxed <- liftIO $ maxScore obs2 table0 support
+        maxed <- liftIO $ maxScore (pushEnd obsVec (fmap toIdx obs2)) table0 support
         prediction    <- liftIO $ A.readArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
