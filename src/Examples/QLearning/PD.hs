@@ -73,7 +73,7 @@ learningRate = 0.40
 
 
 pdMatrix :: Action -> Action -> Double
-pdMatrix = on pdMatrix coerce
+pdMatrix = on pdMatrix' coerce
 
 pdMatrix' :: Bool -> Bool -> Double
 pdMatrix' True True = 0.3

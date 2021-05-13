@@ -39,11 +39,8 @@ main = do
         [ Criterion.Main.env
           (fmap
              SkipNF
-             (do putStrLn "Allocating ... "
-                 initial <- PDDeterministicPlayer.initiateStrat
-                 putStrLn "Sequencing ... "
+             (do initial <- PDDeterministicPlayer.initiateStrat
                  xs <- PDDeterministicPlayer.sequenceL initial
-                 putStrLn "Pure'ing"
                  pure xs))
           (\(SkipNF st) ->
              bench
