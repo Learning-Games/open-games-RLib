@@ -71,9 +71,11 @@ uniformCTable population =
 --------------------------------------------------------------------------------
 -- Random sampling
 
+{-# INLINE samplePopulation #-}
 samplePopulation :: CTable a -> StdGen -> (a, StdGen)
 samplePopulation population gen = runStateGen gen $ genFromTable (ctable population)
 
+{-# INLINE samplePopulation_ #-}
 samplePopulation_ :: CTable a -> StdGen -> a
 samplePopulation_ population gen = fst $ samplePopulation population gen
 
@@ -217,6 +219,7 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 
 -- 2.1. e-greedy experimentation
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
+{-# INLINE chooseActionNoExplore  #-}
 chooseActionNoExplore :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseActionNoExplore support s = do
@@ -244,6 +247,7 @@ chooseExploreAction support s = do
       return optimalAction
 
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
+{-# INLINE chooseExploreActionDecrTemp  #-}
 chooseExploreActionDecrTemp :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
   Temperature -> CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreActionDecrTemp tempThreshold support  s = do
@@ -390,14 +394,17 @@ fromFunctions f g = fromLens f (const g)
 -- Vector [55,66,77,1,2,3,4,5]
 
 -- Trivial, but expensive.
+{-# INLINE pushEnd_slow  #-}
 pushEnd_slow :: SV.Vector (1 + n) a -> a -> SV.Vector (n + 1) a
 pushEnd_slow vec a = SV.snoc (SV.tail vec) a
 
 -- Trivial, but expensive.
+{-# INLINE pushStart_slow  #-}
 pushStart_slow :: a -> SV.Vector (n + 1) a -> SV.Vector (1 + n) a
 pushStart_slow a vec = SV.cons a (SV.init vec)
 
 -- Faster with a better type.
+{-# INLINE _pushStart  #-}
 _pushStart :: a -> SV.Vector n a -> SV.Vector n a
 _pushStart a vec =
   SV.knownLength
@@ -410,6 +417,7 @@ _pushStart a vec =
        vec)
 
 -- Faster with a better type.
+{-# INLINE pushEnd  #-}
 pushEnd :: SV.Vector n a -> a -> SV.Vector n a
 pushEnd vec a =
   SV.knownLength
