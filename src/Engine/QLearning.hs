@@ -282,11 +282,9 @@ updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory
                      LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
+        prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
         maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
-        prediction    <- liftIO $ A.readArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-
-
             updatedValue  = reward + gamma * (fst $ maxed)
             newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
         liftIO $ A.writeArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
@@ -302,13 +300,11 @@ chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (I
                      LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s
+       prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
        maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
-       prediction    <- liftIO $ A.readArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-
        liftIO $ A.writeArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
