@@ -20,7 +20,8 @@ library:
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
-    - Engine.QLearningHash
+
+
     - Engine.TLL
     - Preprocessor.AbstractSyntax
     - Preprocessor.Compile
@@ -38,10 +39,6 @@ library:
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.CalvanoReplication
-    - Examples.QLearning.CalvanoReplicationHash
-    - Examples.QLearning.CalvanoReplicationMutable
-    - Examples.QLearning.CalvanoReplicationHashMutable
-    - Examples.QLearning.CalvanoReplicationHashMutableVec
     - Examples.QLearning.BestReply
     
 dependencies:
@@ -62,6 +59,8 @@ dependencies:
     - random
     - vector
     - unordered-containers
+    - mwc-random >= 0.15.0.1
+    - vector-sized
     - hashable
     - cassava
     - bytestring
@@ -89,15 +88,6 @@ tests:
       - template-haskell
       - base
       - hspec
-  golden-tests:
-    main: GoldenTests
-    source-dirs: tests
-    other-modules: GoldenTests
-    dependencies:
-      - template-haskell
-      - base
-      - hspec
-      - open-games-hs
 
 benchmarks:
   learning-bench:

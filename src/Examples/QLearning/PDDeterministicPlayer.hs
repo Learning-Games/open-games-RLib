@@ -1,3 +1,7 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
@@ -17,28 +21,48 @@ module Examples.QLearning.PDDeterministicPlayer
 --                     )
                      where
 
-import Control.Comonad
-import Data.Functor.Identity
-import Language.Haskell.TH
+import qualified Engine.Memory as Memory
+import           Control.Comonad
+import           Control.DeepSeq
+import           Control.Monad.IO.Class
 import qualified Control.Monad.Trans.State as ST
-import qualified GHC.Arr as A
-import GHC.Generics
+import qualified Data.Array.IO as A
+import           Data.Coerce
+import           Data.Function
+import           Data.Functor.Identity
+import           Data.Vector (Vector)
+import qualified Data.Vector as V
+import qualified Data.Vector.Sized as SV
+import           GHC.Generics
+import           Language.Haskell.TH
 import qualified System.Random as Rand
 
-import Engine.QLearning
-import Engine.OpenGames
-import Engine.TLL
-import Engine.OpticClass
-import Preprocessor.AbstractSyntax
-import Preprocessor.Compile
-import Preprocessor.THSyntax
+import           Engine.QLearning
+import           Engine.OpenGames
+import           Engine.TLL
+import           Engine.OpticClass
+import           Preprocessor.AbstractSyntax
+import           Preprocessor.Compile
+import           Preprocessor.THSyntax
 
+type N = 1
 
+newtype Observation a = Obs
+  { unObs :: (a, a)
+  } deriving (Show,Generic,A.Ix,Ord, Eq, Functor, NFData)
 
 ------------------
 -- Types
 
-type Action = Bool
+newtype Action = Action Bool  deriving (Show, Eq, Ord, NFData)
+instance ToIdx Action where
+  toIdx =
+    \case
+      Action False -> Idx 0
+      Action True -> Idx 1
+
+actionSpace :: CTable Action
+actionSpace = uniformCTable (fmap coerce (V.fromList [False,True]))
 
 
 -------------
@@ -53,40 +77,54 @@ learningRate = 0.40
 
 
 pdMatrix :: Action -> Action -> Double
-pdMatrix True True = 0.3 
-pdMatrix True False = 0
-pdMatrix False True = 0.5
-pdMatrix False False = 0.1
+pdMatrix = on pdMatrix' coerce
+
+pdMatrix' :: Bool -> Bool -> Double
+pdMatrix' True True = 0.3
+pdMatrix' True False = 0
+pdMatrix' False True = 0.5
+pdMatrix' False False = 0.1
 
 -- Policy for deterministic player
 titForTat :: Observation Action -> Action
-titForTat (_,True) = True
-titForTat (_,False)    = False
+titForTat (Obs (_,Action True))   = Action True
+titForTat (Obs (_,Action False))  = Action False
 
 
 
 -----------------------------
 -- Constructing initial state
 -- TODO change this
-lstIndexValues = [
+lstIndexValues = [(((Action x, Action y),Action z),v) | (((x,y),z),v) <-[
   (((True,True), True),0),(((True,False),True),0),(((False,True),True), 0),(((False,False),True),0),
    (((True,True), False),0),(((True,False),False),0),(((False,True),False), 0),(((False,False),False),0)]
+   ]
 
 
 
-lstIndexValues2 = [
+lstIndexValues2 = [(((Action x, Action y),Action z),v) | (((x,y),z),v) <-[
   (((True,True), True),4),(((True,False),True),0),(((False,True),True), 2),(((False,False),True),1),
    (((True,True), False),5),(((True,False),False),2),(((False,True),False), 4),(((False,False),False),1)]
+   ]
 
 -- TODO check whether this makes sense
 -- TODO need a constructor for this more generally
-initialArray :: QTable Action
-initialArray =  A.array (((False,False),False),((True,True),True)) lstIndexValues
+initialArray :: MonadIO m => m (QTable N Observation Action)
+initialArray = liftIO (do
+   arr <- A.newArray_ (asIdx l, asIdx u)
+   traverse (\(k, v) -> A.writeArray arr (asIdx k) v) lstIndexValues
+   pure arr)
+  where
+    l = minimum $ fmap fst lstIndexValues
+    u = maximum $ fmap fst lstIndexValues
+    asIdx ((x, y), z) = (Memory.fromSV $ SV.replicate (Obs (toIdx x, toIdx y)), toIdx z)
 
 
--- initialEnv and parameters
-initialEnv1 = Env "Player1" initialArray 0  0.2  (Rand.mkStdGen 3) initialObservation (5 * 0.999)
-initialEnv2 = Env "Player2" initialArray 0  0.2  (Rand.mkStdGen 100) initialObservation (5 * 0.999)
+-- initialEnv N Observation and parameters
+initialEnv1 :: IO (Env N Observation Action)
+initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" arr  0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx)(Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999)
+initialEnv2 :: IO (Env N Observation Action)
+initialEnv2 = initialArray >>= \arr ->  pure $ Env "Player2" arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx)(Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 ---------------------------------------
@@ -94,7 +132,7 @@ initialEnv2 = Env "Player2" initialArray 0  0.2  (Rand.mkStdGen 100) initialObse
 -- Initial observation
 -- TODO randomize it
 initialObservation :: Observation Action
-initialObservation = (True,True)
+initialObservation = fmap coerce $ Obs (True,True)
 
 -- | the initial observation is used twice as the context for two players requires it in that form
 initialObservationContext :: (Observation Action, Observation Action)
@@ -105,29 +143,30 @@ initialContext :: Monad m => MonadContext m (Observation Action,Observation Acti
 initialContext = MonadContext (pure (() ,initialObservationContext)) (\_ -> (\_ -> pure ()))
 
 -- initialstrategy
-initiateStrat :: List '[Identity (Action, Env Action ), Identity Action]
-initiateStrat =  pure (True,initialEnv1) ::- pure True ::- Nil
+initiateStrat :: IO (List '[IO (Action, Env N Observation Action ), IO Action])
+initiateStrat = do e <- initialEnv1
+                   pure $ pure (Action True,e) ::- pure (Action True) ::- Nil
 
 
 ------------------------------
 -- Updating state
 
-toObs :: Monad m => m (Action,Env Action) -> m Action -> m ((), (Observation Action,Observation Action))
+toObs :: IO (Action,Env N Observation Action) -> IO Action -> IO ((), (Observation Action,Observation Action))
 toObs a1 a2 = do
              (act1,env1) <- a1
              act2 <- a2
-             let obs1 = (act1,act2)
-                 obs2 = (act2,act1)
+             let obs1 = Obs (act1,act2)
+                 obs2 = Obs (act2,act1)
                  in return ((),(obs1,obs2))
 
 
-toObsFromLS :: Monad m => List '[m (Action,Env Action), m Action] -> m ((), (Observation Action,Observation Action))
+toObsFromLS :: List '[IO (Action,Env N Observation Action), IO Action] -> IO ((), (Observation Action,Observation Action))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: Monad m =>  List '[m (Action,Env Action), m Action] ->
-                     MonadContext m (Observation Action, Observation Action) () (Action,Action) ()
+fromEvalToContext :: List '[IO (Action,Env N Observation Action), IO Action] ->
+                     MonadContext IO (Observation Action, Observation Action) () (Action,Action) ()
 fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
@@ -137,29 +176,49 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 generateGame "stageDeterministic" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage [False,True] "Player1" chooseExploreAction (updateQTableST learningRate gamma)|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
-                , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseExploreAction (updateQTableST learningRate gamma)|] ["act1"]  [[|(pdMatrix act1 act2, Obs (act1,act2))|]]
+                , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, Obs (act1,act2))|]]]
                 [[|(act1, act2)|]] [] :: Block String (Q Exp))
 
 
 ----------------------------------
 -- Defining the iterator structure
 
-evalStage :: List '[Identity (Action, Env Action), Identity Action]
-            -> MonadContext
-                  Identity
-                  (Observation Action, Observation Action)
-                  ()
-                  (Action, Action)
-                  ()
-            -> List '[Identity (Action, Env Action), Identity Action]
-evalStage = evaluate (stageDeterministic "helper") 
+evalStage ::
+     List '[ IO (Action, Env N Observation Action), IO Action]
+  -> MonadContext IO (Observation Action, Observation Action) () (Action, Action) ()
+  -> List '[ IO (Action, Env N Observation Action), IO Action]
+evalStage  strat context  = evaluate (stageDeterministic "helper") strat context
 
-
--- Explicit list constructor much better
 evalStageLS startValue n =
           let context  = fromEvalToContext startValue
               newStrat = evalStage startValue context
               in if n > 0 then newStrat : evalStageLS newStrat (n-1)
                           else [newStrat]
 
+evalStageM ::
+     List '[ (Action, Env N Observation Action), Action]
+  -> Int
+  -> IO [List '[ (Action, Env N Observation Action), Action]]
+evalStageM startValue 0 = pure []
+evalStageM startValue n = do
+  newStrat <-
+    sequenceL
+      (evalStage (hoist startValue) (fromEvalToContext (hoist startValue)))
+  rest <- evalStageM newStrat (pred n)
+  pure (newStrat : rest)
+
+hoist ::
+     Applicative f
+  => List '[ (Action, Env N Observation Action), Action]
+  -> List '[ f (Action, Env N Observation Action), f Action]
+hoist (x ::- y ::- Nil) = pure x ::- pure y ::- Nil
+
+sequenceL ::
+     Monad m
+  => List '[ m (Action, Env N Observation Action), m Action]
+  -> m (List '[ (Action, Env N Observation Action), Action])
+sequenceL (x ::- y ::- Nil) = do
+  v <- x
+  v' <- y
+  pure (v ::- v' ::- Nil)
