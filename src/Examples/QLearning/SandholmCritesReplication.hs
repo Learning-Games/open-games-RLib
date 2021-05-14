@@ -23,6 +23,7 @@ module Examples.QLearning.SandholmCritesReplication
                      )
                      where
 
+import qualified Engine.Memory as Memory
 import           Control.Comonad
 import           Control.Monad.IO.Class
 import qualified Control.Monad.Trans.State as ST
@@ -60,7 +61,7 @@ chooseBoltzQTable ::
   -> State N Observation Action
   -> ST.StateT (State N Observation Action) m Action
 chooseBoltzQTable ls s = do
-    theMaxScore <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) ls
+    theMaxScore <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) ls
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
         q         = _qTable $ _env s
@@ -69,8 +70,8 @@ chooseBoltzQTable ls s = do
               let (_, gen'')   = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
                   action'      = snd $  theMaxScore
               return action'
-    qCooperate    <- liftIO $ A.readArray q (pushEnd obsVec (fmap toIdx (_obs s)), toIdx (Action True))
-    qDefect       <- liftIO $ A.readArray q (pushEnd obsVec (fmap toIdx (_obs s)), toIdx (Action False))
+    qCooperate    <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx (Action True))
+    qDefect       <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx (Action False))
     let chooseExplore  =
           do
             let
@@ -96,16 +97,16 @@ chooseUpdateBoltzQTable ::
   -> ST.StateT (State N Observation Action) m Action
 chooseUpdateBoltzQTable ls s obs2 action reward  = do
     let q         = _qTable $ _env s
-    prediction    <- liftIO $ A.readArray q (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
+    prediction    <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
 
-    maxed <- liftIO $ maxScore (pushEnd obsVec (fmap toIdx (_obs s))) q ls
+    maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx (_obs s))) q ls
     let updatedValue = reward + gamma * (fst $ maxed)
         newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
         -- newQ         = q A.// [((_obs s, action), newValue)]
-    liftIO $ A.writeArray q (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
+    liftIO $ A.writeArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
     ST.put $ updateRandomGQTableTemp (0.999) s gen'
     return action
   where obsVec = _obsAgent (_env s)
@@ -170,14 +171,14 @@ initialArray = liftIO (do
   where
     l = minimum $ fmap fst lstIndexValues
     u = maximum $ fmap fst lstIndexValues
-    asIdx ((x, y), z) = (SV.replicate (Obs (toIdx x, toIdx y)), toIdx z)
+    asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
 
 
 -- initialEnv and parameters
 initialEnv1 :: IO (Env N Observation Action)
-initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" arr 0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx) (SV.replicate initialObservation)) (5 * 0.999)
+initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" arr 0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx) (Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999)
 initialEnv2 :: IO (Env N Observation Action)
-initialEnv2 = initialArray >>= \arr ->  pure $ Env "PLayer2" arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx) (SV.replicate initialObservation)) (5 * 0.999)
+initialEnv2 = initialArray >>= \arr ->  pure $ Env "PLayer2" arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx) (Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 

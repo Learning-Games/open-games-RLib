@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, PolyKinds #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -24,7 +24,9 @@ import           Data.Bifunctor
 import           Data.Ix
 import           Data.STRef
 import qualified Data.Vector as V
-import qualified Data.Vector.Sized as SV
+-- import qualified Data.Vector.Sized as SV
+import qualified Engine.Memory as Memory
+import           Engine.Memory (Memory)
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
@@ -107,7 +109,7 @@ type LearningRate = Double
 
 type DiscountFactor = Double
 
-type QTable n o a = A.IOUArray (SV.Vector n (o (Idx a)), Idx a) Double
+type QTable n o a = A.IOUArray (Memory.Vector n (o (Idx a)), Idx a) Double
 
 -- Complete state comprises the internal state of the agent -- mainly the qmatrix
 -- and the external state, the observation made in the last round
@@ -124,11 +126,11 @@ data Env n o a = Env
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
-  , _obsAgent :: SV.Vector n (o (Idx a))
+  , _obsAgent :: Memory.Vector n (o (Idx a))
   , _temperature :: Temperature
   }  deriving (Generic)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
-instance (NFData a, NFData (o (Idx a))) => NFData (Env n o a)
+instance (NFData a, NFData (o (Idx a)), (NFData (Memory.Vector n (o (Idx a))))) => NFData (Env n o a)
 instance Show (QTable n o a) where show _ = "QTable"
 instance NFData (QTable n o a) where rnf _ = ()
 
@@ -144,8 +146,8 @@ makeLenses ''State
 -- given a q-table, derive maximal score and the action that guarantees it
 {-# INLINE maxScore #-}
 maxScore ::
-     (ToIdx a, Ord a, Functor o, Ix (o (Idx a)))
-  => SV.Vector n (o (Idx a))
+     (ToIdx a, Ord a, Functor o, Ix (o (Idx a)), Ix (Memory.Vector n (o (Idx a))))
+  => Memory.Vector n (o (Idx a))
   -> QTable n o a
   -> CTable a
   -> IO (Double, a)
@@ -178,7 +180,7 @@ updateQTable :: State n o a -> QTable n o a  -> State n o a
 updateQTable s q = env % qTable .~ q  $  s
 
 -- Update Observation for each agent
-updateObservationAgent ::  SV.Vector n (o (Idx a)) -> State n o a -> State n o a
+updateObservationAgent ::  Memory.Vector n (o (Idx a)) -> State n o a -> State n o a
 updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
 -- Update iterator
@@ -206,11 +208,11 @@ updateRandomGQTableExplore :: ExploreRate -> State n o a -> Rand.StdGen -> State
 updateRandomGQTableExplore decreaseFactor s r = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r
 
 -- Update gen, qtable,exploreRate,agentObs
-updateRandomGQTableExploreObs :: ExploreRate -> SV.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExploreObs :: ExploreRate -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObs decreaseFactor obs s r  = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor s r
 
 -- Update gen, qtable,exploreRate,agentObs, iteration
-updateRandomGQTableExploreObsIteration :: ExploreRate -> SV.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExploreObsIteration :: ExploreRate -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration $ updateRandomGQTableExploreObs decreaseFactor obs s r
 
 -----------------------------------
@@ -220,10 +222,10 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 -- 2.1. e-greedy experimentation
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
 {-# INLINE chooseActionNoExplore  #-}
-chooseActionNoExplore :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+chooseActionNoExplore :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseActionNoExplore support s = do
-  maxed <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) support
+  maxed <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) support
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
       optimalAction = snd $  maxed
   return optimalAction
@@ -232,7 +234,7 @@ chooseActionNoExplore support s = do
 -- | Choose the optimal action given the current state or explore greedily
 
 {-# INLINE chooseExploreAction #-}
-chooseExploreAction :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+chooseExploreAction :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreAction support s = do
   -- NOTE: gen'' is not updated anywhere...!!!
@@ -242,13 +244,13 @@ chooseExploreAction support s = do
       let !action' = samplePopulation_ support gen'
       return action'
     else do
-      maxed <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) support
+      maxed <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) support
       let optimalAction = snd $  maxed
       return optimalAction
 
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
 {-# INLINE chooseExploreActionDecrTemp  #-}
-chooseExploreActionDecrTemp :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+chooseExploreActionDecrTemp :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   Temperature -> CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreActionDecrTemp tempThreshold support  s = do
     let temp           = _temperature $ _env s
@@ -260,7 +262,7 @@ chooseExploreActionDecrTemp tempThreshold support  s = do
             return action'
         chooseNoExplore =
             do
-              maxed' <- liftIO $ maxScore (pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s)))
+              maxed' <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s)))
                                           (_qTable $ _env s)
                                           support
               let optimalAction = snd $  maxed'
@@ -276,18 +278,18 @@ chooseExploreActionDecrTemp tempThreshold support  s = do
 -- | TODO Constant exploration rate
 
 {-# INLINE updateQTableST #-}
-updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
-        maxed <- liftIO $ maxScore (pushEnd obsVec (fmap toIdx obs2)) table0 support
-        prediction    <- liftIO $ A.readArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
+        maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
+        prediction    <- liftIO $ A.readArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
 
             updatedValue  = reward + gamma * (fst $ maxed)
             newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
-        liftIO $ A.writeArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
+        liftIO $ A.writeArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
         ST.put $ updateRandomGAndQTable s gen'
         return action
   where  obsVec = _obsAgent (_env s)
@@ -296,19 +298,19 @@ updateQTableST learningRate gamma support s obs2 action reward  = do
 -- | Update the qmatrix with evolving exploration rate
 
 {-# INLINE chooseLearnDecrExploreQTable #-}
-chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a))) =>
+chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s
-       maxed <- liftIO $ maxScore (pushEnd obsVec (fmap toIdx obs2)) table0 support
-       prediction    <- liftIO $ A.readArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
+       maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
+       prediction    <- liftIO $ A.readArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
 
-       liftIO $ A.writeArray table0 (pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
-       ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (pushEnd obsVec (fmap toIdx obs2)) s gen'
+       liftIO $ A.writeArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
+       ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
   where obsVec = _obsAgent (_env s)
 
@@ -381,50 +383,50 @@ fromFunctions f g = fromLens f (const g)
 
 -- Example:
 --
--- > pushEnd (fromJust $ SV.fromList [1,2,3,4] :: SV.Vector 4 Int) 5
+-- > Memory.pushEnd (fromJust $ SV.fromList [1,2,3,4] :: Memory.Vector 4 Int) 5
 -- Vector [2,3,4,5]
--- > pushStart 0 (fromJust $ SV.fromList [1,2,3,4] :: SV.Vector 4 Int)
+-- > pushStart 0 (fromJust $ SV.fromList [1,2,3,4] :: Memory.Vector 4 Int)
 -- Vector [0,1,2,3]
 
 -- Iterative use:
 --
--- > foldl pushEnd (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: SV.Vector 8 Int) [55,66,77]
+-- > foldl Memory.pushEnd (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: Memory.Vector 8 Int) [55,66,77]
 -- Vector [4,5,6,7,8,55,66,77]
--- > foldr pushStart (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: SV.Vector 8 Int) [55,66,77]
+-- > foldr pushStart (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: Memory.Vector 8 Int) [55,66,77]
 -- Vector [55,66,77,1,2,3,4,5]
 
--- Trivial, but expensive.
-{-# INLINE pushEnd_slow  #-}
-pushEnd_slow :: SV.Vector (1 + n) a -> a -> SV.Vector (n + 1) a
-pushEnd_slow vec a = SV.snoc (SV.tail vec) a
+-- -- Trivial, but expensive.
+-- {-# INLINE Memory.pushEnd_slow  #-}
+-- Memory.pushEnd_slow :: Memory.Vector (1 + n) a -> a -> Memory.Vector (n + 1) a
+-- Memory.pushEnd_slow vec a = SV.snoc (SV.tail vec) a
 
--- Trivial, but expensive.
-{-# INLINE pushStart_slow  #-}
-pushStart_slow :: a -> SV.Vector (n + 1) a -> SV.Vector (1 + n) a
-pushStart_slow a vec = SV.cons a (SV.init vec)
+-- -- Trivial, but expensive.
+-- {-# INLINE pushStart_slow  #-}
+-- pushStart_slow :: a -> Memory.Vector (n + 1) a -> Memory.Vector (1 + n) a
+-- pushStart_slow a vec = SV.cons a (SV.init vec)
 
--- Faster with a better type.
-{-# INLINE _pushStart  #-}
-_pushStart :: a -> SV.Vector n a -> SV.Vector n a
-_pushStart a vec =
-  SV.knownLength
-    vec
-    (SV.imap
-       (\idx _ ->
-          if idx == 0
-            then a
-            else SV.index vec (idx - 1))
-       vec)
+-- -- Faster with a better type.
+-- {-# INLINE _pushStart  #-}
+-- _pushStart :: a -> Memory.Vector n a -> Memory.Vector n a
+-- _pushStart a vec =
+--   SV.knownLength
+--     vec
+--     (SV.imap
+--        (\idx _ ->
+--           if idx == 0
+--             then a
+--             else SV.index vec (idx - 1))
+--        vec)
 
--- Faster with a better type.
-{-# INLINE pushEnd  #-}
-pushEnd :: SV.Vector n a -> a -> SV.Vector n a
-pushEnd vec a =
-  SV.knownLength
-    vec
-    (SV.imap
-       (\idx _ ->
-          if fromIntegral idx == SV.length vec - 1
-            then a
-            else SV.index vec (idx + 1))
-       vec)
+-- -- Faster with a better type.
+-- {-# INLINE Memory.pushEnd  #-}
+-- Memory.pushEnd :: Memory.Vector n a -> a -> Memory.Vector n a
+-- Memory.pushEnd vec a =
+--   SV.knownLength
+--     vec
+--     (SV.imap
+--        (\idx _ ->
+--           if fromIntegral idx == SV.length vec - 1
+--             then a
+--             else SV.index vec (idx + 1))
+--        vec)

@@ -35,7 +35,7 @@ import           GHC.Generics
 import           Language.Haskell.TH
 import           System.Random
 import qualified System.Random as Rand
-
+import qualified Engine.Memory as Memory
 import           Engine.QLearning
 import           Engine.OpenGames
 import           Engine.TLL
@@ -106,13 +106,13 @@ initialArray = liftIO (do
   where
     l = minimum $ fmap fst lstIndexValues
     u = maximum $ fmap fst lstIndexValues
-    asIdx ((x, y), z) = (SV.replicate (Obs (toIdx x, toIdx y)), toIdx z)
+    asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
 
 
 initialEnv1 :: IO (Env N Observation Action)
-initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" arr  0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx)(SV.replicate initialObservation)) (5 * 0.999)
+initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" arr  0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx)(Memory.fromSV (SV.replicate initialObservation))) (5 * 0.999)
 initialEnv2 :: IO (Env N Observation Action)
-initialEnv2 = initialArray >>= \arr ->  pure $ Env "Player2" arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx)(SV.replicate initialObservation)) (5 * 0.999)
+initialEnv2 = initialArray >>= \arr ->  pure $ Env "Player2" arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx)(Memory.fromSV (SV.replicate initialObservation))) (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 ---------------------------------------

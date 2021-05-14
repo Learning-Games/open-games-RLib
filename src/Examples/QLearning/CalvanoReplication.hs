@@ -28,6 +28,7 @@ module Examples.QLearning.CalvanoReplication
   , evalStageM
   , PriceSpace(..)
   ) where
+import qualified Engine.Memory as Memory
 import           Control.DeepSeq
 import qualified Data.Vector.Sized as SV
 import           Data.Function
@@ -63,7 +64,7 @@ import           Preprocessor.THSyntax
 -- 0 Types
 
 type Player1N = 1
-type Player2N = 1
+type Player2N = 3
 
 newtype Observation a = Obs
   { unObs :: (a, a)
@@ -299,7 +300,7 @@ initialEnv1 =
          0
          (decreaseFactor beta)
          (Rand.mkStdGen generatorEnv1)
-         (SV.replicate (fmap toIdx initialObservation))
+         (Memory.fromSV (SV.replicate (fmap toIdx initialObservation)))
          (5 * 0.999))
   where
     initialArray :: IO (QTable Player1N Observation PriceSpace)
@@ -310,7 +311,7 @@ initialEnv1 =
       where
         l = minimum $ fmap fst lsValues
         u = maximum $ fmap fst lsValues
-        asIdx ((x, y), z) = (SV.replicate (Obs (toIdx x, toIdx y)), toIdx z)
+        asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
 
 initialEnv2 :: IO (Env Player2N Observation PriceSpace)
 initialEnv2 =
@@ -322,7 +323,7 @@ initialEnv2 =
       0
       (decreaseFactor beta)
       (Rand.mkStdGen generatorEnv2)
-      (SV.replicate (fmap toIdx initialObservation))
+      (Memory.fromSV (SV.replicate (fmap toIdx initialObservation)))
       (5 * 0.999)
   where
     initialArray :: IO (QTable Player2N Observation PriceSpace)
@@ -333,7 +334,7 @@ initialEnv2 =
       where
         l = minimum $ fmap fst lsValues
         u = maximum $ fmap fst lsValues
-        asIdx ((x, y), z) = (SV.replicate (Obs (toIdx x, toIdx y)), toIdx z)
+        asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
 
 -----------------------------
 -- 4. Constructing initial state
