@@ -64,7 +64,7 @@ import           Preprocessor.THSyntax
 -- 0 Types
 
 type Player1N = 1
-type Player2N = 3
+type Player2N = 1
 
 newtype Observation a = Obs
   { unObs :: (a, a)
