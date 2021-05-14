@@ -9,6 +9,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE BangPatterns #-}
 
 
 -- Parts of this file were written by Sjoerd Visscher
