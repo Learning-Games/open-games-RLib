@@ -1,3 +1,7 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
@@ -19,63 +23,93 @@ module Examples.QLearning.SandholmCritesReplication
                      )
                      where
 
-import Control.Comonad
-import Data.Functor.Identity
-import Language.Haskell.TH
+import qualified Engine.Memory as Memory
+import           Control.Comonad
+import           Control.Monad.IO.Class
 import qualified Control.Monad.Trans.State as ST
-import qualified GHC.Arr as A
-import GHC.Generics
+import qualified Data.Array.IO as A
+import           Data.Coerce
+import           Data.Function
+import           Data.Functor.Identity
+import qualified Data.Vector as V
+import qualified Data.Vector.Sized as SV
+import           GHC.Generics
+import           Language.Haskell.TH
 import qualified System.Random as Rand
 
-import Engine.QLearning
-import Engine.OpenGames
-import Engine.TLL
-import Engine.OpticClass
-import Preprocessor.AbstractSyntax
-import Preprocessor.Compile
-import Preprocessor.THSyntax
+import           Engine.QLearning
+import           Engine.OpenGames
+import           Engine.TLL
+import           Engine.OpticClass
+import           Preprocessor.AbstractSyntax
+import           Preprocessor.Compile
+import           Preprocessor.THSyntax
+
+type N = 1
+
+newtype Observation a = Obs
+  { unObs :: (a, a)
+  } deriving (Show,Generic,A.Ix,Ord, Eq, Functor)
 
 ------------------
 -- Introducing specialized learning rule:
 
 -- Choose the optimal action given the current state
-chooseBoltzQTable :: Monad m =>
- [Bool] -> State  Bool-> ST.StateT (State Bool) m Bool
+chooseBoltzQTable ::
+     MonadIO m
+  => CTable Action
+  -> State N Observation Action
+  -> ST.StateT (State N Observation Action) m Action
 chooseBoltzQTable ls s = do
+    theMaxScore <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) ls
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
         q         = _qTable $ _env s
         chooseNoExplore =
             do
               let (_, gen'')   = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
-                  action'      = snd $  maxScore (_obs s) (_qTable $ _env s) ls
+                  action'      = snd $  theMaxScore
               return action'
-        chooseExplore  =
+    qCooperate    <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx (Action True))
+    qDefect       <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx (Action False))
+    let chooseExplore  =
           do
-            let qCooperate       = q A.! (_obs s, True)
-                qDefect          = q A.! (_obs s, False)
+            let
                 eCooperate       = (exp 1.0)** qCooperate / temp
                 eDefect          = (exp 1.0)** qDefect / temp
                 probCooperate    = eCooperate / (eCooperate + eDefect)
                 (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
-                action'          = if actionP < probCooperate then True else False
+                action'          = Action (if actionP < probCooperate then True else False)
             return action'
         in if temp < 0.01
            then chooseNoExplore
            else chooseExplore
+  where obsVec = _obsAgent (_env s)
 
 -- choose optimally or explore according to the Boltzmann rule
-chooseUpdateBoltzQTable ::  Monad m => [Bool] -> State Bool -> Observation Bool -> Bool -> Double -> ST.StateT (State Bool) m Bool
+chooseUpdateBoltzQTable ::
+     MonadIO m
+  => CTable Action
+  -> State N Observation Action
+  -> Observation Action
+  -> Action
+  -> Double
+  -> ST.StateT (State N Observation Action) m Action
 chooseUpdateBoltzQTable ls s obs2 action reward  = do
+    let q         = _qTable $ _env s
+    prediction    <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-        q         = _qTable $ _env s
-        prediction   = q A.! (_obs s, action)
-        updatedValue = reward + gamma * (fst $ maxScore obs2 q ls)
+
+
+    maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx (_obs s))) q ls
+    let updatedValue = reward + gamma * (fst $ maxed)
         newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-        newQ         = q A.// [((_obs s, action), newValue)]
-    ST.put $ updateRandomGQTableTemp (0.999) s gen' newQ
+        -- newQ         = q A.// [((_obs s, action), newValue)]
+    liftIO $ A.writeArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
+    ST.put $ updateRandomGQTableTemp (0.999) s gen'
     return action
+  where obsVec = _obsAgent (_env s)
 
 
 
@@ -83,8 +117,15 @@ chooseUpdateBoltzQTable ls s obs2 action reward  = do
 ------------------
 -- Types
 
-type Action = Bool
+newtype Action = Action Bool  deriving (Show, Eq, Ord)
+instance ToIdx Action where
+  toIdx =
+    \case
+      Action False -> Idx 0
+      Action True -> Idx 1
 
+actionSpace :: CTable Action
+actionSpace = uniformCTable (fmap coerce (V.fromList [False,True]))
 
 -------------
 -- Parameters
@@ -95,29 +136,26 @@ learningRate = 0.40
 
 
 
-
-
 pdMatrix :: Action -> Action -> Double
-pdMatrix True True = 0.3
-pdMatrix True False = 0
-pdMatrix False True = 0.5
-pdMatrix False False = 0.1
+pdMatrix = on pdMatrix' coerce
+
+pdMatrix' :: Bool -> Bool -> Double
+pdMatrix' True True = 0.3
+pdMatrix' True False = 0
+pdMatrix' False True = 0.5
+pdMatrix' False False = 0.1
 
 -- Policy for deterministic player
 titForTat :: Observation Action -> Action
-titForTat (_,True) = True
-titForTat (_,False)    = False
-
-
+titForTat (Obs (_,Action True))   = Action True
+titForTat (Obs (_,Action False))  = Action False
 
 -----------------------------------
 -- Constructing initial state
 -- TODO change this; make it random
-lstIndexValues = [
-  (((True,True), True),0),(((True,False),True),0),(((False,True),True), 0),(((False,False),True),0),
-   (((True,True), False),0),(((True,False),False),0),(((False,True),False), 0),(((False,False),False),0)]
-
-
+lstIndexValues = [ (((Action x, Action y),Action z),v) | (((x,y),z),v) <-
+  [(((True,True), True),0),(((True,False),True),0),(((False,True),True), 0),(((False,False),True),0),
+    (((True,True), False),0),(((True,False),False),0),(((False,True),False), 0),(((False,False),False),0)]]
 
 lstIndexValues2 = [
   (((True,True), True),4),(((True,False),True),0),(((False,True),True), 2),(((False,False),True),1),
@@ -125,13 +163,22 @@ lstIndexValues2 = [
 
 -- TODO check whether this makes sense
 -- TODO need a constructor for this more generally
-initialArray :: QTable Action
-initialArray =  A.array (((False,False),False),((True,True),True)) lstIndexValues
+initialArray :: MonadIO m => m (QTable N Observation Action)
+initialArray = liftIO (do
+   arr <- A.newArray_ (asIdx l, asIdx u)
+   traverse (\(k, v) -> A.writeArray arr (asIdx k) v) lstIndexValues
+   pure arr)
+  where
+    l = minimum $ fmap fst lstIndexValues
+    u = maximum $ fmap fst lstIndexValues
+    asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
 
 
 -- initialEnv and parameters
-initialEnv1 = Env "Player1" initialArray 0  0.2  (Rand.mkStdGen 3) initialObservation (5 * 0.999)
-initialEnv2 = Env "PLayer2" initialArray 0  0.2  (Rand.mkStdGen 100) initialObservation (5 * 0.999)
+initialEnv1 :: IO (Env N Observation Action)
+initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" arr 0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx) (Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999)
+initialEnv2 :: IO (Env N Observation Action)
+initialEnv2 = initialArray >>= \arr ->  pure $ Env "PLayer2" arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx) (Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 
@@ -140,7 +187,7 @@ initialEnv2 = Env "PLayer2" initialArray 0  0.2  (Rand.mkStdGen 100) initialObse
 -- Initial observation
 -- TODO randomize it
 initialObservation :: Observation Action
-initialObservation = (True,True)
+initialObservation = fmap coerce $ Obs (True,True)
 
 -- | the initial observation is used twice as the context for two players requires it in that form
 initialObservationContext :: (Observation Action, Observation Action)
@@ -151,29 +198,30 @@ initialContext :: Monad m => MonadicLearnLensContext m (Observation Action,Obser
 initialContext = MonadicLearnLensContext (pure initialObservationContext) (pure (\(_,_) -> pure ()))
 
 -- initialstrategy
-initiateStrat :: Monad m => List '[m (Action, Env Action ), m Action]
-initiateStrat = pure (True,initialEnv1) ::- pure True ::- Nil
+initiateStrat :: IO (List '[IO (Action, Env N Observation Action ), IO Action])
+initiateStrat = do e <- initialEnv1
+                   pure $ pure (Action True,e) ::- pure (Action True) ::- Nil
 
 
 ------------------------------
 -- Updating state
 
 
-toObs :: Monad m => m (Action,Env Action) -> m Action -> m ((), (Observation Action,Observation Action))
+toObs :: Monad m => m (Action,Env N Observation Action) -> m Action -> m ((), (Observation Action,Observation Action))
 toObs a1 a2 = do
              (act1,env1) <- a1
              act2 <- a2
-             let obs1 = (act1,act2)
-                 obs2 = (act2,act1)
+             let obs1 = Obs (act1,act2)
+                 obs2 = Obs (act2,act1)
                  in return ((),(obs1,obs2))
 
 
-toObsFromLS :: Monad m => List '[m (Action,Env Action), m Action] -> m ((), (Observation Action,Observation Action))
+toObsFromLS :: Monad m => List '[m (Action,Env N Observation Action), m Action] -> m ((), (Observation Action,Observation Action))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: Monad m =>  List '[m (Action,Env Action), m Action] ->
+fromEvalToContext :: Monad m =>  List '[m (Action,Env N Observation Action), m Action] ->
                      MonadContext m (Observation Action, Observation Action) () (Action,Action) ()
 fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
@@ -185,8 +233,8 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 generateGame "stageDeterministic" ["helper"]
                 (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage [False,True] "Player1" chooseBoltzQTable chooseUpdateBoltzQTable|] ["act1"]  [[|(pdMatrix act1 act2, (act1,act2))|]]
-                , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, (act1,act2))|]]]
+                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseBoltzQTable chooseUpdateBoltzQTable|] ["act1"]  [[|(pdMatrix act1 act2, Obs (act1,act2))|]]
+                , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, Obs (act1,act2))|]]]
                 [[|(act1, act2)|]] [] :: Block String (Q Exp))
 
 
@@ -195,10 +243,10 @@ generateGame "stageDeterministic" ["helper"]
 ----------------------------------
 -- Defining the iterator structure
 evalStage ::
-     Monad m0
-  => List '[ m0 (Bool, Env Bool), m0 Action]
-  -> MonadContext m0 (Observation Bool, Observation Action) () (Bool, Action) ()
-  -> List '[ m0 (Bool, Env Bool), m0 Action]
+     MonadIO m0
+  => List '[ m0 (Action, Env N Observation Action), m0 Action]
+  -> MonadContext m0 (Observation Action, Observation Action) () (Action, Action) ()
+  -> List '[ m0 (Action, Env N Observation Action), m0 Action]
 evalStage  strat context  = evaluate (stageDeterministic "helper") strat context
 
 
@@ -213,23 +261,23 @@ evalStageLS startValue n =
 
 hoist ::
      Applicative f
-  => List '[ (Bool, Env Action), Action]
-  -> List '[ f (Bool, Env Action), f Action]
+  => List '[ (Action, Env N Observation Action), Action]
+  -> List '[ f (Action, Env N Observation Action), f Action]
 hoist (x ::- y ::- Nil) = pure x ::- pure y ::- Nil
 
 sequenceL ::
      Monad f
-  => List '[ f (Bool, Env Action), f Action]
-  -> f (List '[ (Bool, Env Action), Action])
+  => List '[ f (Action, Env N Observation Action), f Action]
+  -> f (List '[ (Action, Env N Observation Action), Action])
 sequenceL (x ::- y ::- Nil) = do
   v <- x
   v' <- y
   pure (v ::- v' ::- Nil)
 
 evalStageM ::
-     Monad m => List '[ (Bool, Env Action), Action]
+     MonadIO m => List '[ (Action, Env N Observation Action), Action]
   -> Int
-  -> m [List '[ (Bool, Env Action), Action]]
+  -> m [List '[ (Action, Env N Observation Action), Action]]
 evalStageM startValue 0 = pure []
 evalStageM startValue n = do
   newStrat <-
