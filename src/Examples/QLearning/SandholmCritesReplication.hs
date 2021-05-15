@@ -61,7 +61,7 @@ chooseBoltzQTable ::
   -> State N Observation Action
   -> ST.StateT (State N Observation Action) m Action
 chooseBoltzQTable ls s = do
-    theMaxScore <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) ls
+    theMaxScore <- liftIO $ maxScore obsVec (_qTable $ _env s) ls
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
         q         = _qTable $ _env s
@@ -70,8 +70,8 @@ chooseBoltzQTable ls s = do
               let (_, gen'')   = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
                   action'      = snd $  theMaxScore
               return action'
-    qCooperate    <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx (Action True))
-    qDefect       <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx (Action False))
+    qCooperate    <- liftIO $ A.readArray q (obsVec, toIdx (Action True))
+    qDefect       <- liftIO $ A.readArray q (obsVec, toIdx (Action False))
     let chooseExplore  =
           do
             let
@@ -97,7 +97,7 @@ chooseUpdateBoltzQTable ::
   -> ST.StateT (State N Observation Action) m Action
 chooseUpdateBoltzQTable ls s obs2 action reward  = do
     let q         = _qTable $ _env s
-    prediction    <- liftIO $ A.readArray q (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
+    prediction    <- liftIO $ A.readArray q (obsVec, toIdx action)
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
 
