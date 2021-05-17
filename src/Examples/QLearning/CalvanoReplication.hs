@@ -28,6 +28,8 @@ module Examples.QLearning.CalvanoReplication
   , evalStageM
   , PriceSpace(..)
   ) where
+import qualified Data.HashMap.Strict as HM
+import           Data.HashMap.Strict (HashMap)
 import qualified Engine.Memory as Memory
 import           Control.DeepSeq
 import qualified Data.Vector.Sized as SV
@@ -38,7 +40,7 @@ import           Data.Bifunctor
 import           Data.Hashable
 import qualified Data.ByteString.Char8 as S8
 import           Data.ByteString (ByteString)
-import           Data.Array.IO
+import           Data.Array.IO as A
 import           Debug.Trace
 import           Control.DeepSeq
 import           Data.Aeson
@@ -47,7 +49,6 @@ import           Language.Haskell.TH
 
 import qualified Data.List as L
 import qualified Data.Ix as I
-import qualified GHC.Arr as A
 import           GHC.Generics
 import qualified System.Random as Rand
 import           System.Random
@@ -68,7 +69,7 @@ type Player2N = 1
 
 newtype Observation a = Obs
   { unObs :: (a, a)
-  } deriving (Show,Generic,A.Ix,Ord, Eq, ToJSON, Functor, NFData)
+  } deriving (Show,Generic,I.Ix,Ord, Eq, ToJSON, Functor, NFData)
 
 data PriceSpace = PriceSpace {
    value :: !Double
@@ -126,32 +127,32 @@ instance ToNamedRecord ExportParameters
 instance DefaultOrdered ExportParameters
 
 -- | Instantiate the export parameters with the used variables
-{-parameters = ExportParameters
-  ksi
-  beta
-  (decreaseFactor beta)
-  bertrandPrice
-  monopolyPrice
-  gamma
-  learningRate
-  mu
-  a1
-  a2
-  a0
-  c1
-  m
-  lowerBound
-  upperBound
-  generatorEnv1
-  generatorEnv2
-  generatorPrice1
-  generatorPrice2
-  generatorObs1
-  generatorObs2
-  (createRandomPrice actionSpace generatorObs1)
-  (createRandomPrice actionSpace generatorObs2)
-  (createRandomPrice actionSpace generatorPrice1)
-  (createRandomPrice actionSpace generatorPrice2)-}
+-- parameters = ExportParameters
+--   ksi
+--   beta
+--   (decreaseFactor beta)
+--   bertrandPrice
+--   monopolyPrice
+--   gamma
+--   learningRate
+--   mu
+--   a1
+--   a2
+--   a0
+--   c1
+--   m
+--   lowerBound
+--   upperBound
+--   generatorEnv1
+--   generatorEnv2
+--   generatorPrice1
+--   generatorPrice2
+--   generatorObs1
+--   generatorObs2
+--   (createRandomPrice actionSpace generatorObs1)
+--   (createRandomPrice actionSpace generatorObs2)
+--   (createRandomPrice actionSpace generatorPrice1)
+--   (createRandomPrice actionSpace generatorPrice2)
 
 -- | export to CSV
 -- csvParameters = encodeDefaultOrderedByName  [parameters]
@@ -170,33 +171,40 @@ instance DefaultOrdered ExportParameters
 data ExportQValues = ExportQValues
    { expName :: !Agent
    , expIteration :: !Int
-   , expObs  :: !(Double,Double)
-   , expQValues  :: ![((Observation Double,Double),Double)]
+   , expObs  :: !(Memory.Vector Player1N (Observation (Idx PriceSpace)))
+   , expQValues  :: ![((Memory.Vector Player1N (Observation (Idx PriceSpace)),Idx PriceSpace),Double)]
    } deriving (Generic,Show)
 
 instance ToJSON ExportQValues
 
 -- | Extract relevant information into a record to be exported
-fromTLLToExport :: List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)] -> [ExportQValues]
-fromTLLToExport (p1 ::- p2 ::- Nil) =
-  undefined {-let (IO (_, env1)) = p1
-      (IO (_, env2)) = p2
-      name1 = _name env1
+fromTLLToExport :: List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)] -> IO [ExportQValues]
+fromTLLToExport (p1 ::- p2 ::- Nil) = do
+  ((_, env1)) <- p1
+  ((_, env2)) <- p2
+  let name1 = _name env1
       name2 = _name env2
       expIteration1 = _iteration env1
       expIteration2 = _iteration env2
       expObs1 = _obsAgent env1
       expObs2 = _obsAgent env2
-      expQValues1 = A.assocs $ _qTable env1
-      expQValues2 = A.assocs $ _qTable env2
+  expQValues1 <- A.getAssocs $ _qTable env1
+  expQValues2 <- A.getAssocs $ _qTable env2
+  let
       expPlayer1 = ExportQValues name1 expIteration1 expObs1 expQValues1
       expPlayer2 = ExportQValues name2 expIteration2 expObs2 expQValues2
-      in [expPlayer1,expPlayer2]-}
+  pure $ [expPlayer1, expPlayer2]
 
-fromTLLListToExport :: [List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)]]-> [ExportQValues]
-fromTLLListToExport = concatMap fromTLLToExport
+fromTLLListToExport :: [List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO [ExportQValues]
+fromTLLListToExport = fmap concat . traverse fromTLLToExport
 
-exportQValuesJSON ls = foldable $ fromTLLListToExport ls
+exportQValuesJSON ls = fmap foldable $ fromTLLListToExport ls
+
+indexMapObject :: HashMap (Idx PriceSpace) PriceSpace
+indexMapObject = HM.fromList indexMapVector
+
+indexMapVector :: V.Vector (Idx PriceSpace, PriceSpace)
+indexMapVector = V.imap (\i v -> (Idx i, v)) (population actionSpace)
 
 ------------------------------------------
 -- 3. Environment variables and parameters

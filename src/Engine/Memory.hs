@@ -18,10 +18,13 @@ module Engine.Memory
   ) where
 
 import           Control.DeepSeq
+import           Data.Aeson
 import           Data.Function
 import           Data.Ix
 import           Data.Ord
+import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
+import qualified Data.Vector.Generic.Sized.Internal as SVI
 import           GHC.TypeLits
 
 --------------------------------------------------------------------------------
@@ -30,11 +33,14 @@ import           GHC.TypeLits
 -- | A vector where we specialize small sizes.
 data family Vector (n :: Nat) a
 
-newtype instance Vector 1 a = V1 {unV1 :: a} deriving (NFData, Ord, Eq, Ix, Functor)
+newtype instance Vector 1 a = V1 {unV1 :: a} deriving (NFData, Ord, Eq, Ix, Functor, Show)
 
-newtype instance Vector 2 a = V2 (a, a) deriving (NFData, Ord, Eq, Ix, Functor)
+newtype instance Vector 2 a = V2 (a, a) deriving (NFData, Ord, Eq, Ix, Functor, Show)
 
-newtype instance Vector 3 a = VN (SV.Vector 3 a) deriving (NFData, Ord, Eq, Ix, Functor)
+newtype instance Vector 3 a = VN (SV.Vector 3 a) deriving (NFData, Ord, Eq, Ix, Functor, Show)
+
+instance (Memory n, ToJSON a) => ToJSON (Vector n a) where
+  toJSON = Array . toJsonArray
 
 --------------------------------------------------------------------------------
 -- Memory
@@ -43,6 +49,7 @@ newtype instance Vector 3 a = VN (SV.Vector 3 a) deriving (NFData, Ord, Eq, Ix, 
 class Memory size where
   pushEnd :: Vector size a -> a -> Vector size a
   fromSV :: SV.Vector size a -> Vector size a
+  toJsonArray :: ToJSON a => Vector size a -> Array
 
 --------------------------------------------------------------------------------
 -- Memory instances
@@ -51,11 +58,13 @@ instance Memory 1 where
   pushEnd _ a = V1 a
   {-# INLINE pushEnd #-}
   fromSV s = V1 (SV.head s)
+  toJsonArray (V1 a) = V.singleton (toJSON a)
 
 instance Memory 2 where
   pushEnd (V2 (_,prev)) next = V2 (prev, next)
   {-# INLINE pushEnd #-}
   fromSV s = V2 (SV.head s, SV.head (SV.tail s))
+  toJsonArray (V2 (x, y)) = fmap toJSON (V.fromList [x,y])
 
 instance Memory 3 where
   pushEnd (VN vec) a =
@@ -70,3 +79,4 @@ instance Memory 3 where
             vec))
   {-# INLINE pushEnd #-}
   fromSV = VN
+  toJsonArray (VN (SVI.Vector vec)) = fmap toJSON vec

@@ -19,6 +19,7 @@ module Engine.QLearning where
 import           Control.DeepSeq
 import           Control.Monad.Trans
 import           Control.Monad.Trans.Reader
+import           Data.Aeson
 import qualified Data.Array.IO as A
 import           Data.Bifunctor
 import           Data.Ix
@@ -84,7 +85,7 @@ samplePopulation_ population gen = fst $ samplePopulation population gen
 --------------------------------------------------------------------------------
 -- Indexable values
 
-newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show, NFData)
+newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show, NFData, ToJSON)
 class ToIdx a where
   toIdx :: a -> Idx a
 
