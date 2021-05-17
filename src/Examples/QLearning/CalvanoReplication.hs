@@ -76,12 +76,13 @@ data PriceSpace = PriceSpace {
    value :: !Double
   , idx :: !Int
   } deriving (Show, Eq, Ord)
-  -- deriving (Generic,Random,Num,Fractional,Enum,Ord,Show,Eq,ToField,ToJSON,NFData, Hashable)
 instance NFData PriceSpace where
   rnf x =
     let !_ = x -- PriceSpace is strict in its fields.
-     in ()
-
+    in ()
+instance ToField PriceSpace where
+  toField (PriceSpace {value, idx}) =
+    toField value <> " [idx=" <> toField idx <> "]"
 instance ToIdx PriceSpace where
   toIdx PriceSpace {idx} = Idx idx
 
@@ -118,48 +119,48 @@ data ExportParameters = ExportParameters
   , expGeneratorPrice2 :: !Int
   , expGeneratorObs1 :: !Int
   , expGeneratorObs2 :: !Int
-  , expInitialObservation1 :: !Double
-  , expInitialObservation2 :: !Double
-  , expInitialPrice1 :: !Double
-  , expInitialPrice2 :: !Double
+  , expInitialObservation1 :: !PriceSpace
+  , expInitialObservation2 :: !PriceSpace
+  , expInitialPrice1 :: !PriceSpace
+  , expInitialPrice2 :: !PriceSpace
   } deriving (Generic,Show)
 
 instance ToNamedRecord ExportParameters
 instance DefaultOrdered ExportParameters
 
 -- | Instantiate the export parameters with the used variables
--- parameters = ExportParameters
---   ksi
---   beta
---   (decreaseFactor beta)
---   bertrandPrice
---   monopolyPrice
---   gamma
---   learningRate
---   mu
---   a1
---   a2
---   a0
---   c1
---   m
---   lowerBound
---   upperBound
---   generatorEnv1
---   generatorEnv2
---   generatorPrice1
---   generatorPrice2
---   generatorObs1
---   generatorObs2
---   (createRandomPrice actionSpace generatorObs1)
---   (createRandomPrice actionSpace generatorObs2)
---   (createRandomPrice actionSpace generatorPrice1)
---   (createRandomPrice actionSpace generatorPrice2)
+parameters = ExportParameters
+  ksi
+  beta
+  (decreaseFactor beta)
+  bertrandPrice
+  monopolyPrice
+  gamma
+  learningRate
+  mu
+  a1
+  a2
+  a0
+  c1
+  m
+  lowerBound
+  upperBound
+  generatorEnv1
+  generatorEnv2
+  generatorPrice1
+  generatorPrice2
+  generatorObs1
+  generatorObs2
+  (samplePopulation_ actionSpace (mkStdGen generatorObs1))
+  (samplePopulation_ actionSpace (mkStdGen generatorObs2))
+  (samplePopulation_ actionSpace (mkStdGen generatorPrice1))
+  (samplePopulation_ actionSpace (mkStdGen generatorPrice2))
 
 -- | export to CSV
--- csvParameters = encodeDefaultOrderedByName  [parameters]
+csvParameters = encodeDefaultOrderedByName  [parameters]
 
---instance ToNamedRecord ExportQValues
---instance DefaultOrdered ExportQValues
+instance ToNamedRecord ExportQValues
+instance DefaultOrdered ExportQValues
 
 -------------------------
 -- 2. Export Data as JSON
@@ -172,11 +173,18 @@ instance DefaultOrdered ExportParameters
 data ExportQValues = ExportQValues
    { expName :: !Agent
    , expIteration :: !Int
-   , expObs  :: !(Memory.Vector Player1N (Observation (Idx PriceSpace)))
-   , expQValues  :: ![((Memory.Vector Player1N (Observation (Idx PriceSpace)),Idx PriceSpace),Double)]
+   , expObs  :: !(FieldAsJson (Memory.Vector Player1N (Observation (Idx PriceSpace))))
+   , expQValues  :: !(FieldAsJson [((Memory.Vector Player1N (Observation (Idx PriceSpace)),Idx PriceSpace),Double)])
    } deriving (Generic,Show)
-
 instance ToJSON ExportQValues
+
+-- | Easy way to have a CSV field encoded by JSON.
+newtype FieldAsJson a = FieldAsJson { unFieldAsJson :: a}
+  deriving (Generic, Show)
+instance ToJSON a => ToField (FieldAsJson a) where
+  toField = toField . Data.Aeson.encode . unFieldAsJson
+instance ToJSON a => ToJSON (FieldAsJson a) where
+  toJSON = toJSON . unFieldAsJson
 
 -- | Extract relevant information into a record to be exported
 fromTLLToExport :: List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)] -> IO [ExportQValues]
@@ -192,8 +200,8 @@ fromTLLToExport (p1 ::- p2 ::- Nil) = do
   expQValues1 <- A.getAssocs $ _qTable env1
   expQValues2 <- A.getAssocs $ _qTable env2
   let
-      expPlayer1 = ExportQValues name1 expIteration1 expObs1 expQValues1
-      expPlayer2 = ExportQValues name2 expIteration2 expObs2 expQValues2
+      expPlayer1 = ExportQValues name1 expIteration1 (FieldAsJson expObs1) (FieldAsJson expQValues1)
+      expPlayer2 = ExportQValues name2 expIteration2 (FieldAsJson expObs2) (FieldAsJson expQValues2)
   pure $ [expPlayer1, expPlayer2]
 
 fromTLLListToExport :: [List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO [ExportQValues]
@@ -250,12 +258,12 @@ demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
 profit a0 a1 a2 (PriceSpace p1 _) (PriceSpace p2 _) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
 -- Fixing initial generators
-generatorObs1 = mkStdGen 2
-generatorObs2 = mkStdGen 400
+generatorObs1 = 2
+generatorObs2 = 400
 generatorEnv1 = 3
 generatorEnv2 = 100
-generatorPrice1 = mkStdGen 90
-generatorPrice2 = mkStdGen 39
+generatorPrice1 = 90
+generatorPrice2 = 39
 
 ------------------------------------------------------
 -- Create index on the basis of the actual prices used
@@ -351,7 +359,7 @@ initialEnv2 =
 -- First observation, randomly determined
 initialObservation :: Observation PriceSpace
 initialObservation =
-  Obs (samplePopulation_ actionSpace generatorPrice1, samplePopulation_ actionSpace generatorPrice2)
+  Obs (samplePopulation_ actionSpace (mkStdGen generatorPrice1), samplePopulation_ actionSpace (mkStdGen generatorPrice2))
 
 -- Initiate strategy: start with random price
 initialStrat :: IO (List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)])
@@ -359,8 +367,8 @@ initialStrat = do
   e1 <- initialEnv1
   e2 <- initialEnv2
   pure
-    (pure (samplePopulation_ actionSpace generatorObs1, e1) ::-
-     pure (samplePopulation_ actionSpace generatorObs2, e2) ::-
+    (pure (samplePopulation_ actionSpace (mkStdGen generatorObs1), e1) ::-
+     pure (samplePopulation_ actionSpace (mkStdGen generatorObs2), e2) ::-
      Nil)
 
 

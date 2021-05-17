@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -19,12 +19,14 @@ module Engine.Memory
 
 import           Control.DeepSeq
 import           Data.Aeson
+import           Data.Csv
 import           Data.Function
 import           Data.Ix
+import qualified Data.List as List
 import           Data.Ord
 import qualified Data.Vector as V
-import qualified Data.Vector.Sized as SV
 import qualified Data.Vector.Generic.Sized.Internal as SVI
+import qualified Data.Vector.Sized as SV
 import           GHC.TypeLits
 
 --------------------------------------------------------------------------------
