@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE NamedFieldPuns, PolyKinds #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -132,6 +133,7 @@ data Env n o a = Env
   , _obsAgent :: Memory.Vector n (o (Idx a))
   , _temperature :: Temperature
   }  deriving (Generic)
+deriving instance (Show a, Show (o a), Show (o (Idx a)), Memory n) => Show (Env n o a)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
 instance (NFData a, NFData (o (Idx a)), (NFData (Memory.Vector n (o (Idx a))))) => NFData (Env n o a)
 instance Show (QTable n o a) where show _ = "QTable"

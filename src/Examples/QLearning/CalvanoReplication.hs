@@ -22,7 +22,7 @@ module Examples.QLearning.CalvanoReplication
   , initialStrat
   , beta
   , actionSpace
-  -- , csvParameters               --
+  , csvParameters
   , exportQValuesJSON
   , sequenceL
   , evalStageM
@@ -187,10 +187,10 @@ instance ToJSON a => ToJSON (FieldAsJson a) where
   toJSON = toJSON . unFieldAsJson
 
 -- | Extract relevant information into a record to be exported
-fromTLLToExport :: List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)] -> IO [ExportQValues]
+fromTLLToExport :: List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)] -> IO [ExportQValues]
 fromTLLToExport (p1 ::- p2 ::- Nil) = do
-  ((_, env1)) <- p1
-  ((_, env2)) <- p2
+  let ((_, env1)) = p1
+      ((_, env2)) = p2
   let name1 = _name env1
       name2 = _name env2
       expIteration1 = _iteration env1
@@ -204,7 +204,7 @@ fromTLLToExport (p1 ::- p2 ::- Nil) = do
       expPlayer2 = ExportQValues name2 expIteration2 (FieldAsJson expObs2) (FieldAsJson expQValues2)
   pure $ [expPlayer1, expPlayer2]
 
-fromTLLListToExport :: [List '[IO (PriceSpace, Env Player1N Observation PriceSpace), IO (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO [ExportQValues]
+fromTLLListToExport :: [List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO [ExportQValues]
 fromTLLListToExport = fmap concat . traverse fromTLLToExport
 
 exportQValuesJSON ls = fmap foldable $ fromTLLListToExport ls

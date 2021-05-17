@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import Examples.QLearning.CalvanoReplication
@@ -8,12 +9,14 @@ import qualified Data.ByteString.Lazy as BS
 import qualified Data.Aeson.Encoding.Internal as E
 
 
-main = undefined {-do
+main = do
   BS.writeFile "parameters.csv" $ csvParameters
-  let results = evalStageLS initialStrat 10
-  BS.writeFile "qValues.json" $ E.encodingToLazyByteString $ exportQValuesJSON results
+  strat <- initialStrat >>= sequenceL
+  results <- evalStageM strat 10
+  encoding <- exportQValuesJSON results
+  BS.writeFile "qValues.json" $ E.encodingToLazyByteString encoding
   let pairLS = fmap toPair results
-  print $ last pairLS-}
+  print $ last pairLS
 
 {-
 main = do

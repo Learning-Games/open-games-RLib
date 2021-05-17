@@ -35,14 +35,17 @@ import           GHC.TypeLits
 -- | A vector where we specialize small sizes.
 data family Vector (n :: Nat) a
 
-newtype instance Vector 1 a = V1 {unV1 :: a} deriving (NFData, Ord, Eq, Ix, Functor, Show)
+newtype instance Vector 1 a = V1 {unV1 :: a} deriving (NFData, Ord, Eq, Ix, Functor)
 
-newtype instance Vector 2 a = V2 (a, a) deriving (NFData, Ord, Eq, Ix, Functor, Show)
+newtype instance Vector 2 a = V2 (a, a) deriving (NFData, Ord, Eq, Ix, Functor)
 
-newtype instance Vector 3 a = VN (SV.Vector 3 a) deriving (NFData, Ord, Eq, Ix, Functor, Show)
+newtype instance Vector 3 a = VN (SV.Vector 3 a) deriving (NFData, Ord, Eq, Ix, Functor)
 
 instance (Memory n, ToJSON a) => ToJSON (Vector n a) where
   toJSON = Array . toJsonArray
+
+instance (Memory n, Show a) => Show (Vector n a) where
+  show = showMemory
 
 --------------------------------------------------------------------------------
 -- Memory
@@ -52,6 +55,7 @@ class Memory size where
   pushEnd :: Vector size a -> a -> Vector size a
   fromSV :: SV.Vector size a -> Vector size a
   toJsonArray :: ToJSON a => Vector size a -> Array
+  showMemory :: Show a => Vector size a -> String
 
 --------------------------------------------------------------------------------
 -- Memory instances
@@ -61,12 +65,14 @@ instance Memory 1 where
   {-# INLINE pushEnd #-}
   fromSV s = V1 (SV.head s)
   toJsonArray (V1 a) = V.singleton (toJSON a)
+  showMemory (V1 a) = show (V.singleton a)
 
 instance Memory 2 where
-  pushEnd (V2 (_,prev)) next = V2 (prev, next)
+  pushEnd (V2 (_, prev)) next = V2 (prev, next)
   {-# INLINE pushEnd #-}
   fromSV s = V2 (SV.head s, SV.head (SV.tail s))
-  toJsonArray (V2 (x, y)) = fmap toJSON (V.fromList [x,y])
+  toJsonArray (V2 (x, y)) = fmap toJSON (V.fromList [x, y])
+  showMemory (V2 (x, y)) = show (V.fromList [x, y])
 
 instance Memory 3 where
   pushEnd (VN vec) a =
@@ -82,3 +88,4 @@ instance Memory 3 where
   {-# INLINE pushEnd #-}
   fromSV = VN
   toJsonArray (VN (SVI.Vector vec)) = fmap toJSON vec
+  showMemory (VN (SVI.Vector vec)) = show vec
