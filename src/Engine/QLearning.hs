@@ -225,11 +225,11 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 chooseActionNoExplore :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseActionNoExplore support s = do
-  maxed <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) support
+  maxed <- liftIO $ maxScore obsVec (_qTable $ _env s) support
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
       optimalAction = snd $  maxed
   return optimalAction
-
+  where  obsVec = _obsAgent (_env s)
 
 -- | Choose the optimal action given the current state or explore greedily
 
@@ -244,10 +244,10 @@ chooseExploreAction support s = do
       let !action' = samplePopulation_ support gen'
       return action'
     else do
-      maxed <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s))) (_qTable $ _env s) support
+      maxed <- liftIO $ maxScore obsVec (_qTable $ _env s) support
       let optimalAction = snd $  maxed
       return optimalAction
-
+  where  obsVec = _obsAgent (_env s)
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
 {-# INLINE chooseExploreActionDecrTemp  #-}
 chooseExploreActionDecrTemp :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
@@ -262,7 +262,7 @@ chooseExploreActionDecrTemp tempThreshold support  s = do
             return action'
         chooseNoExplore =
             do
-              maxed' <- liftIO $ maxScore (Memory.pushEnd (_obsAgent (_env s)) (fmap toIdx (_obs s)))
+              maxed' <- liftIO $ maxScore obsVec
                                           (_qTable $ _env s)
                                           support
               let optimalAction = snd $  maxed'
@@ -270,7 +270,7 @@ chooseExploreActionDecrTemp tempThreshold support  s = do
         in if temp < tempThreshold
            then chooseNoExplore
            else chooseExplore
-
+    where  obsVec = _obsAgent (_env s)
 
 
 -- 2.2. Different updates of the qmatrix depending on learning form
@@ -282,11 +282,9 @@ updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory
                      LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
+        prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
         maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
-        prediction    <- liftIO $ A.readArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-
-
             updatedValue  = reward + gamma * (fst $ maxed)
             newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
         liftIO $ A.writeArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
@@ -302,13 +300,11 @@ chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (I
                      LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s
+       prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
        maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
-       prediction    <- liftIO $ A.readArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action)
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-
        liftIO $ A.writeArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
