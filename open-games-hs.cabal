@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b1b7d872c5f9c98d54ef874051d3c5e13ae48b207e2ce512ffef646cd225ccdb
+-- hash: 9738a0ec6bcbbea96df9bca16a1cd7a77e80780da5a8f76cbc7045d323752bf3
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -33,7 +33,6 @@ library
       Engine.OpenGames
       Engine.OpticClass
       Engine.QLearning
-      Engine.QLearningHash
       Engine.TLL
       Preprocessor.AbstractSyntax
       Preprocessor.Compile
@@ -51,15 +50,11 @@ library
       Examples.QLearning.PDDeterministicPlayer
       Examples.QLearning.SandholmCritesReplication
       Examples.QLearning.CalvanoReplication
-      Examples.QLearning.CalvanoReplicationHash
-      Examples.QLearning.CalvanoReplicationMutable
-      Examples.QLearning.CalvanoReplicationHashMutable
       Examples.QLearning.BestReply
   other-modules:
       Engine.AtomicGames
       Engine.IterativeSolutionConcepts
-      Engine.QLearningHashMutable
-      Engine.QLearningMutable
+      Engine.Memory
       Examples.QLearning.IteratedDeletion
       Paths_open_games_hs
   hs-source-dirs:
@@ -77,6 +72,7 @@ library
     , hashtables
     , ixset
     , mtl
+    , mwc-random >=0.15.0.1
     , optics
     , parsec
     , poly
@@ -87,6 +83,8 @@ library
     , template-haskell
     , transformers
     , unordered-containers
+    , vector
+    , vector-sized
   default-language: Haskell2010
 
 executable learning-exe
@@ -109,6 +107,7 @@ executable learning-exe
     , hashtables
     , ixset
     , mtl
+    , mwc-random >=0.15.0.1
     , open-games-hs
     , optics
     , parsec
@@ -120,41 +119,8 @@ executable learning-exe
     , template-haskell
     , transformers
     , unordered-containers
-  default-language: Haskell2010
-
-test-suite golden-tests
-  type: exitcode-stdio-1.0
-  main-is: GoldenTests.hs
-  other-modules:
-      GoldenTests
-  hs-source-dirs:
-      tests
-  ghc-options: -main-is GoldenTests
-  build-depends:
-      ad
-    , aeson
-    , array
-    , base
-    , bytestring
-    , cassava
-    , comonad
-    , deepseq
-    , hashable
-    , hashtables
-    , hspec
-    , ixset
-    , mtl
-    , open-games-hs
-    , optics
-    , parsec
-    , poly
-    , probability
-    , profunctors
-    , random
-    , random-fu
-    , template-haskell
-    , transformers
-    , unordered-containers
+    , vector
+    , vector-sized
   default-language: Haskell2010
 
 test-suite test-open-games
@@ -162,7 +128,6 @@ test-suite test-open-games
   main-is: THTests.hs
   other-modules:
       ArrowTest
-      GoldenTests
       Paths_open_games_hs
   hs-source-dirs:
       tests
@@ -181,6 +146,7 @@ test-suite test-open-games
     , hspec
     , ixset
     , mtl
+    , mwc-random >=0.15.0.1
     , optics
     , parsec
     , poly
@@ -191,6 +157,8 @@ test-suite test-open-games
     , template-haskell
     , transformers
     , unordered-containers
+    , vector
+    , vector-sized
   buildable: False
   default-language: Haskell2010
 
@@ -216,6 +184,7 @@ benchmark learning-bench
     , hashtables
     , ixset
     , mtl
+    , mwc-random >=0.15.0.1
     , open-games-hs
     , optics
     , parsec
@@ -227,4 +196,6 @@ benchmark learning-bench
     , template-haskell
     , transformers
     , unordered-containers
+    , vector
+    , vector-sized
   default-language: Haskell2010

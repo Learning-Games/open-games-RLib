@@ -22,6 +22,7 @@ import           Control.Monad.Trans.Reader
 import           Data.Aeson
 import qualified Data.Array.IO as A
 import           Data.Bifunctor
+import           Data.Hashable
 import           Data.Ix
 import           Data.STRef
 import qualified Data.Vector as V
@@ -85,7 +86,7 @@ samplePopulation_ population gen = fst $ samplePopulation population gen
 --------------------------------------------------------------------------------
 -- Indexable values
 
-newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show, NFData, ToJSON)
+newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show, NFData, ToJSON, Hashable)
 class ToIdx a where
   toIdx :: a -> Idx a
 

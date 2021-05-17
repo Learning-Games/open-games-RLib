@@ -28,6 +28,7 @@ module Examples.QLearning.CalvanoReplication
   , evalStageM
   , PriceSpace(..)
   ) where
+import           Data.Foldable
 import qualified Data.HashMap.Strict as HM
 import           Data.HashMap.Strict (HashMap)
 import qualified Engine.Memory as Memory
@@ -201,7 +202,7 @@ fromTLLListToExport = fmap concat . traverse fromTLLToExport
 exportQValuesJSON ls = fmap foldable $ fromTLLListToExport ls
 
 indexMapObject :: HashMap (Idx PriceSpace) PriceSpace
-indexMapObject = HM.fromList indexMapVector
+indexMapObject = HM.fromList (toList indexMapVector)
 
 indexMapVector :: V.Vector (Idx PriceSpace, PriceSpace)
 indexMapVector = V.imap (\i v -> (Idx i, v)) (population actionSpace)
