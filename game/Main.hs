@@ -12,6 +12,7 @@ import           Formatting.Time
 import           System.Clock
 import           System.Directory
 import           System.Environment
+import           System.Exit
 import           System.FilePath
 import           System.IO
 import           System.Process.Typed
@@ -22,16 +23,13 @@ main = do
   if exists
     then do
       runProcess_ (proc "git" ["add", sourcefp])
-      out <-
-        fmap
-          (S8.concat . S8.words . L.toStrict)
-          (readProcessStdout_ (proc "git" ["diff-index", "--quiet", "HEAD"]))
+      code <- runProcess (proc "git" ["diff-index", "--quiet", "HEAD"])
       let getHash =
             fmap
               (((S8.pack name <> "-") <>) . S.concat . S8.words . L.toStrict)
               (readProcessStdout_ (proc "git" ["rev-parse", "--verify", "HEAD"]))
       hash <-
-        if S.null out
+        if code == ExitSuccess
           then getHash
           else do
             putStrLn ("Saving to Git ...")
