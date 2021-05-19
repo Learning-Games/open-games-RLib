@@ -161,13 +161,29 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 ------------------------------
 -- Game stage
--- TODO should be able to feed in learning rules
-generateGame "stageSimple" ["helper"]
-                (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace  "Player1" chooseExploreAction (updateQTableST learningRate gamma)|] ["act1"]  [[|(pdMatrix act1 act2, Obs (act1,act2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace  "Player2" chooseExploreAction (updateQTableST learningRate gamma)|] ["act2"]  [[|(pdMatrix act2 act1, Obs (act1,act2))|]]]
-                [[|(act1, act2)|]] [])
+stageSimple = [opengame|
+   inputs    : (state1,state2) ;
+   feedback  :      ;
 
+   :-----------------:
+   inputs    :  state1    ;
+   feedback  :      ;
+   operation : pureDecisionQStage actionSpace "Player1" chooseExploreAction (updateQTableST learningRate gamma) ;
+   outputs   :  act1 ;
+   returns   :  (pdMatrix act1 act2, Obs (act1,act2)) ;
+
+   inputs    : state2     ;
+   feedback  :      ;
+   operation : pureDecisionQStage actionSpace  "Player2" chooseExploreAction (updateQTableST learningRate gamma) ;
+   outputs   :  act2 ;
+   returns   :  (pdMatrix act2 act1, Obs (act1,act2))    ;
+   :-----------------:
+
+   outputs   :  (act1, act2)    ;
+   returns   :      ;
+
+
+|]
 
 ----------------------------------
 -- Defining the iterator structure
@@ -179,7 +195,7 @@ evalStage :: List '[IO (Action, Env N Observation Action), IO (Action, Env N Obs
                   (Action, Action)
                   ()
             -> List '[IO (Action, Env N Observation Action), IO (Action, Env N Observation Action)]
-evalStage  = evaluate (stageSimple "helper")
+evalStage  = evaluate stageSimple
 
 evalStageLS startValue n =
           let context  = fromEvalToContext startValue

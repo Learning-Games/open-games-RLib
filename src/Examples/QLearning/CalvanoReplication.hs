@@ -396,13 +396,29 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 ------------------------------
 -- Game stage
-generateGame "stageSimple" ["beta'"]
-                (Block ["state1"::String, "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p1"]  [[|(profit a0 a1 a2 p1 p2 mu c1,Obs (p1,p2))|]]
-                , Line [[|state2|]] [] [|pureDecisionQStage actionSpace "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta'))|] ["p2"]  [[|(profit a0 a1 a2 p2 p1 mu c1,Obs (p1,p2))|]]]
-                [[|(p1, p2)|]] [])
+stageSimple beta = [opengame|
+   inputs    : (state1,state2) ;
+   feedback  :      ;
+
+   :-----------------:
+   inputs    :  state1    ;
+   feedback  :      ;
+   operation : pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta)) ;
+   outputs   :  p1 ;
+   returns   :  (profit a0 a1 a2 p1 p2 mu c1, Obs (p1,p2)) ;
+
+   inputs    : state2     ;
+   feedback  :      ;
+   operation : pureDecisionQStage actionSpace "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma (decreaseFactor beta)) ;
+   outputs   :  p2 ;
+   returns   :  (profit a0 a1 a2 p2 p1 mu c1, Obs (p1,p2))    ;
+   :-----------------:
+
+   outputs   :  (p1, p2)    ;
+   returns   :      ;
 
 
+|]
 
 ----------------------------------
 -- Defining the iterator structure

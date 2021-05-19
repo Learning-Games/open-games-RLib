@@ -10,14 +10,12 @@ import qualified Data.Aeson.Encoding.Internal as E
 
 
 main = do
-  BS.writeFile "parameters.csv" $ csvParameters
+  BS.writeFile "output/parameters.csv" $ csvParameters
   strat <- initialStrat >>= sequenceL
-  results <- evalStageM strat 10
-  encoding <- exportQValuesJSON results
-  BS.writeFile "qValues.json" $ E.encodingToLazyByteString encoding
-  let pairLS = fmap toPair results
-  print $ last pairLS
-
+  results <- evalStageM strat 100000
+  encoding <- exportQValuesJSON  $ drop 99000 results
+  BS.writeFile "output/qValues.json" $ E.encodingToLazyByteString encoding
+  putStrLn "output completed"
 {-
 main = do
   let results = evalStageLS initiateStrat 100
@@ -26,4 +24,6 @@ main = do
 --  print $ drop 299900 $ pairLS
   print $ take 100 $ fmap  extractSnd pairLS
   print $ drop 99900 $ fmap extractSnd pairLS
+  let pairLS = fmap toPair results
+  print $ last pairLS
 --}

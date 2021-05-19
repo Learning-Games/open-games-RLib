@@ -103,14 +103,29 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
 ------------------------------
--- Game stage 
-generateGame "stageSimple" ["helper"]
-                (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|bestReplyStratStage "Player1" (profit a c) actionSpace |] ["q1"]  [[|0|]]
-                , Line [[|state2|]] [] [|bestReplyStratStage "Player1" (profit a c) actionSpace |] ["q2"]  [[|0|]]]
-                [[|(q1, q2)|]] [])
+-- Game stage
+stageSimple = [opengame|
+   inputs    : (state1,state2) ;
+   feedback  :      ;
 
+   :-----------------:
+   inputs    :  state1    ;
+   feedback  :      ;
+   operation : bestReplyStratStage "Player1" (profit a c) actionSpace ;
+   outputs   :  q1 ;
+   returns   :  0 ;
 
+   inputs    : state2     ;
+   feedback  :      ;
+   operation : bestReplyStratStage "Player2" (profit a c) actionSpace ;
+   outputs   :  q2 ;
+   returns   :  0    ;
+   :-----------------:
+
+   outputs   :  (q1, q2)    ;
+   returns   :      ;
+
+|]
 
 ----------------------------------
 -- Defining the iterator structure
@@ -122,7 +137,7 @@ evalStage :: List '[Identity Quantity, Identity Quantity]
                   (Quantity, Quantity)
                   ()
             -> List '[Identity Quantity, Identity Quantity]
-evalStage  = evaluate (stageSimple "helper") 
+evalStage  = evaluate stageSimple 
 
 
 -- Explicit list constructor much better

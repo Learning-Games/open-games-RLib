@@ -96,17 +96,34 @@ initialStrat = pure actionSpace1 ::- pure actionSpace2 ::- Nil
 
 ------------------------------
 -- Game stage
-generateGame "stageSimple" ["helper"]
-                (Block ["stratPair1", "stratPair2"] []
-                [ Line [[|stratPair1|]] [] [|deleteDominatedStratStage "Player1" payoffMatrix1 |] []  []
-                , Line [[|stratPair2|]] [] [|deleteDominatedStratStage "Player2" payoffMatrix2 |] []  []]
-                [] [])
+stageSimple = [opengame|
+   inputs    : (stratPair1,stratPair2) ;
+   feedback  :      ;
+
+   :-----------------:
+   inputs    :  stratPair1    ;
+   feedback  :      ;
+   operation : deleteDominatedStratStage "Player1" payoffMatrix1 ;
+   outputs   :   ;
+   returns   :   ;
+
+   inputs    :  stratPair2    ;
+   feedback  :      ;
+   operation : deleteDominatedStratStage "Player2" payoffMatrix2 ;
+   outputs   :   ;
+   returns   :   ;
+   :-----------------:
+
+   outputs   :   ;
+   returns   :   ;
+
+|]
 
 
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage  = evaluate (stageSimple "helper") 
+evalStage  = evaluate stageSimple
 
 
 -- Explicit list constructor much better

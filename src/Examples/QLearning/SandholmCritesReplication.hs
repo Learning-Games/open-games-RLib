@@ -230,24 +230,36 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 ------------------------------
 -- Game stage 1
+stageDeterministic = [opengame|
+   inputs    : (state1,state2) ;
+   feedback  :      ;
 
-generateGame "stageDeterministic" ["helper"]
-                (Block ["state1", "state2"] []
-                [ Line [[|state1|]] [] [|pureDecisionQStage actionSpace "Player1" chooseBoltzQTable chooseUpdateBoltzQTable|] ["act1"]  [[|(pdMatrix act1 act2, Obs (act1,act2))|]]
-                , Line [[|state2|]] [] [|deterministicStratStage "Player2" titForTat|] ["act2"]  [[|(pdMatrix act2 act1, Obs (act1,act2))|]]]
-                [[|(act1, act2)|]] [] :: Block String (Q Exp))
+   :-----------------:
+   inputs    :  state1    ;
+   feedback  :      ;
+   operation : pureDecisionQStage actionSpace "Player1" chooseBoltzQTable chooseUpdateBoltzQTable ;
+   outputs   :  act1 ;
+   returns   :  (pdMatrix act1 act2, Obs (act1,act2)) ;
 
+   inputs    : state2     ;
+   feedback  :      ;
+   operation : deterministicStratStage "Player2" titForTat ;
+   outputs   :  act2 ;
+   returns   :  (pdMatrix act2 act1, Obs (act1,act2))    ;
+   :-----------------:
 
+   outputs   :  (act1, act2)    ;
+   returns   :      ;
 
+|]
 
 ----------------------------------
 -- Defining the iterator structure
 evalStage ::
-     MonadIO m0
-  => List '[ m0 (Action, Env N Observation Action), m0 Action]
-  -> MonadContext m0 (Observation Action, Observation Action) () (Action, Action) ()
-  -> List '[ m0 (Action, Env N Observation Action), m0 Action]
-evalStage  strat context  = evaluate (stageDeterministic "helper") strat context
+     List '[ IO (Action, Env N Observation Action), IO Action]
+  -> MonadContext IO (Observation Action, Observation Action) () (Action, Action) ()
+  -> List '[ IO (Action, Env N Observation Action), IO Action]
+evalStage  strat context  = evaluate stageDeterministic strat context
 
 
 
@@ -275,9 +287,9 @@ sequenceL (x ::- y ::- Nil) = do
   pure (v ::- v' ::- Nil)
 
 evalStageM ::
-     MonadIO m => List '[ (Action, Env N Observation Action), Action]
+     List '[ (Action, Env N Observation Action), Action]
   -> Int
-  -> m [List '[ (Action, Env N Observation Action), Action]]
+  -> IO [List '[ (Action, Env N Observation Action), Action]]
 evalStageM startValue 0 = pure []
 evalStageM startValue n = do
   newStrat <-
