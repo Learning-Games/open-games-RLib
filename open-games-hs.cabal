@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 47558dd92975260e6cd1d6fa142d86df3ec030ee180700f5a305ed025d37db31
+-- hash: 93739761237848402e583a17c754573bf50c41a7a18c5783154224988921718e
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -70,8 +70,12 @@ library
     , base >=4.7 && <5
     , bytestring
     , cassava
+    , clock
     , comonad
     , deepseq
+    , directory
+    , filepath
+    , formatting
     , hashable
     , hashtables
     , ixset
@@ -86,6 +90,47 @@ library
     , random-fu
     , template-haskell
     , transformers
+    , typed-process
+    , unordered-containers
+    , vector
+    , vector-sized
+  default-language: Haskell2010
+
+executable game
+  main-is: Main.hs
+  other-modules:
+      Paths_open_games_hs
+  hs-source-dirs:
+      game
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      ad
+    , aeson
+    , array
+    , base >=4.7 && <5
+    , bytestring
+    , cassava
+    , clock
+    , comonad
+    , deepseq
+    , directory
+    , filepath
+    , formatting
+    , hashable
+    , hashtables
+    , ixset
+    , mtl
+    , mwc-random >=0.15.0.1
+    , optics
+    , parsec
+    , poly
+    , probability
+    , profunctors
+    , random
+    , random-fu
+    , template-haskell
+    , transformers
+    , typed-process
     , unordered-containers
     , vector
     , vector-sized
@@ -105,8 +150,12 @@ executable learning-exe
     , base >=4.7 && <5
     , bytestring
     , cassava
+    , clock
     , comonad
     , deepseq
+    , directory
+    , filepath
+    , formatting
     , hashable
     , hashtables
     , ixset
@@ -122,6 +171,7 @@ executable learning-exe
     , random-fu
     , template-haskell
     , transformers
+    , typed-process
     , unordered-containers
     , vector
     , vector-sized
@@ -143,8 +193,12 @@ test-suite test-open-games
     , base
     , bytestring
     , cassava
+    , clock
     , comonad
     , deepseq
+    , directory
+    , filepath
+    , formatting
     , hashable
     , hashtables
     , hspec
@@ -160,6 +214,7 @@ test-suite test-open-games
     , random-fu
     , template-haskell
     , transformers
+    , typed-process
     , unordered-containers
     , vector
     , vector-sized
@@ -181,9 +236,13 @@ benchmark learning-bench
     , base >=4.7 && <5
     , bytestring
     , cassava
+    , clock
     , comonad
     , criterion
     , deepseq
+    , directory
+    , filepath
+    , formatting
     , hashable
     , hashtables
     , ixset
@@ -199,6 +258,7 @@ benchmark learning-bench
     , random-fu
     , template-haskell
     , transformers
+    , typed-process
     , unordered-containers
     , vector
     , vector-sized
