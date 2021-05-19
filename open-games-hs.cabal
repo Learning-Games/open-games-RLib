@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 93739761237848402e583a17c754573bf50c41a7a18c5783154224988921718e
+-- hash: 5822bc219ab918ce71d58c5f6cde36d79d3ed996f725f801b4da096801637f5d
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -89,6 +89,7 @@ library
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
     , typed-process
     , unordered-containers
@@ -129,6 +130,7 @@ executable game
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
     , typed-process
     , unordered-containers
@@ -170,6 +172,7 @@ executable learning-exe
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
     , typed-process
     , unordered-containers
@@ -213,6 +216,7 @@ test-suite test-open-games
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
     , typed-process
     , unordered-containers
@@ -257,6 +261,7 @@ benchmark learning-bench
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
     , typed-process
     , unordered-containers

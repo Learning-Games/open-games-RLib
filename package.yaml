@@ -71,6 +71,7 @@ dependencies:
     - deepseq
     - array
     - directory
+    - time
 
 executables:
   learning-exe:
