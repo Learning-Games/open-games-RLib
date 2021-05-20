@@ -20,22 +20,32 @@ main = do
   args <- getArgs
   case args of
     ["local", file] -> runLocal file
+    ["check", file] -> runLocal file
     _ ->
       error
-        "Arguments expected:\n\
+        "Invalid arguments given.\n\
          \\n\
-         \stack run local MODULE\n\
+         \Workflow: \n\
          \\n\
-         \  Commit, compile & run the module locally.\n\
+         \  1. First check your module, which should be in the games/ directory.\n\
+         \  2. Do a quick sanity check run locally with a small number of\n\
+         \     iterations.\n\
+         \  3. When ready, run remotely with desired number of iterations.\n\
          \\n\
-         \stack run check MODULE\n\
+         \See commands list below:\n\
          \\n\
-         \  Compile the module locally.\n\
+         \  stack run local MODULE\n\
          \\n\
-         \stack run remote MODULE\n\
+         \    Commit, compile & run the module locally.\n\
          \\n\
-         \  Copy the module remotely, then commit, compile & run it on the\n\
-         \  remote server.\n\
+         \  stack run check MODULE\n\
+         \\n\
+         \    Compile the module locally.\n\
+         \\n\
+         \  stack run remote MODULE\n\
+         \\n\
+         \    Copy the module remotely, then commit, compile & run it on the\n\
+         \    remote server.\n\
          \"
 
 runLocal name = do
@@ -109,6 +119,24 @@ runLocal name = do
                   end
     else error ("Game not found in " ++ dir)
 
+runCheck name = do
+  let sourcefp = dir </> addHs name
+  exists <- doesFileExist sourcefp
+  if exists
+    then do
+      putStrLn ("Compiling with GHC ...")
+      runProcess_
+        (proc
+           "ghc"
+           [ sourcefp
+           , "-i" ++ dir
+           , "-o"
+           , "/dev/null"
+           , "-O0"
+           , "-Wall"
+           , "-fforce-recomp"
+           ])
+    else error ("Game not found in " ++ dir)
 
 dir = "games/"
 dropHs name = maybe name reverse $ List.stripPrefix ".hs" (reverse name)
