@@ -52,28 +52,43 @@ main = do
       let resultDir = "results" </> S8.unpack hash
       createDirectoryIfMissing True resultDir
       putStrLn ("Running in directory " ++ resultDir ++ "...")
-      outfile <- openFile (resultDir </> "stdout") WriteMode
-      errfile <- openFile (resultDir </> "stderr") WriteMode
-      statsfile <- openFile (resultDir </> "stats") WriteMode
-      now <- getCurrentTime
-      hprint statsfile ("Starting at " % datetime % "\n") now
-      start <- getTime Monotonic
-      pwd <- getCurrentDirectory
-      runProcess_
-        (setStderr
-           (useHandleClose errfile)
-           (setStdout
-              (useHandleClose outfile)
-              (setWorkingDir resultDir (proc (pwd </> S8.unpack hash) []))))
-      end <- getTime Monotonic
-      now <- getCurrentTime
-      hprint statsfile ("Ending at " % datetime % "\n") now
-      hprint
-        statsfile
-        ("Successful run complete in: " % timeSpecs % "\n")
-        start
-        end
-      hClose statsfile
+      withFile (resultDir </> "stdout") WriteMode $ \outfile ->
+        withFile (resultDir </> "stderr") WriteMode $ \errfile ->
+          withFile (resultDir </> "stats") WriteMode $ \statsfile -> do
+            now <- getCurrentTime
+            hprint statsfile ("Starting at " % datetime % "\n") now
+            start <- getTime Monotonic
+            pwd <- getCurrentDirectory
+            status <-
+              runProcess
+                (setStderr
+                   (useHandleClose errfile)
+                   (setStdout
+                      (useHandleClose outfile)
+                      (setWorkingDir
+                         resultDir
+                         (proc (pwd </> S8.unpack hash) []))))
+            end <- getTime Monotonic
+            now <- getCurrentTime
+            if status == ExitSuccess
+              then do
+                hprint statsfile ("Successful end at " % datetime % "\n") now
+                hprint
+                  statsfile
+                  ("Running time: " % timeSpecs % "\n")
+                  start
+                  end
+              else do
+                hprint
+                  statsfile
+                  ("Exited with failure at " % datetime % "\n")
+                  now
+                hprint statsfile ("Exited code: " % string % "\n") (show status)
+                hprint
+                  statsfile
+                  ("Running time so far: " % timeSpecs % "\n")
+                  start
+                  end
     else error ("Game not found in " ++ dir)
 dir = "games/"
 dropHs name = maybe name reverse $ List.stripPrefix ".hs" (reverse name)
