@@ -17,7 +17,28 @@ import           System.FilePath
 import           System.IO
 import           System.Process.Typed
 main = do
-  name:_ <- getArgs
+  args <- getArgs
+  case args of
+    ["local", file] -> runLocal file
+    _ ->
+      error
+        "Arguments expected:\n\
+         \\n\
+         \stack run local MODULE\n\
+         \\n\
+         \  Commit, compile & run the module locally.\n\
+         \\n\
+         \stack run check MODULE\n\
+         \\n\
+         \  Compile the module locally.\n\
+         \\n\
+         \stack run remote MODULE\n\
+         \\n\
+         \  Copy the module remotely, then commit, compile & run it on the\n\
+         \  remote server.\n\
+         \"
+
+runLocal name = do
   let sourcefp = dir </> addHs name
   exists <- doesFileExist sourcefp
   if exists
@@ -30,7 +51,8 @@ main = do
               (readProcessStdout_ (proc "git" ["rev-parse", "--verify", "HEAD"]))
       hash <-
         if code == ExitSuccess
-          then getHash
+          then do putStrLn "No change to source, we'll just re-run it."
+                  getHash
           else do
             putStrLn ("Saving to Git ...")
             runProcess_ (proc "git" ["commit", "-m", "Updated: " ++ sourcefp])
@@ -73,11 +95,7 @@ main = do
             if status == ExitSuccess
               then do
                 hprint statsfile ("Successful end at " % datetime % "\n") now
-                hprint
-                  statsfile
-                  ("Running time: " % timeSpecs % "\n")
-                  start
-                  end
+                hprint statsfile ("Running time: " % timeSpecs % "\n") start end
               else do
                 hprint
                   statsfile
@@ -90,6 +108,8 @@ main = do
                   start
                   end
     else error ("Game not found in " ++ dir)
+
+
 dir = "games/"
 dropHs name = maybe name reverse $ List.stripPrefix ".hs" (reverse name)
 addHs name =
