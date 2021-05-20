@@ -107,7 +107,7 @@ runLocal rootDir sourceFile name = do
             pure hash
       putStrLn ("Compiling with GHC ...")
       binaryRelFile <- parseRelFile (unHashedName hashedName)
-      let binDir = rootDir </> $(mkRelDir "bin")
+      let binDir = rootDir </> binRelDir
       IO.createDirIfMissing True binDir
       let binaryAbsFile = binDir </> binaryRelFile
       IO.withSystemTempDir "game" $ \tmpDir -> do
@@ -127,9 +127,9 @@ runLocal rootDir sourceFile name = do
         let resultDir = rootDir </> resultsRelDir </> hashedNameDir
         IO.createDirIfMissing True resultDir
         putStrLn ("Running in directory " ++ toFilePath resultDir ++ "...")
-        withFile (toFilePath (resultDir </> $(mkRelFile "stdout"))) WriteMode $ \outfile ->
-          withFile (toFilePath (resultDir </> $(mkRelFile "stderr"))) WriteMode $ \errfile ->
-            withFile (toFilePath (resultDir </> $(mkRelFile "stats"))) WriteMode $ \statsfile -> do
+        withFile (toFilePath (resultDir </> stdoutFile)) WriteMode $ \outfile ->
+          withFile (toFilePath (resultDir </> stderrFile)) WriteMode $ \errfile ->
+            withFile (toFilePath (resultDir </> statsFile)) WriteMode $ \statsfile -> do
               startTime <- getCurrentTime
               hprint statsfile ("Starting at " % datetime % "\n") startTime
               start <- getTime Monotonic
@@ -170,11 +170,23 @@ runLocal rootDir sourceFile name = do
 --------------------------------------------------------------------------------
 -- Paths
 
+binRelDir :: Path Rel Dir
+binRelDir = $(mkRelDir "bin")
+
+stdoutFile :: Path Rel File
+stdoutFile = $(mkRelFile "stdout")
+
+stderrFile :: Path Rel File
+stderrFile = $(mkRelFile "stderr")
+
+statsFile :: Path Rel File
+statsFile =  $(mkRelFile "stats")
+
 gamesRelDir :: Path Rel Dir
-gamesRelDir = $(mkRelDir "games/")
+gamesRelDir = $(mkRelDir "games")
 
 resultsRelDir :: Path Rel Dir
-resultsRelDir = $(mkRelDir "results/")
+resultsRelDir = $(mkRelDir "results")
 
 --------------------------------------------------------------------------------
 -- Name munging
