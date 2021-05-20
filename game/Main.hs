@@ -29,7 +29,9 @@ main = do
     ["local", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
       runLocal root file (normalizeName (dropHs file0))
-    ["check", _file0] -> undefined
+    ["check", file0] -> do
+      file <- IO.resolveFile gamesDir (addHs file0)
+      runCheck file
     _ ->
       error
         "Invalid arguments given.\n\
@@ -60,23 +62,25 @@ main = do
 --------------------------------------------------------------------------------
 -- Quick compilation check
 
--- runCheck name = do
---   let sourcefp = dir </> addHs name
---   exists <- doesFileExist sourcefp
---   if exists
---     then do
---       putStrLn ("Compiling with GHC ...")
---       runProcess_
---         (proc
---            "ghc"
---            [ sourcefp
---            , "-o"
---            , "/dev/null"
---            , "-O0"
---            , "-Wall"
---            , "-fforce-recomp"
---            ])
---     else error ("Game not found in " ++ dir)
+runCheck :: Path Abs File -> IO ()
+runCheck sourceFile = do
+  exists <- IO.doesFileExist sourceFile
+  if not exists
+    then error ("Game not found: " ++ toFilePath sourceFile)
+    else do
+      putStrLn ("Checking with GHC ...")
+      IO.withSystemTempDir "game" $ \tmpDir -> do
+        runProcess_
+          (setWorkingDir
+             (toFilePath tmpDir)
+             (proc
+                "ghc"
+                [ toFilePath sourceFile
+                , "-no-link"
+                , "-O0"
+                , "-Wall"
+                , "-fforce-recomp"
+                ]))
 
 --------------------------------------------------------------------------------
 -- Run locally
