@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0d1c7df888168727980813306f29a32648d7ba66cd585db1fb921f970adec605
+-- hash: c8007fbb540d13fda5040631065cad27cc15590bd90f0e019d1a20d9ac856cc1
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -75,6 +75,7 @@ library
     , deepseq
     , filepath
     , formatting
+    , fsnotify
     , hashable
     , hashtables
     , ixset
@@ -117,6 +118,7 @@ executable game
     , deepseq
     , filepath
     , formatting
+    , fsnotify
     , hashable
     , hashtables
     , ixset
@@ -159,6 +161,7 @@ executable learning-exe
     , deepseq
     , filepath
     , formatting
+    , fsnotify
     , hashable
     , hashtables
     , ixset
@@ -204,6 +207,7 @@ test-suite test-open-games
     , deepseq
     , filepath
     , formatting
+    , fsnotify
     , hashable
     , hashtables
     , hspec
@@ -250,6 +254,7 @@ benchmark learning-bench
     , deepseq
     , filepath
     , formatting
+    , fsnotify
     , hashable
     , hashtables
     , ixset

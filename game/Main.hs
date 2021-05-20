@@ -1,5 +1,8 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 module Main where
+import           Control.Concurrent
+import           Control.Monad
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy as L
@@ -14,11 +17,46 @@ import qualified Path.IO as IO
 import           System.Clock
 import           System.Environment
 import           System.Exit
+import           System.FSNotify
 import           System.IO
 import           System.Process.Typed
 
 --------------------------------------------------------------------------------
 -- Main entry point
+
+helpString :: [Char]
+helpString =
+  "Invalid arguments given.\n\
+   \\n\
+   \Workflow: \n\
+   \\n\
+   \  1. First check your module, which should be in the games/ directory.\n\
+   \  2. Do a quick sanity check run locally with a small number of\n\
+   \     iterations.\n\
+   \  3. When ready, run remotely with desired number of iterations.\n\
+   \\n\
+   \See commands list below:\n\
+   \\n\
+   \  stack run local MODULE\n\
+   \\n\
+   \    Commit, compile & run the module locally.\n\
+   \\n\
+   \  stack run check MODULE\n\
+   \\n\
+   \    Compile the module locally.\n\
+   \\n\
+   \  stack run remote MODULE\n\
+   \\n\
+   \    Copy the module remotely, then commit, compile & run it on the\n\
+   \    remote server.\n\
+   \\n\
+   \For running on the remote cloud service:\n\
+   \\n\
+   \  stack run watch WORKING_DIR GAMES_DIR\n\
+   \\n\
+   \    Watches for new Haskell files in the directory named.\n\
+   \\n\
+   \    Commits, compiles & run the module."
 
 main :: IO ()
 main = do
@@ -32,32 +70,11 @@ main = do
     ["check", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
       runCheck file
-    _ ->
-      error
-        "Invalid arguments given.\n\
-         \\n\
-         \Workflow: \n\
-         \\n\
-         \  1. First check your module, which should be in the games/ directory.\n\
-         \  2. Do a quick sanity check run locally with a small number of\n\
-         \     iterations.\n\
-         \  3. When ready, run remotely with desired number of iterations.\n\
-         \\n\
-         \See commands list below:\n\
-         \\n\
-         \  stack run local MODULE\n\
-         \\n\
-         \    Commit, compile & run the module locally.\n\
-         \\n\
-         \  stack run check MODULE\n\
-         \\n\
-         \    Compile the module locally.\n\
-         \\n\
-         \  stack run remote MODULE\n\
-         \\n\
-         \    Copy the module remotely, then commit, compile & run it on the\n\
-         \    remote server.\n\
-         \"
+    ["watch", root0, dir0] -> do
+      root' <- parseAbsDir root0
+      dir <- parseAbsDir dir0
+      runWatch root' dir
+    _ -> error helpString
 
 --------------------------------------------------------------------------------
 -- Quick compilation check
@@ -172,6 +189,36 @@ runLocal rootDir sourceFile name = do
                     end
 
 --------------------------------------------------------------------------------
+-- Watcher
+
+runWatch :: Path Abs Dir ->  Path Abs Dir -> IO ()
+runWatch rootDir gamesDir =
+  withManager
+    (\mgr -> do
+       void (watchDir mgr (toFilePath gamesDir) (isHaskell . eventPath) action)
+       putStrLn ("Watching games directory " <> toFilePath gamesDir <> " ...")
+       forever (threadDelay 1000000))
+  where
+    isHaskell = List.isPrefixOf (reverse ".hs") . reverse
+    action event =
+      if eventIsDirectory event
+        then pure ()
+        else if actionable event
+               then do
+                 file <- parseAbsFile (eventPath event)
+                 runLocal
+                   rootDir
+                   file
+                   (normalizeName (dropHs (toFilePath (filename file))))
+               else pure ()
+      where
+        actionable =
+          \case
+            Added {} -> True
+            Modified {} -> True
+            _ -> False
+
+--------------------------------------------------------------------------------
 -- Paths
 
 binRelDir :: Path Rel Dir
@@ -196,7 +243,7 @@ resultsRelDir = $(mkRelDir "results")
 -- Name munging
 
 dropHs :: [Char] -> [Char]
-dropHs name = maybe name reverse $ List.stripPrefix ".hs" (reverse name)
+dropHs name = maybe name reverse $ List.stripPrefix (reverse ".hs") (reverse name)
 
 addHs :: [Char] -> [Char]
 addHs name =

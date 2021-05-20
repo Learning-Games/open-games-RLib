@@ -46,6 +46,7 @@ extra-deps:
  - flexible-defaults-0.0.3@sha256:6a7ab000561e1075003cb1053dfbbb4020ae2b02916776d1479c9c3fc82f5d0d,2508
  - splitmix-0.1.0.3
  - path-io-1.6.2
+ - fsnotify-0.3.0.1
 
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git

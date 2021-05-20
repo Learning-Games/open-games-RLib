@@ -71,6 +71,7 @@ dependencies:
     - deepseq
     - array
     - time
+    - fsnotify
     - path
     - path-io
 
