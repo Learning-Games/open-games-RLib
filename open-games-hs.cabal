@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5822bc219ab918ce71d58c5f6cde36d79d3ed996f725f801b4da096801637f5d
+-- hash: 0d1c7df888168727980813306f29a32648d7ba66cd585db1fb921f970adec605
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -73,7 +73,6 @@ library
     , clock
     , comonad
     , deepseq
-    , directory
     , filepath
     , formatting
     , hashable
@@ -83,6 +82,8 @@ library
     , mwc-random >=0.15.0.1
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors
@@ -103,7 +104,7 @@ executable game
       Paths_open_games_hs
   hs-source-dirs:
       game
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       ad
     , aeson
@@ -114,7 +115,6 @@ executable game
     , clock
     , comonad
     , deepseq
-    , directory
     , filepath
     , formatting
     , hashable
@@ -124,6 +124,8 @@ executable game
     , mwc-random >=0.15.0.1
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors
@@ -155,7 +157,6 @@ executable learning-exe
     , clock
     , comonad
     , deepseq
-    , directory
     , filepath
     , formatting
     , hashable
@@ -166,6 +167,8 @@ executable learning-exe
     , open-games-hs
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors
@@ -199,7 +202,6 @@ test-suite test-open-games
     , clock
     , comonad
     , deepseq
-    , directory
     , filepath
     , formatting
     , hashable
@@ -210,6 +212,8 @@ test-suite test-open-games
     , mwc-random >=0.15.0.1
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors
@@ -244,7 +248,6 @@ benchmark learning-bench
     , comonad
     , criterion
     , deepseq
-    , directory
     , filepath
     , formatting
     , hashable
@@ -255,6 +258,8 @@ benchmark learning-bench
     , open-games-hs
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors

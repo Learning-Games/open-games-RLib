@@ -70,8 +70,9 @@ dependencies:
     - formatting
     - deepseq
     - array
-    - directory
     - time
+    - path
+    - path-io
 
 executables:
   learning-exe:
@@ -90,6 +91,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wall
 
 tests:
   test-open-games:

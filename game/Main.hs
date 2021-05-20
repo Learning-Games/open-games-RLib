@@ -1,26 +1,35 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 module Main where
-import           Data.ByteString (ByteString)
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy as L
+import           Data.Char
 import qualified Data.List as List
 import           Data.Time
 import           Formatting
 import           Formatting.Clock
 import           Formatting.Time
+import           Path
+import qualified Path.IO as IO
 import           System.Clock
-import           System.Directory
 import           System.Environment
 import           System.Exit
-import           System.FilePath
 import           System.IO
 import           System.Process.Typed
+
+--------------------------------------------------------------------------------
+-- Main entry point
+
+main :: IO ()
 main = do
   args <- getArgs
+  root <- IO.getCurrentDir
+  gamesDir <- IO.makeAbsolute gamesRelDir
   case args of
-    ["local", file] -> runLocal file
-    ["check", file] -> runLocal file
+    ["local", file0] -> do
+      file <- IO.resolveFile gamesDir (addHs file0)
+      runLocal root file (normalizeName (dropHs file0))
+    ["check", _file0] -> undefined
     _ ->
       error
         "Invalid arguments given.\n\
@@ -48,99 +57,153 @@ main = do
          \    remote server.\n\
          \"
 
-runLocal name = do
-  let sourcefp = dir </> addHs name
-  exists <- doesFileExist sourcefp
-  if exists
-    then do
-      runProcess_ (proc "git" ["add", sourcefp])
+--------------------------------------------------------------------------------
+-- Quick compilation check
+
+-- runCheck name = do
+--   let sourcefp = dir </> addHs name
+--   exists <- doesFileExist sourcefp
+--   if exists
+--     then do
+--       putStrLn ("Compiling with GHC ...")
+--       runProcess_
+--         (proc
+--            "ghc"
+--            [ sourcefp
+--            , "-o"
+--            , "/dev/null"
+--            , "-O0"
+--            , "-Wall"
+--            , "-fforce-recomp"
+--            ])
+--     else error ("Game not found in " ++ dir)
+
+--------------------------------------------------------------------------------
+-- Run locally
+
+runLocal :: Path Abs Dir -> Path Abs File -> Name -> IO ()
+runLocal rootDir sourceFile name = do
+  exists <- IO.doesFileExist sourceFile
+  if not exists
+    then error ("Game not found: " ++ toFilePath sourceFile)
+    else do
+      runProcess_ (proc "git" ["add", toFilePath sourceFile])
       code <- runProcess (proc "git" ["diff-index", "--quiet", "HEAD"])
       let getHash =
             fmap
-              (((S8.pack name <> "-") <>) . S.concat . S8.words . L.toStrict)
+              (addHash name)
               (readProcessStdout_ (proc "git" ["rev-parse", "--verify", "HEAD"]))
-      hash <-
+      hashedName <-
         if code == ExitSuccess
-          then do putStrLn "No change to source, we'll just re-run it."
-                  getHash
+          then do
+            putStrLn "No change to source, we'll just re-run it."
+            getHash
           else do
             putStrLn ("Saving to Git ...")
-            runProcess_ (proc "git" ["commit", "-m", "Updated: " ++ sourcefp])
+            runProcess_
+              (proc "git" ["commit", "-m", "Updated: " ++ unName name])
             hash <- getHash
-            putStrLn ("Saved as: " ++ S8.unpack hash ++ "")
+            putStrLn ("Saved as: " ++ unHashedName hash)
             pure hash
       putStrLn ("Compiling with GHC ...")
-      runProcess_
-        (proc
-           "ghc"
-           [ sourcefp
-           , "-i" ++ dir
-           , "-o"
-           , S8.unpack hash
-           , "-O2"
-           , "-fforce-recomp"
-           , "-Wall"
-           ])
-      let resultDir = "results" </> S8.unpack hash
-      createDirectoryIfMissing True resultDir
-      putStrLn ("Running in directory " ++ resultDir ++ "...")
-      withFile (resultDir </> "stdout") WriteMode $ \outfile ->
-        withFile (resultDir </> "stderr") WriteMode $ \errfile ->
-          withFile (resultDir </> "stats") WriteMode $ \statsfile -> do
-            now <- getCurrentTime
-            hprint statsfile ("Starting at " % datetime % "\n") now
-            start <- getTime Monotonic
-            pwd <- getCurrentDirectory
-            status <-
-              runProcess
-                (setStderr
-                   (useHandleClose errfile)
-                   (setStdout
-                      (useHandleClose outfile)
-                      (setWorkingDir
-                         resultDir
-                         (proc (pwd </> S8.unpack hash) []))))
-            end <- getTime Monotonic
-            now <- getCurrentTime
-            if status == ExitSuccess
-              then do
-                hprint statsfile ("Successful end at " % datetime % "\n") now
-                hprint statsfile ("Running time: " % timeSpecs % "\n") start end
-              else do
-                hprint
-                  statsfile
-                  ("Exited with failure at " % datetime % "\n")
-                  now
-                hprint statsfile ("Exited code: " % string % "\n") (show status)
-                hprint
-                  statsfile
-                  ("Running time so far: " % timeSpecs % "\n")
-                  start
-                  end
-    else error ("Game not found in " ++ dir)
+      binaryRelFile <- parseRelFile (unHashedName hashedName)
+      let binDir = rootDir </> $(mkRelDir "bin")
+      IO.createDirIfMissing True binDir
+      let binaryAbsFile = binDir </> binaryRelFile
+      IO.withSystemTempDir "game" $ \tmpDir -> do
+        runProcess_
+          (setWorkingDir
+             (toFilePath tmpDir)
+             (proc
+                "ghc"
+                [ toFilePath sourceFile
+                , "-o"
+                , toFilePath binaryAbsFile
+                , "-O2"
+                , "-fforce-recomp"
+                , "-Wall"
+                ]))
+        hashedNameDir <- parseRelDir (unHashedName hashedName)
+        let resultDir = rootDir </> resultsRelDir </> hashedNameDir
+        IO.createDirIfMissing True resultDir
+        putStrLn ("Running in directory " ++ toFilePath resultDir ++ "...")
+        withFile (toFilePath (resultDir </> $(mkRelFile "stdout"))) WriteMode $ \outfile ->
+          withFile (toFilePath (resultDir </> $(mkRelFile "stderr"))) WriteMode $ \errfile ->
+            withFile (toFilePath (resultDir </> $(mkRelFile "stats"))) WriteMode $ \statsfile -> do
+              startTime <- getCurrentTime
+              hprint statsfile ("Starting at " % datetime % "\n") startTime
+              start <- getTime Monotonic
+              status <-
+                runProcess
+                  (setStderr
+                     (useHandleClose errfile)
+                     (setStdout
+                        (useHandleClose outfile)
+                        (setWorkingDir
+                           (toFilePath resultDir)
+                           (proc (toFilePath binaryAbsFile) []))))
+              end <- getTime Monotonic
+              endTime <- getCurrentTime
+              if status == ExitSuccess
+                then do
+                  hprint statsfile ("Successful end at " % datetime % "\n") endTime
+                  hprint
+                    statsfile
+                    ("Running time: " % timeSpecs % "\n")
+                    start
+                    end
+                else do
+                  hprint
+                    statsfile
+                    ("Exited with failure at " % datetime % "\n")
+                    endTime
+                  hprint
+                    statsfile
+                    ("Exited code: " % string % "\n")
+                    (show status)
+                  hprint
+                    statsfile
+                    ("Running time so far: " % timeSpecs % "\n")
+                    start
+                    end
 
-runCheck name = do
-  let sourcefp = dir </> addHs name
-  exists <- doesFileExist sourcefp
-  if exists
-    then do
-      putStrLn ("Compiling with GHC ...")
-      runProcess_
-        (proc
-           "ghc"
-           [ sourcefp
-           , "-i" ++ dir
-           , "-o"
-           , "/dev/null"
-           , "-O0"
-           , "-Wall"
-           , "-fforce-recomp"
-           ])
-    else error ("Game not found in " ++ dir)
+--------------------------------------------------------------------------------
+-- Paths
 
-dir = "games/"
+gamesRelDir :: Path Rel Dir
+gamesRelDir = $(mkRelDir "games/")
+
+resultsRelDir :: Path Rel Dir
+resultsRelDir = $(mkRelDir "results/")
+
+--------------------------------------------------------------------------------
+-- Name munging
+
+dropHs :: [Char] -> [Char]
 dropHs name = maybe name reverse $ List.stripPrefix ".hs" (reverse name)
+
+addHs :: [Char] -> [Char]
 addHs name =
   if List.isSuffixOf ".hs" name
     then name
     else name ++ ".hs"
+
+--------------------------------------------------------------------------------
+-- Module name
+
+newtype Name = Name {unName :: String}
+
+normalizeName :: String -> Name
+normalizeName =
+  Name .
+  map
+    (\c ->
+       if isAlphaNum c || c == '_' || c == '-'
+         then c
+         else '_')
+
+newtype HashedName = HashedName {unHashedName :: String}
+
+addHash :: Name -> L.ByteString -> HashedName
+addHash (Name name) =
+  HashedName . ((name <> "-") <>) . S8.unpack . S.concat . S8.words . L.toStrict

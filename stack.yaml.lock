@@ -74,6 +74,13 @@ packages:
       sha256: 8290f921f41c3628a6c9871502e57fd1d25f5954967afbf4ed16717fd8d3656f
   original:
     hackage: splitmix-0.1.0.3
+- completed:
+    hackage: path-io-1.6.2@sha256:bfa7c2c55ca29dbcd1cc59f447644a2b5f32c9678f220a44bd8d5895779fb943,2070
+    pantry-tree:
+      size: 364
+      sha256: 04b88b4eff40a16aacfa97dc41eb890c6719aadab90bb78abc7cfc253de73f16
+  original:
+    hackage: path-io-1.6.2
 snapshots:
 - completed:
     size: 533053

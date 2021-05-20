@@ -45,6 +45,7 @@ extra-deps:
  - mwc-random-0.15.0.1@sha256:48e4b01a7447671b8bd13957de65f19ef41ee0376083c0c501e179e68768276a,3372
  - flexible-defaults-0.0.3@sha256:6a7ab000561e1075003cb1053dfbbb4020ae2b02916776d1479c9c3fc82f5d0d,2508
  - splitmix-0.1.0.3
+ - path-io-1.6.2
 
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
