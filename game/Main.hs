@@ -1,5 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
+{-# LANGUAGE LambdaCase, OverloadedStrings, TemplateHaskell #-}
 module Main where
 import           Control.Concurrent
 import           Control.Monad
@@ -8,17 +7,19 @@ import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy as L
 import           Data.Char
 import qualified Data.List as List
+import           Data.String
 import           Data.Time
 import           Formatting
 import           Formatting.Clock
 import           Formatting.Time
 import           Path
 import qualified Path.IO as IO
+import           Prelude hiding (putStrLn)
 import           System.Clock
 import           System.Environment
 import           System.Exit
 import           System.FSNotify
-import           System.IO
+import           System.IO hiding (putStrLn)
 import           System.Process.Typed
 
 --------------------------------------------------------------------------------
@@ -70,10 +71,12 @@ main = do
     ["check", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
       runCheck file
-    ["watch", root0, dir0] -> do
+    ["watch", root0] -> do
       root' <- parseAbsDir root0
-      dir <- parseAbsDir dir0
-      runWatch root' dir
+      runWatch root'
+    ["upload", file0] -> do
+      file <- IO.resolveFile gamesDir (addHs file0)
+      runUpload file
     _ -> error helpString
 
 --------------------------------------------------------------------------------
@@ -98,6 +101,31 @@ runCheck sourceFile = do
                 , "-Wall"
                 , "-fforce-recomp"
                 ]))
+
+--------------------------------------------------------------------------------
+-- Upload remotely
+
+runUpload :: Path Abs File -> IO ()
+runUpload sourceFile = do
+  exists <- IO.doesFileExist sourceFile
+  if not exists
+    then error ("Game not found: " ++ toFilePath sourceFile)
+    else do
+      let path = learningWatchDir </> filename sourceFile
+      putStrLn "Copying to service ..."
+      -- Copy
+      runProcess_
+        (proc
+           "scp"
+           [ toFilePath sourceFile
+           , serverHost <> ":" <> toFilePath path <> ".tmp"
+           ])
+      -- Atomic rename
+      runProcess_
+        (proc
+           "ssh"
+           [serverHost, "mv", toFilePath path <> ".tmp", toFilePath path])
+      putStrLn "Pushed to learning service."
 
 --------------------------------------------------------------------------------
 -- Run locally
@@ -167,7 +195,10 @@ runLocal rootDir sourceFile name = do
               endTime <- getCurrentTime
               if status == ExitSuccess
                 then do
-                  hprint statsfile ("Successful end at " % datetime % "\n") endTime
+                  hprint
+                    statsfile
+                    ("Successful end at " % datetime % "\n")
+                    endTime
                   hprint
                     statsfile
                     ("Running time: " % timeSpecs % "\n")
@@ -191,12 +222,13 @@ runLocal rootDir sourceFile name = do
 --------------------------------------------------------------------------------
 -- Watcher
 
-runWatch :: Path Abs Dir ->  Path Abs Dir -> IO ()
-runWatch rootDir gamesDir =
+runWatch :: Path Abs Dir -> IO ()
+runWatch rootDir =
   withManager
     (\mgr -> do
-       void (watchDir mgr (toFilePath gamesDir) (isHaskell . eventPath) action)
-       putStrLn ("Watching games directory " <> toFilePath gamesDir <> " ...")
+       void (watchDir mgr (toFilePath learningWatchDir) (isHaskell . eventPath) action)
+       putStrLn ("Content directory: " <> toFilePath rootDir)
+       putStrLn ("Watching games directory " <> toFilePath learningWatchDir <> " ...")
        forever (threadDelay 1000000))
   where
     isHaskell = List.isPrefixOf (reverse ".hs") . reverse
@@ -204,12 +236,24 @@ runWatch rootDir gamesDir =
       if eventIsDirectory event
         then pure ()
         else if actionable event
-               then do
-                 file <- parseAbsFile (eventPath event)
-                 runLocal
-                   rootDir
-                   file
-                   (normalizeName (dropHs (toFilePath (filename file))))
+               then void
+                      (forkIO
+                         (do originFile <- parseAbsFile (eventPath event)
+                             putStrLn
+                               ("Incoming file " ++
+                                toFilePath (filename originFile))
+                             let targetGamesDir = rootDir </> gamesRelDir
+                                 finalFile =
+                                   targetGamesDir </> filename originFile
+                             IO.createDirIfMissing True targetGamesDir
+                             IO.renameFile originFile finalFile
+                             IO.withCurrentDir
+                               rootDir
+                               (runLocal
+                                  rootDir
+                                  finalFile
+                                  (normalizeName
+                                     (dropHs (toFilePath (filename finalFile)))))))
                else pure ()
       where
         actionable =
@@ -217,27 +261,6 @@ runWatch rootDir gamesDir =
             Added {} -> True
             Modified {} -> True
             _ -> False
-
---------------------------------------------------------------------------------
--- Paths
-
-binRelDir :: Path Rel Dir
-binRelDir = $(mkRelDir "bin")
-
-stdoutFile :: Path Rel File
-stdoutFile = $(mkRelFile "stdout")
-
-stderrFile :: Path Rel File
-stderrFile = $(mkRelFile "stderr")
-
-statsFile :: Path Rel File
-statsFile =  $(mkRelFile "stats")
-
-gamesRelDir :: Path Rel Dir
-gamesRelDir = $(mkRelDir "games")
-
-resultsRelDir :: Path Rel Dir
-resultsRelDir = $(mkRelDir "results")
 
 --------------------------------------------------------------------------------
 -- Name munging
@@ -270,3 +293,52 @@ newtype HashedName = HashedName {unHashedName :: String}
 addHash :: Name -> L.ByteString -> HashedName
 addHash (Name name) =
   HashedName . ((name <> "-") <>) . S8.unpack . S.concat . S8.words . L.toStrict
+
+--------------------------------------------------------------------------------
+-- Threaded IO
+
+-- | This is a thread-safe stdout printer, with timestamp.
+putStrLn :: String -> IO ()
+putStrLn s = do
+  threadid <- myThreadId
+  now' <- getCurrentTime
+  S8.putStrLn
+    (S8.pack ("[" ++ filter isDigit (show threadid) <> "] " <> show now' <> ": " <> s))
+
+--------------------------------------------------------------------------------
+-- Paths
+
+learningWatchDir :: Path Abs Dir
+learningWatchDir = $(mkAbsDir "/tmp/learning-watch")
+
+binRelDir :: Path Rel Dir
+binRelDir = $(mkRelDir "bin")
+
+stdoutFile :: Path Rel File
+stdoutFile = $(mkRelFile "stdout")
+
+stderrFile :: Path Rel File
+stderrFile = $(mkRelFile "stderr")
+
+statsFile :: Path Rel File
+statsFile =  $(mkRelFile "stats")
+
+gamesRelDir :: Path Rel Dir
+gamesRelDir = $(mkRelDir "games")
+
+resultsRelDir :: Path Rel Dir
+resultsRelDir = $(mkRelDir "results")
+
+--------------------------------------------------------------------------------
+-- Other constants
+
+-- Make an entry in your ~/.ssh/config like this:
+--
+--   Host learning-service
+--     IdentityFile /home/user/.ssh/id_rsa
+--     HostName 1.1.1.1
+--     User root
+--
+-- Replacing the IP address and identity file path appropriately.
+serverHost :: IsString s => s
+serverHost = "learning-service"
