@@ -111,8 +111,14 @@ runUpload sourceFile = do
   if not exists
     then error ("Game not found: " ++ toFilePath sourceFile)
     else do
+      runProcess_
+        (proc "ssh" [serverHost, "echo", "Connection to server OK."])
+      runProcess_
+        (proc
+           "ssh"
+           [serverHost, "mkdir", "-p", toFilePath learningWatchDir])
       let path = learningWatchDir </> filename sourceFile
-      putStrLn "Copying to service ..."
+      putStrLn "Uploading to service ..."
       -- Copy
       runProcess_
         (proc
@@ -125,7 +131,7 @@ runUpload sourceFile = do
         (proc
            "ssh"
            [serverHost, "mv", toFilePath path <> ".tmp", toFilePath path])
-      putStrLn "Pushed to learning service."
+      putStrLn "Uploaded."
 
 --------------------------------------------------------------------------------
 -- Run locally
