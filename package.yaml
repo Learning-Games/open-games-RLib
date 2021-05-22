@@ -20,8 +20,7 @@ library:
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
-
-
+    - Engine.QLearningSimple
     - Engine.TLL
     - Preprocessor.AbstractSyntax
     - Preprocessor.Compile
