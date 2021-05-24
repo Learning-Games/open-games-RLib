@@ -53,7 +53,7 @@ helpString =
    \\n\
    \For running on the remote cloud service:\n\
    \\n\
-   \  stack run watch WORKING_DIR GAMES_DIR\n\
+   \  stack run watch WORKING_DIR\n\
    \\n\
    \    Watches for new Haskell files in the directory named.\n\
    \\n\
