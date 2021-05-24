@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7b102c8a0d333345c0a4826dedb0bc40dd1bcb23948ce65489d88881ab54763d
+-- hash: f0b68d31d3a1f84396f4820059de95d3ce08870591859a9b803b28d30103202d
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -57,6 +57,7 @@ library
       Engine.IterativeSolutionConcepts
       Engine.Memory
       Examples.QLearning.IteratedDeletion
+      Examples.QLearningSimple.CalvanoReplication
       Examples.QLearningSimple.PD
       Examples.QLearningSimple.SandholmCritesSimple
       Paths_open_games_hs
