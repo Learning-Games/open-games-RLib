@@ -15,7 +15,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 
-module Examples.QLearning.SandholmCritesSimple
+module Examples.QLearningSimple.SandholmCritesReplication
                      ( evalStageLS
                      , initiateStrat
                      , sequenceL

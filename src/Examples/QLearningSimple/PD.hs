@@ -15,7 +15,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 
-module Examples.QLearning.PD
+module Examples.QLearningSimple.PD
                      ( evalStageLS
                      , initiateStrat
                      , sequenceL
