@@ -6,9 +6,9 @@
 
 # Refactored version
 
-This repo is a refactored and simplified implementation on the basis of [this](https://github.com/jules-hedges/open-game-engine) version by Jules Hedges. 
+This repo is a refactored and simplified implementation on the basis of [this](https://github.com/jules-hedges/open-game-engine) version by Jules Hedges.
 
-It will serve as a basis for several specialized applications. 
+It will serve as a basis for several specialized applications.
 
 
 
@@ -73,3 +73,23 @@ confusing when they are within lists
 You can use `stack build` to compile the project, `stack test` will run the tests
 `stack ghci` and `stack ghci --test` will run ghci using the main target or the test
 targets respectively.
+
+## Docker build
+
+Build an image with the source in it:
+
+    docker image build -f pzahn/learning/src.Dockerfile -t registry.gitlab.com/pzahn/learning/src:2021-05-24 .
+
+Build a base image with stack and haskell dependencies in it:
+
+    docker image build -f pzahn/learning/base.Dockerfile -t registry.gitlab.com/pzahn/learning/base:2021-05-24 pzahn/
+
+Building the final image for running:
+
+    docker image build -f pzahn/learning/final.Dockerfile . -t registry.gitlab.com/pzahn/learning/final:2021-05-24
+
+OK, now you can upload everything:
+
+    docker push registry.gitlab.com/pzahn/learning/src:2021-05-24
+    docker push registry.gitlab.com/pzahn/learning/base:2021-05-24
+    docker push registry.gitlab.com/pzahn/learning/final:2021-05-24
