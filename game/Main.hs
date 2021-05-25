@@ -185,7 +185,7 @@ runLogs name = do
                     serverHost ++
                     ":" ++
                     toFilePath (learningWorkDir </> resultsRelDir) ++
-                    " " ++ unHashedName job ++ "/"
+                    unHashedName job
                   , ""
                   , "Then look under results/ in your current directory."
                   ])))
