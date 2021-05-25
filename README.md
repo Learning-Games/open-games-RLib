@@ -93,3 +93,49 @@ OK, now you can upload everything:
     docker push registry.gitlab.com/pzahn/learning/src:2021-05-24
     docker push registry.gitlab.com/pzahn/learning/base:2021-05-24
     docker push registry.gitlab.com/pzahn/learning/final:2021-05-24
+
+## Running remotely
+
+Go to your remote machine and run:
+
+    docker run --rm \
+               -v/tmp/learning-watch:/tmp/learning-watch \
+               -v/tmp/learning-work:/tmp/learning-work \
+               registry.gitlab.com/pzahn/learning/final:2021-05-25 \
+               stack run watch /tmp/learning-work
+
+But you should change `/tmp/learning-work` to a path to a checked out
+git repository. This will tool attempt to make git commits in that
+directory!
+
+It should look like this:
+
+```
+$ docker run --rm \
+             -v/tmp/learning-watch:/tmp/learning-watch \
+             -v/tmp/learning-work:/tmp/learning-work \
+             registry.gitlab.com/pzahn/learning/final:2021-05-25 \
+             stack run watch /tmp/learning-work
+
+[11] 2021-05-25 10:17:53.374049301 UTC: Polling for changes ...
+[12] 2021-05-25 10:18:23.405157299 UTC: Incoming file bloon.hs
+fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+[12] 2021-05-25 10:18:23.413980692 UTC: Saving to Git ...
+[master (root-commit) 9f7d3ed] Updated: bloon
+ 2 files changed, 10 insertions(+)
+ create mode 100644 games/bloo.hs
+ create mode 100644 games/bloon.hs
+[12] 2021-05-25 10:18:23.419480238 UTC: Saved as: bloon-9f7d3edfb6fbd62dc468bd1711f46ef83b8f982d
+[12] 2021-05-25 10:18:23.419518942 UTC: Compiling with GHC ...
+[1 of 1] Compiling Main             ( /tmp/learning-work/games/bloon.hs, /tmp/learning-work/games/bloon.o )
+
+/tmp/learning-work/games/bloon.hs:5:1: warning: [-Wmissing-signatures]
+    Top-level binding with no type signature: main :: IO ()
+  |
+5 | main = print "Hello!"
+  | ^^^^
+Linking /tmp/learning-work/bin/bloon-9f7d3edfb6fbd62dc468bd1711f46ef83b8f982d ...
+[12] 2021-05-25 10:18:23.879367299 UTC: Running in directory /tmp/learning-work/results/bloon-9f7d3edfb6fbd62dc468bd1711f46ef83b8f982d/...
+```

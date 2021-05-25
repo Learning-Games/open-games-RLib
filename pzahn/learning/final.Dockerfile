@@ -9,4 +9,5 @@ RUN stack build \
     --copy-bins \
     --local-bin-path=/bin/
 
-CMD ["stack", "run", "game", "--"]
+RUN git config --global user.email "game@learning-service" && \
+    git config --global user.name "Game learning executable"

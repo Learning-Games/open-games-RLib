@@ -64,6 +64,7 @@ helpString =
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
   args <- getArgs
   root <- IO.getCurrentDir
   gamesDir <- IO.makeAbsolute gamesRelDir
@@ -227,6 +228,7 @@ runLocal rootDir sourceFile name = do
                     ("Running time so far: " % F.timeSpecs % "\n")
                     start
                     end
+        putStrLn ("Run complete in directory " ++ toFilePath resultDir)
 
 --------------------------------------------------------------------------------
 -- Watcher
@@ -247,7 +249,7 @@ runWatch rootDir = do
                let targetGamesDir = rootDir </> gamesRelDir
                    finalFile = targetGamesDir </> filename originFile
                IO.createDirIfMissing True targetGamesDir
-               IO.renameFile originFile finalFile
+               IO.copyFile originFile finalFile
                IO.withCurrentDir
                  rootDir
                  (runLocal
@@ -257,11 +259,12 @@ runWatch rootDir = do
                        (dropHs (toFilePath (filename finalFile)))))))
 
 watchDir :: Path Abs Dir -> (Path Abs File -> IO ()) -> IO ()
-watchDir dir action = loop mempty
+watchDir dir action = do
+  putStrLn "Polling for changes ..."
+  loop mempty
   where
     loop previous = do
       threadDelay (1000 * 1000 * pollSeconds)
-      putStrLn "Polling for changes ..."
       (_dirs, files) <-
         fmap
           (second (filter (isHaskell . toFilePath . filename)))
@@ -275,7 +278,7 @@ watchDir dir action = loop mempty
                 pure (file, time))
              files)
       let new = Set.difference current previous
-      traverse_ action (map fst (Set.toList new))
+      unless (Set.null previous) (traverse_ action (map fst (Set.toList new)))
       loop current
 
 --------------------------------------------------------------------------------
