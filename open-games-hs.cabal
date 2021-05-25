@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 47558dd92975260e6cd1d6fa142d86df3ec030ee180700f5a305ed025d37db31
+-- hash: 41916e8f1849eec8cdf9f32077ba9d48cb80ea040388c2e8a825140200c8b4ad
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -70,8 +70,12 @@ library
     , base >=4.7 && <5
     , bytestring
     , cassava
+    , clock
     , comonad
+    , containers
     , deepseq
+    , filepath
+    , formatting
     , hashable
     , hashtables
     , ixset
@@ -79,13 +83,60 @@ library
     , mwc-random >=0.15.0.1
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
+    , typed-process
+    , unordered-containers
+    , vector
+    , vector-sized
+  default-language: Haskell2010
+
+executable game
+  main-is: Main.hs
+  other-modules:
+      Paths_open_games_hs
+  hs-source-dirs:
+      game
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
+  build-depends:
+      ad
+    , aeson
+    , array
+    , base >=4.7 && <5
+    , bytestring
+    , cassava
+    , clock
+    , comonad
+    , containers
+    , deepseq
+    , filepath
+    , formatting
+    , hashable
+    , hashtables
+    , ixset
+    , mtl
+    , mwc-random >=0.15.0.1
+    , optics
+    , parsec
+    , path
+    , path-io
+    , poly
+    , probability
+    , profunctors
+    , random
+    , random-fu
+    , template-haskell
+    , time
+    , transformers
+    , typed-process
     , unordered-containers
     , vector
     , vector-sized
@@ -105,8 +156,12 @@ executable learning-exe
     , base >=4.7 && <5
     , bytestring
     , cassava
+    , clock
     , comonad
+    , containers
     , deepseq
+    , filepath
+    , formatting
     , hashable
     , hashtables
     , ixset
@@ -115,13 +170,17 @@ executable learning-exe
     , open-games-hs
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
+    , typed-process
     , unordered-containers
     , vector
     , vector-sized
@@ -143,8 +202,12 @@ test-suite test-open-games
     , base
     , bytestring
     , cassava
+    , clock
     , comonad
+    , containers
     , deepseq
+    , filepath
+    , formatting
     , hashable
     , hashtables
     , hspec
@@ -153,13 +216,17 @@ test-suite test-open-games
     , mwc-random >=0.15.0.1
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
+    , typed-process
     , unordered-containers
     , vector
     , vector-sized
@@ -181,9 +248,13 @@ benchmark learning-bench
     , base >=4.7 && <5
     , bytestring
     , cassava
+    , clock
     , comonad
+    , containers
     , criterion
     , deepseq
+    , filepath
+    , formatting
     , hashable
     , hashtables
     , ixset
@@ -192,13 +263,17 @@ benchmark learning-bench
     , open-games-hs
     , optics
     , parsec
+    , path
+    , path-io
     , poly
     , probability
     , profunctors
     , random
     , random-fu
     , template-haskell
+    , time
     , transformers
+    , typed-process
     , unordered-containers
     , vector
     , vector-sized

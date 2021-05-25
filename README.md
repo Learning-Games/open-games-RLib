@@ -6,9 +6,9 @@
 
 # Refactored version
 
-This repo is a refactored and simplified implementation on the basis of [this](https://github.com/jules-hedges/open-game-engine) version by Jules Hedges. 
+This repo is a refactored and simplified implementation on the basis of [this](https://github.com/jules-hedges/open-game-engine) version by Jules Hedges.
 
-It will serve as a basis for several specialized applications. 
+It will serve as a basis for several specialized applications.
 
 
 
@@ -73,3 +73,94 @@ confusing when they are within lists
 You can use `stack build` to compile the project, `stack test` will run the tests
 `stack ghci` and `stack ghci --test` will run ghci using the main target or the test
 targets respectively.
+
+## Docker build
+
+Build an image with the source in it:
+
+    docker image build -f pzahn/learning/src.Dockerfile -t registry.gitlab.com/pzahn/learning/src:2021-05-24 .
+
+Build a base image with stack and haskell dependencies in it:
+
+    docker image build -f pzahn/learning/base.Dockerfile -t registry.gitlab.com/pzahn/learning/base:2021-05-24 pzahn/
+
+Building the final image for running:
+
+    docker image build -f pzahn/learning/final.Dockerfile . -t registry.gitlab.com/pzahn/learning/final:2021-05-24
+
+OK, now you can upload everything:
+
+    docker push registry.gitlab.com/pzahn/learning/src:2021-05-24
+    docker push registry.gitlab.com/pzahn/learning/base:2021-05-24
+    docker push registry.gitlab.com/pzahn/learning/final:2021-05-24
+
+Ideally, you'll change the date tag when you change an image.
+
+## Running remotely
+
+Example setup on Hetzner:
+
+```
+root@Debian-109-buster-64-LAMP ~ # mkdir learning-work
+root@Debian-109-buster-64-LAMP ~ # cd learning-work/
+root@Debian-109-buster-64-LAMP ~/learning-work # git init
+Initialized empty Git repository in /root/learning-work/.git/
+root@Debian-109-buster-64-LAMP ~/learning-work # cd
+root@Debian-109-buster-64-LAMP ~ # mkdir /tmp/learning-watch
+```
+
+Login to docker:
+
+```
+root@Debian-109-buster-64-LAMP ~ # docker login ghcr.io -u chrisdone
+Password:
+WARNING! Your password will be stored unencrypted in /root/.docker/config.json.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+
+Login Succeeded
+
+```
+
+Run:
+
+```
+root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/chrisdone/learning/final:2021-05-25  stack run watch
+Unable to find image 'ghcr.io/chrisdone/learning/final:2021-05-25' locally
+2021-05-25: Pulling from chrisdone/learning/final
+48839397421a: Pull complete
+3dbc469ccfbf: Pull complete
+dc3251236bd7: Pull complete
+1c33fbfb64b1: Pull complete
+ff117b414b3d: Pull complete
+f001aadd0134: Pull complete
+1c6111b186da: Pull complete
+eec295e71cd2: Pull complete
+84b40f20ff36: Pull complete
+fa4259ee3ff1: Pull complete
+0c01acb95cae: Pull complete
+afc39123ec89: Pull complete
+11ccf541b1f2: Pull complete
+39e45e9ff04d: Pull complete
+98a912d2b25f: Pull complete
+bdd706500afa: Pull complete
+d8ab7bc6a84a: Pull complete
+3f213ad8da19: Pull complete
+Digest: sha256:a01cf4dfc0d4525f25f9755259c698888f4cb7561000018f25005585267859c9
+Status: Downloaded newer image for ghcr.io/chrisdone/learning/final:2021-05-25
+31be233daae8873f391b86fc456107653fc538818ccdf45f825a86b0c7b990f2
+```
+
+Note the `-d` for "detached" (daemon) mode.
+
+Check it's up and running:
+
+```
+root@Debian-109-buster-64-LAMP ~ # docker ps
+CONTAINER ID        IMAGE                                         COMMAND                  CREATED             STATUS              PORTS               NAMES
+31be233daae8        ghcr.io/chrisdone/learning/final:2021-05-25   "stack run watch"   29 seconds ago      Up 3 seconds                            confident_bartik
+
+root@Debian-109-buster-64-LAMP ~ # docker logs 31be233daae8
+[15] 2021-05-25 10:59:18.818424272 UTC: Polling for changes ...
+
+```
