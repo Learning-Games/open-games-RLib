@@ -49,9 +49,9 @@ helpString =
    \\n\
    \    Compile the module locally.\n\
    \\n\
-   \  stack run remote MODULE\n\
+   \  stack run upload MODULE\n\
    \\n\
-   \    Copy the module remotely, then commit, compile & run it on the\n\
+   \    Copy the module remotely. Will be committed, compiled & run by the\n\
    \    remote server.\n\
    \\n\
    \For running on the remote cloud service:\n\
