@@ -1,24 +1,27 @@
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE LambdaCase, OverloadedStrings, TemplateHaskell #-}
 module Main where
 import           Control.Concurrent
 import           Control.Monad
+import           Data.Bifunctor
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy as L
 import           Data.Char
+import           Data.Foldable
 import qualified Data.List as List
+import qualified Data.Set as Set
 import           Data.String
 import           Data.Time
 import           Formatting
-import           Formatting.Clock
-import           Formatting.Time
+import qualified Formatting.Clock as F
+import qualified Formatting.Time as F
 import           Path
 import qualified Path.IO as IO
 import           Prelude hiding (putStrLn)
 import           System.Clock
 import           System.Environment
 import           System.Exit
-import           System.FSNotify
 import           System.IO hiding (putStrLn)
 import           System.Process.Typed
 
@@ -186,7 +189,7 @@ runLocal rootDir sourceFile name = do
           withFile (toFilePath (resultDir </> stderrFile)) WriteMode $ \errfile ->
             withFile (toFilePath (resultDir </> statsFile)) WriteMode $ \statsfile -> do
               startTime <- getCurrentTime
-              hprint statsfile ("Starting at " % datetime % "\n") startTime
+              hprint statsfile ("Starting at " % F.datetime % "\n") startTime
               start <- getTime Monotonic
               status <-
                 runProcess
@@ -203,17 +206,17 @@ runLocal rootDir sourceFile name = do
                 then do
                   hprint
                     statsfile
-                    ("Successful end at " % datetime % "\n")
+                    ("Successful end at " % F.datetime % "\n")
                     endTime
                   hprint
                     statsfile
-                    ("Running time: " % timeSpecs % "\n")
+                    ("Running time: " % F.timeSpecs % "\n")
                     start
                     end
                 else do
                   hprint
                     statsfile
-                    ("Exited with failure at " % datetime % "\n")
+                    ("Exited with failure at " % F.datetime % "\n")
                     endTime
                   hprint
                     statsfile
@@ -221,7 +224,7 @@ runLocal rootDir sourceFile name = do
                     (show status)
                   hprint
                     statsfile
-                    ("Running time so far: " % timeSpecs % "\n")
+                    ("Running time so far: " % F.timeSpecs % "\n")
                     start
                     end
 
@@ -229,47 +232,57 @@ runLocal rootDir sourceFile name = do
 -- Watcher
 
 runWatch :: Path Abs Dir -> IO ()
-runWatch rootDir =
-  withManager
-    (\mgr -> do
-       void (watchDir mgr (toFilePath learningWatchDir) (isHaskell . eventPath) action)
-       putStrLn ("Content directory: " <> toFilePath rootDir)
-       putStrLn ("Watching games directory " <> toFilePath learningWatchDir <> " ...")
-       forever (threadDelay 1000000))
+runWatch rootDir = do
+  void (watchDir learningWatchDir action)
+  putStrLn ("Content directory: " <> toFilePath rootDir)
+  putStrLn
+    ("Watching games directory " <> toFilePath learningWatchDir <> " ...")
+  forever (threadDelay 1000000)
   where
-    isHaskell = List.isPrefixOf (reverse ".hs") . reverse
-    action event =
-      if eventIsDirectory event
-        then pure ()
-        else if actionable event
-               then void
-                      (forkIO
-                         (do originFile <- parseAbsFile (eventPath event)
-                             putStrLn
-                               ("Incoming file " ++
-                                toFilePath (filename originFile))
-                             let targetGamesDir = rootDir </> gamesRelDir
-                                 finalFile =
-                                   targetGamesDir </> filename originFile
-                             IO.createDirIfMissing True targetGamesDir
-                             IO.renameFile originFile finalFile
-                             IO.withCurrentDir
-                               rootDir
-                               (runLocal
-                                  rootDir
-                                  finalFile
-                                  (normalizeName
-                                     (dropHs (toFilePath (filename finalFile)))))))
-               else pure ()
-      where
-        actionable =
-          \case
-            Added {} -> True
-            Modified {} -> True
-            _ -> False
+    action originFile =
+      void
+        (forkIO
+           (do putStrLn
+                 ("Incoming file " ++ toFilePath (filename originFile))
+               let targetGamesDir = rootDir </> gamesRelDir
+                   finalFile = targetGamesDir </> filename originFile
+               IO.createDirIfMissing True targetGamesDir
+               IO.renameFile originFile finalFile
+               IO.withCurrentDir
+                 rootDir
+                 (runLocal
+                    rootDir
+                    finalFile
+                    (normalizeName
+                       (dropHs (toFilePath (filename finalFile)))))))
+
+watchDir :: Path Abs Dir -> (Path Abs File -> IO ()) -> IO ()
+watchDir dir action = loop mempty
+  where
+    loop previous = do
+      threadDelay (1000 * 1000 * pollSeconds)
+      putStrLn "Polling for changes ..."
+      (_dirs, files) <-
+        fmap
+          (second (filter (isHaskell . toFilePath . filename)))
+          (IO.listDir dir)
+      current <-
+        fmap
+          Set.fromList
+          (traverse
+             (\file -> do
+                time <- IO.getModificationTime file
+                pure (file, time))
+             files)
+      let new = Set.difference current previous
+      traverse_ action (map fst (Set.toList new))
+      loop current
 
 --------------------------------------------------------------------------------
 -- Name munging
+
+isHaskell :: [Char] -> Bool
+isHaskell x = dropHs x /= x
 
 dropHs :: [Char] -> [Char]
 dropHs name = maybe name reverse $ List.stripPrefix (reverse ".hs") (reverse name)
@@ -348,3 +361,6 @@ resultsRelDir = $(mkRelDir "results")
 -- Replacing the IP address and identity file path appropriately.
 serverHost :: IsString s => s
 serverHost = "learning-service"
+
+pollSeconds :: Int
+pollSeconds = 5

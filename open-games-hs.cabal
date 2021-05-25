@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c8007fbb540d13fda5040631065cad27cc15590bd90f0e019d1a20d9ac856cc1
+-- hash: 41916e8f1849eec8cdf9f32077ba9d48cb80ea040388c2e8a825140200c8b4ad
 
 name:           open-games-hs
 version:        0.1.0.0
@@ -72,10 +72,10 @@ library
     , cassava
     , clock
     , comonad
+    , containers
     , deepseq
     , filepath
     , formatting
-    , fsnotify
     , hashable
     , hashtables
     , ixset
@@ -115,10 +115,10 @@ executable game
     , cassava
     , clock
     , comonad
+    , containers
     , deepseq
     , filepath
     , formatting
-    , fsnotify
     , hashable
     , hashtables
     , ixset
@@ -158,10 +158,10 @@ executable learning-exe
     , cassava
     , clock
     , comonad
+    , containers
     , deepseq
     , filepath
     , formatting
-    , fsnotify
     , hashable
     , hashtables
     , ixset
@@ -204,10 +204,10 @@ test-suite test-open-games
     , cassava
     , clock
     , comonad
+    , containers
     , deepseq
     , filepath
     , formatting
-    , fsnotify
     , hashable
     , hashtables
     , hspec
@@ -250,11 +250,11 @@ benchmark learning-bench
     , cassava
     , clock
     , comonad
+    , containers
     , criterion
     , deepseq
     , filepath
     , formatting
-    , fsnotify
     , hashable
     , hashtables
     , ixset
