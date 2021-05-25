@@ -12,8 +12,8 @@ import qualified Data.Aeson.Encoding.Internal as E
 main = do
   BS.writeFile "output/parameters.csv" $ csvParameters
   strat <- initialStrat >>= sequenceL
-  results <- evalStageM strat 100000
-  encoding <- exportQValuesJSON  $ drop 99000 results
+  results <- evalStageM strat 2
+  encoding <- exportQValuesJSON  results
   BS.writeFile "output/qValues.json" $ E.encodingToLazyByteString encoding
   putStrLn "output completed"
 {-
