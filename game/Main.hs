@@ -176,7 +176,19 @@ runLogs name = do
                         ])
              dump "stdout"
              dump "stderr"
-             dump "stats"))
+             dump "stats"
+             putStrLn
+               (unlines
+                  [ "Run the following to download the complete directory of the job: "
+                  , ""
+                  , "scp -r " ++
+                    serverHost ++
+                    ":" ++
+                    toFilePath (learningWorkDir </> resultsRelDir) ++
+                    " " ++ unHashedName job ++ "/"
+                  , ""
+                  , "Then look under results/ in your current directory."
+                  ])))
     jobsList
 
 --------------------------------------------------------------------------------
