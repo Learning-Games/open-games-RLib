@@ -125,7 +125,7 @@ Login Succeeded
 Run:
 
 ```
-root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/chrisdone/learning/final:2021-05-25  stack run watch /root/learning-work
+root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/chrisdone/learning/final:2021-05-25  stack run watch
 Unable to find image 'ghcr.io/chrisdone/learning/final:2021-05-25' locally
 2021-05-25: Pulling from chrisdone/learning/final
 48839397421a: Pull complete
@@ -158,7 +158,7 @@ Check it's up and running:
 ```
 root@Debian-109-buster-64-LAMP ~ # docker ps
 CONTAINER ID        IMAGE                                         COMMAND                  CREATED             STATUS              PORTS               NAMES
-31be233daae8        ghcr.io/chrisdone/learning/final:2021-05-25   "stack run watch /ro…"   29 seconds ago      Up 3 seconds                            confident_bartik
+31be233daae8        ghcr.io/chrisdone/learning/final:2021-05-25   "stack run watch"   29 seconds ago      Up 3 seconds                            confident_bartik
 
 root@Debian-109-buster-64-LAMP ~ # docker logs 31be233daae8
 [15] 2021-05-25 10:59:18.818424272 UTC: Polling for changes ...

@@ -54,11 +54,19 @@ helpString =
    \    Copy the module remotely. Will be committed, compiled & run by the\n\
    \    remote server.\n\
    \\n\
+   \  stack run jobs MODULE\n\
+   \\n\
+   \    Get the set of jobs by the name MODULE.\n\
+   \\n\
+   \  stack run logs JOB\n\
+   \\n\
+   \    Get the logs for the job from the remote server.\n\
+   \\n\
    \For running on the remote cloud service:\n\
    \\n\
-   \  stack run watch WORKING_DIR\n\
+   \  stack run watch\n\
    \\n\
-   \    Watches for new Haskell files in the directory named.\n\
+   \    Watches for new Haskell files.\n\
    \\n\
    \    Commits, compiles & run the module."
 
@@ -75,13 +83,15 @@ main = do
     ["check", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
       runCheck file
-    ["watch", root0] -> do
-      root' <- parseAbsDir root0
-      runWatch root'
+    ["watch"] -> do
+      runWatch
     ["upload", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
       runUpload file
-    _ -> error helpString
+    ["logs", file0] -> do
+      runLogs (normalizeName (dropHs file0))
+    _ -> do
+      error helpString
 
 --------------------------------------------------------------------------------
 -- Quick compilation check
@@ -136,6 +146,38 @@ runUpload sourceFile = do
            "ssh"
            [serverHost, "mv", toFilePath path <> ".tmp", toFilePath path])
       putStrLn "Uploaded."
+
+--------------------------------------------------------------------------------
+-- Print the logs
+
+runLogs :: Name -> IO ()
+runLogs name = do
+  runProcess_ (proc "ssh" [serverHost, "echo", "Connection to server OK."])
+  jobsString <-
+    readProcessStdout_
+      (proc
+         "ssh"
+         [serverHost, "ls", toFilePath (learningWorkDir </> resultsRelDir)])
+  let jobsList = map (HashedName . S8.unpack) (S8.lines (L.toStrict jobsString))
+  traverse_
+    (\job ->
+       when
+         (getHashedName job == name)
+         (do putStrLn ("Logs for job " ++ unHashedName job)
+             let dump label = do
+                   putStrLn label
+                   runProcess_
+                     (proc
+                        "ssh"
+                        [ serverHost
+                        , "cat"
+                        , toFilePath (learningWorkDir </> resultsRelDir) ++
+                          unHashedName job ++ "/" ++ label
+                        ])
+             dump "stdout"
+             dump "stderr"
+             dump "stats"))
+    jobsList
 
 --------------------------------------------------------------------------------
 -- Run locally
@@ -233,10 +275,10 @@ runLocal rootDir sourceFile name = do
 --------------------------------------------------------------------------------
 -- Watcher
 
-runWatch :: Path Abs Dir -> IO ()
-runWatch rootDir = do
+runWatch ::  IO ()
+runWatch = do
   void (watchDir learningWatchDir action)
-  putStrLn ("Content directory: " <> toFilePath rootDir)
+  putStrLn ("Content directory: " <> toFilePath learningWorkDir)
   putStrLn
     ("Watching games directory " <> toFilePath learningWatchDir <> " ...")
   forever (threadDelay 1000000)
@@ -246,14 +288,14 @@ runWatch rootDir = do
         (forkIO
            (do putStrLn
                  ("Incoming file " ++ toFilePath (filename originFile))
-               let targetGamesDir = rootDir </> gamesRelDir
+               let targetGamesDir = learningWorkDir </> gamesRelDir
                    finalFile = targetGamesDir </> filename originFile
                IO.createDirIfMissing True targetGamesDir
                IO.copyFile originFile finalFile
                IO.withCurrentDir
-                 rootDir
+                 learningWorkDir
                  (runLocal
-                    rootDir
+                    learningWorkDir
                     finalFile
                     (normalizeName
                        (dropHs (toFilePath (filename finalFile)))))))
@@ -299,7 +341,7 @@ addHs name =
 --------------------------------------------------------------------------------
 -- Module name
 
-newtype Name = Name {unName :: String}
+newtype Name = Name {unName :: String} deriving (Show, Eq)
 
 normalizeName :: String -> Name
 normalizeName =
@@ -310,11 +352,14 @@ normalizeName =
          then c
          else '_')
 
-newtype HashedName = HashedName {unHashedName :: String}
+newtype HashedName = HashedName {unHashedName :: String} deriving (Show)
 
 addHash :: Name -> L.ByteString -> HashedName
 addHash (Name name) =
   HashedName . ((name <> "-") <>) . S8.unpack . S.concat . S8.words . L.toStrict
+
+getHashedName :: HashedName -> Name
+getHashedName (HashedName x) = Name (take (length x - 41 {-includes the dash-}) x)
 
 --------------------------------------------------------------------------------
 -- Threaded IO
@@ -332,6 +377,9 @@ putStrLn s = do
 
 learningWatchDir :: Path Abs Dir
 learningWatchDir = $(mkAbsDir "/tmp/learning-watch")
+
+learningWorkDir :: Path Abs Dir
+learningWorkDir = $(mkAbsDir "/root/learning-work")
 
 binRelDir :: Path Rel Dir
 binRelDir = $(mkRelDir "bin")
