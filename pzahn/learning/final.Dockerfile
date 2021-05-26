@@ -1,4 +1,4 @@
-FROM registry.gitlab.com/pzahn/learning/base:2021-05-24
+FROM ghcr.io/philipp-zahn/learning/base:2021-05-24
 
 COPY . /repo
 WORKDIR /repo

@@ -1,4 +1,4 @@
-FROM registry.gitlab.com/pzahn/learning/src:2021-05-24
+FROM ghcr.io/philipp-zahn/learning/src:2021-05-24
 
 WORKDIR /build-workdir
 

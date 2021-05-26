@@ -78,21 +78,21 @@ targets respectively.
 
 Build an image with the source in it:
 
-    docker image build -f pzahn/learning/src.Dockerfile -t registry.gitlab.com/pzahn/learning/src:2021-05-24 .
+    docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-05-24 .
 
 Build a base image with stack and haskell dependencies in it:
 
-    docker image build -f pzahn/learning/base.Dockerfile -t registry.gitlab.com/pzahn/learning/base:2021-05-24 pzahn/
+    docker image build -f pzahn/learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-05-24 pzahn/
 
 Building the final image for running:
 
-    docker image build -f pzahn/learning/final.Dockerfile . -t registry.gitlab.com/pzahn/learning/final:2021-05-24
+    docker image build -f pzahn/learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-05-24
 
 OK, now you can upload everything:
 
-    docker push registry.gitlab.com/pzahn/learning/src:2021-05-24
-    docker push registry.gitlab.com/pzahn/learning/base:2021-05-24
-    docker push registry.gitlab.com/pzahn/learning/final:2021-05-24
+    docker push ghcr.io/philipp-zahn/learning/src:2021-05-24
+    docker push ghcr.io/philipp-zahn/learning/base:2021-05-24
+    docker push ghcr.io/philipp-zahn/learning/final:2021-05-24
 
 Ideally, you'll change the date tag when you change an image.
 
@@ -125,9 +125,9 @@ Login Succeeded
 Run:
 
 ```
-root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/chrisdone/learning/final:2021-05-25  stack run watch
-Unable to find image 'ghcr.io/chrisdone/learning/final:2021-05-25' locally
-2021-05-25: Pulling from chrisdone/learning/final
+root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-05-25  stack run watch
+Unable to find image 'ghcr.io/philipp-zahn/learning/final:2021-05-25' locally
+2021-05-25: Pulling from philipp-zahn/learning/final
 48839397421a: Pull complete
 3dbc469ccfbf: Pull complete
 dc3251236bd7: Pull complete
@@ -147,7 +147,7 @@ bdd706500afa: Pull complete
 d8ab7bc6a84a: Pull complete
 3f213ad8da19: Pull complete
 Digest: sha256:a01cf4dfc0d4525f25f9755259c698888f4cb7561000018f25005585267859c9
-Status: Downloaded newer image for ghcr.io/chrisdone/learning/final:2021-05-25
+Status: Downloaded newer image for ghcr.io/philipp-zahn/learning/final:2021-05-25
 31be233daae8873f391b86fc456107653fc538818ccdf45f825a86b0c7b990f2
 ```
 
@@ -158,7 +158,7 @@ Check it's up and running:
 ```
 root@Debian-109-buster-64-LAMP ~ # docker ps
 CONTAINER ID        IMAGE                                         COMMAND                  CREATED             STATUS              PORTS               NAMES
-31be233daae8        ghcr.io/chrisdone/learning/final:2021-05-25   "stack run watch"   29 seconds ago      Up 3 seconds                            confident_bartik
+31be233daae8        ghcr.io/philipp-zahn/learning/final:2021-05-25   "stack run watch"   29 seconds ago      Up 3 seconds                            confident_bartik
 
 root@Debian-109-buster-64-LAMP ~ # docker logs 31be233daae8
 [15] 2021-05-25 10:59:18.818424272 UTC: Polling for changes ...
