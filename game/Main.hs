@@ -79,7 +79,7 @@ main = do
   case args of
     ["local", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
-      runLocal root file (normalizeName (dropHs file0))
+      runLocal root gamesDir file (normalizeName (dropHs file0))
     ["check", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
       runCheck file
@@ -192,18 +192,28 @@ runLogs name = do
 --------------------------------------------------------------------------------
 -- Run locally
 
-runLocal :: Path Abs Dir -> Path Abs File -> Name -> IO ()
-runLocal rootDir sourceFile name = do
+runLocal :: Path Abs Dir -> Path Abs Dir -> Path Abs File -> Name -> IO ()
+runLocal rootDir gamesDir sourceFile name = do
   exists <- IO.doesFileExist sourceFile
   if not exists
     then error ("Game not found: " ++ toFilePath sourceFile)
     else do
-      runProcess_ (proc "git" ["add", toFilePath sourceFile])
-      code <- runProcess (proc "git" ["diff-index", "--quiet", "HEAD"])
+      runProcess_
+        (setWorkingDir
+           (toFilePath gamesDir)
+           (proc "git" ["add", toFilePath sourceFile]))
+      code <-
+        runProcess
+          (setWorkingDir
+             (toFilePath gamesDir)
+             (proc "git" ["diff-index", "--quiet", "HEAD"]))
       let getHash =
             fmap
               (addHash name)
-              (readProcessStdout_ (proc "git" ["rev-parse", "--verify", "HEAD"]))
+              (readProcessStdout_
+                 (setWorkingDir
+                    (toFilePath gamesDir)
+                    (proc "git" ["rev-parse", "--verify", "HEAD"])))
       hashedName <-
         if code == ExitSuccess
           then do
@@ -212,7 +222,10 @@ runLocal rootDir sourceFile name = do
           else do
             putStrLn ("Saving to Git ...")
             runProcess_
-              (proc "git" ["commit", "-m", "Updated: " ++ unName name])
+              (setWorkingDir
+                 (toFilePath gamesDir)
+                 (proc "git" ["commit", "-m", "Updated: " ++ unName name]))
+            _ <- runProcess (setWorkingDir (toFilePath gamesDir) (proc "git" ["push"]))
             hash <- getHash
             putStrLn ("Saved as: " ++ unHashedName hash)
             pure hash
@@ -306,6 +319,7 @@ runWatch = do
                  learningWorkDir
                  (runLocal
                     learningWorkDir
+                    targetGamesDir
                     finalFile
                     (normalizeName
                        (dropHs (toFilePath (filename finalFile)))))))
