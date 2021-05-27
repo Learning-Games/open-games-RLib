@@ -183,6 +183,10 @@ Go back to the root of `learning/`. Check your game compiles:
     [11] 2021-05-27 10:03:52.766389021 UTC: Checking with GHC ...
     [1 of 1] Compiling Main             ( /home/chris/Work/philipp-zahn/learning/games/calvano.hs, /home/chris/Work/philipp-zahn/learning/games/calvano.o )
 
+The calvano example can be found
+[here](https://github.com/philipp-zahn/learning-run-scenarios/blob/1fcb3a1462d2721fd3760aba6d8c35539f216b2a/calvano.hs#L1)
+(stable link).
+
 Run the game locally (ideally with a small number of iterations, just
 to sanity check it):
 
