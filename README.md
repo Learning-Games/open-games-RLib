@@ -164,3 +164,87 @@ root@Debian-109-buster-64-LAMP ~ # docker logs 31be233daae8
 [15] 2021-05-25 10:59:18.818424272 UTC: Polling for changes ...
 
 ```
+
+# Developing scenarios
+
+Clone the scenarios repo as games/ in the learning/ repository:
+
+    philipp-zahn/learning $ git clone git@github.com:philipp-zahn/learning-run-scenarios.git games
+
+In there you may want to switch to your own personal branch, e.g.
+
+    $ cd games
+    $ git checkout -b chris
+    $ cd ..
+
+Go back to the root of `learning/`. Check your game compiles:
+
+    $ stack run game check calvano
+    [11] 2021-05-27 10:03:52.766389021 UTC: Checking with GHC ...
+    [1 of 1] Compiling Main             ( /home/chris/Work/philipp-zahn/learning/games/calvano.hs, /home/chris/Work/philipp-zahn/learning/games/calvano.o )
+
+Run the game locally (ideally with a small number of iterations, just
+to sanity check it):
+
+    [11] 2021-05-27 10:07:07.913013048 UTC: Saved as: calvano-1fcb3a1462d2721fd3760aba6d8c35539f216b2a
+    [11] 2021-05-27 10:07:07.913117147 UTC: Compiling with GHC ...
+    [1 of 1] Compiling Main             ( /home/chris/Work/philipp-zahn/learning/games/calvano.hs, /home/chris/Work/philipp-zahn/learning/games/calvano.o )
+    Linking /home/chris/Work/philipp-zahn/learning/bin/calvano-1fcb3a1462d2721fd3760aba6d8c35539f216b2a ...
+    [11] 2021-05-27 10:07:08.836552097 UTC: Running in directory /home/chris/Work/philipp-zahn/learning/results/calvano-1fcb3a1462d2721fd3760aba6d8c35539f216b2a/...
+    [11] 2021-05-27 10:07:08.887635791 UTC: Run complete in directory /home/chris/Work/philipp-zahn/learning/results/calvano-1fcb3a1462d2721fd3760aba6d8c35539f216b2a/
+
+Inspect the results under `results/thename-thehash`:
+
+    $ ls results/calvano-1fcb3a1462d2721fd3760aba6d8c35539f216b2a/
+    parameters.csv  qValues.json  stats  stderr  stdout
+
+Any other files outputted by the game will be in this directory, see
+`parameters.csv` and `qValues.json`. The stats, stderr, stdout are
+generated for all runs.
+
+Upload the game to be run remotely:
+
+    $ stack run game upload calvano
+    Connection to server OK.
+    [11] 2021-05-27 10:08:41.947158937 UTC: Uploading to service ...
+    calvano.hs                                                                          100%  826    29.2KB/s   00:00
+    [11] 2021-05-27 10:08:43.089394092 UTC: Uploaded.
+
+The remote server will pick this up in about 10 seconds and execute
+it. After however long it takes for your job to complete, you'll have
+results.
+
+To see the output, you can dump the logs for the job:
+
+    $ stack run game logs calvano
+    Connection to server OK.
+    [11] 2021-05-27 10:09:00.469730753 UTC: Logs for job calvano-9b67aad73b7ed0c6c52e47ba794aa05cfb13089a
+    [11] 2021-05-27 10:09:00.469888806 UTC: stdout
+    output completed
+    [11] 2021-05-27 10:09:01.000543019 UTC: stderr
+    [11] 2021-05-27 10:09:01.51540859 UTC: stats
+    Starting at Thu May 27 10:08:44 UTC 2021
+    Successful end at Thu May 27 10:08:44 UTC 2021
+    Running time: 71.02 ms
+    [11] 2021-05-27 10:09:02.061183606 UTC: Run the following to download the complete directory of the job:
+
+    scp -r learning-service:/root/learning-work/results/calvano-9b67aad73b7ed0c6c52e47ba794aa05cfb13089a .
+
+
+If you pull the results down with the recommended command, you'll get
+a local copy of everything:
+
+    $ scp -r learning-service:/root/learning-work/results/calvano-9b67aad73b7ed0c6c52e47ba794aa05cfb13089a .
+    parameters.csv                                                                      100%  540    18.5KB/s   00:00
+    stderr                                                                              100%    0     0.0KB/s   00:00
+    stdout                                                                              100%   17     0.6KB/s   00:00
+    stats                                                                               100%  111     3.8KB/s   00:00
+    qValues.json                                                                        100%    2     0.1KB/s   00:00
+
+All runs are recorded:
+
+* Locally, they're committed and pushed to the learning-run-scenarios
+  project.
+* Remotely, they're also committed and pushed to the
+  learning-run-scenarios project, but on a different branch
+  (`learning-service`).
