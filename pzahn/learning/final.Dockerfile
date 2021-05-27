@@ -1,7 +1,13 @@
-FROM ghcr.io/philipp-zahn/learning/base:2021-05-24
+FROM ghcr.io/philipp-zahn/learning/base:2021-05-27@sha256:eece7f5d0dd72a44e5b3bb078c11492e64a2078f29fa1b9aea05e090eb80b3fc
 
-COPY . /repo
-WORKDIR /repo
+ADD stack.yaml /repo/stack.yaml
+ADD stack.yaml.lock /repo/stack.yaml.lock
+ADD package.yaml /repo/package.yaml
+ADD src /repo/src
+ADD app /repo/app
+ADD bench /repo/bench
+ADD tests /repo/tests
+ADD game /repo/game
 
 WORKDIR /repo/
 
