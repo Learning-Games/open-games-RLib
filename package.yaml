@@ -75,6 +75,11 @@ dependencies:
     - path
     - path-io
     - persistent-sqlite
+    - persistent-template
+    - monad-logger
+    - persistent
+    - resource-pool
+    - text
 
 executables:
   learning-exe:
