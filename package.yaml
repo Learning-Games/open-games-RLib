@@ -74,6 +74,7 @@ dependencies:
     - containers
     - path
     - path-io
+    - persistent-sqlite
 
 executables:
   learning-exe:
