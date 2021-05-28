@@ -6,11 +6,11 @@
 
 Build an image with the source in it:
 
-    docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-05-24 .
+    docker image build -f learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-05-24 
 
 Build a base image with stack and haskell dependencies in it:
 
-    docker image build -f pzahn/learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-05-24 pzahn/
+    docker image build -f learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-05-24 
 
 Building the final image for running:
 
@@ -110,7 +110,7 @@ NOTE: Check access conditions, in case permission to access is denied
 In there you may want to switch to your own personal branch, e.g.
 
     $ cd games
-    $ git checkout -b chris
+    $ git checkout -b philipp
     $ cd ..
 
 NOTE: We keep a branch for each of us. This guarantees we only keep info that does belong there.
@@ -129,7 +129,8 @@ The calvano example can be found
 
 Run the game locally (ideally with a small number of iterations, just
 to sanity check it):
-
+     
+    $ stack run game local calvano 
     [11] 2021-05-27 10:07:07.913013048 UTC: Saved as: calvano-1fcb3a1462d2721fd3760aba6d8c35539f216b2a
     [11] 2021-05-27 10:07:07.913117147 UTC: Compiling with GHC ...
     [1 of 1] Compiling Main             ( /home/chris/Work/philipp-zahn/learning/games/calvano.hs, /home/chris/Work/philipp-zahn/learning/games/calvano.o )
@@ -147,6 +148,17 @@ Any other files outputted by the game will be in this directory, see
 generated for all runs.
 
 ### Run on the remote machine
+
+NOTE: You need to configure your ssh in order to get access
+
+Make an entry in your ~/.ssh/config like this:
+
+Host learning-service
+     IdentityFile _path_to_rsa_file_ (e.g. ~/.ssh/id_rsa)
+     HostName 168.119.138.173
+     User root
+
+
 
 Upload the game to be run remotely:
 
