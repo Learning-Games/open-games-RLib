@@ -6,16 +6,16 @@
 
 Build an image with the source in it:
 
-    docker image build -f learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-05-24 
+    docker image build -f learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-05-24 .
 
 Build a base image with stack and haskell dependencies in it:
 
-    docker image build -f learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-05-24 
+    docker image build -f learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-05-24 .
 
 Building the final image for running:
 
-    docker image build -f pzahn/learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-05-24
-
+    docker image build -f learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-05-24
+    
 OK, now you can upload everything:
 
     docker push ghcr.io/philipp-zahn/learning/src:2021-05-24
