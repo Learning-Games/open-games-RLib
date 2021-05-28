@@ -1,3 +1,7 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE BangPatterns #-}
@@ -24,10 +28,24 @@ module Examples.QLearning.CalvanoReplication
   , actionSpace
   , csvParameters
   , exportQValuesJSON
+  , exportQValuesSqlite
   , sequenceL
   , evalStageM
   , PriceSpace(..)
   ) where
+import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
+import           Data.Text (Text)
+import qualified Data.ByteString.Lazy as L
+import qualified Data.Text as T
+import           Data.Text (Text)
+import           Control.Monad.Trans.Reader
+import           Data.Pool
+import           Database.Persist.TH
+import           Database.Persist
+import           Control.Monad.IO.Class
+import           Control.Monad.Logger
+import           Database.Persist.Sqlite
 import           Data.Foldable
 import qualified Data.HashMap.Strict as HM
 import           Data.HashMap.Strict (HashMap)
@@ -469,3 +487,53 @@ sequenceL (x ::- y ::- Nil) = do
   v <- x
   v' <- y
   pure (v ::- v' ::- Nil)
+
+
+--------------------------------------------------------------------------------
+-- sqlite export
+
+share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+Iteration
+    index Int
+    deriving Show
+Player
+  iteration IterationId
+  index Int
+  agent Text
+  obs Text
+  qvalues Text
+  deriving Show
+|]
+
+exportQValuesSqlite :: [List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO ()
+exportQValuesSqlite results =
+  runNoLoggingT
+    (withSqlitePool
+       "qvalues.sqlite3"
+       1
+       (flip
+          withResource
+          (runReaderT
+             (do runMigration migrateAll
+                 traverse_
+                   (\(i, x) -> do
+                      players <- liftIO (fromTLLToExport x)
+                      it <- insert Iteration {iterationIndex = i}
+                      insertMany_
+                        (map
+                           (\(pindex, player) ->
+                              Player
+                                { playerIteration = it
+                                , playerIndex = pindex
+                                , playerAgent = T.pack (expName player)
+                                , playerObs =
+                                    T.decodeUtf8
+                                      (L.toStrict
+                                         (Data.Aeson.encode (expObs player)))
+                                , playerQvalues =
+                                    T.decodeUtf8
+                                      (L.toStrict
+                                         (Data.Aeson.encode (expQValues player)))
+                                })
+                           (zip [0 ..] players)))
+                   (zip [0 ..] results)))))
