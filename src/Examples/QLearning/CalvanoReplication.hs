@@ -27,12 +27,15 @@ module Examples.QLearning.CalvanoReplication
   , beta
   , actionSpace
   , csvParameters
-  , exportQValuesJSON
+  -- , exportQValuesJSON
   , exportQValuesSqlite
   , sequenceL
   , evalStageM
   , PriceSpace(..)
   ) where
+import qualified Data.Sequence as Seq
+import           Data.Sequence (Seq)
+import qualified Data.Ix as Ix
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import           Data.Text (Text)
@@ -177,8 +180,8 @@ parameters = ExportParameters
 -- | export to CSV
 csvParameters = encodeDefaultOrderedByName  [parameters]
 
-instance ToNamedRecord ExportQValues
-instance DefaultOrdered ExportQValues
+-- instance ToNamedRecord ExportQValues
+-- instance DefaultOrdered ExportQValues
 
 -------------------------
 -- 2. Export Data as JSON
@@ -193,8 +196,13 @@ data ExportQValues = ExportQValues
    , expIteration :: !Int
    , expObs  :: !(FieldAsJson (Memory.Vector Player1N (Observation (Idx PriceSpace))))
    , expQValues  :: !(FieldAsJson [((Memory.Vector Player1N (Observation (Idx PriceSpace)),Idx PriceSpace),Double)])
+   , expQBounds :: !(Bounds Player1N Observation PriceSpace) -- Warning: hard-codes memory size of player1.
    } deriving (Generic,Show)
-instance ToJSON ExportQValues
+-- instance ToJSON ExportQValues
+
+type Bounds n o a
+   = ( (Memory.Vector n (o (Idx a)), Idx a)
+     , (Memory.Vector n (o (Idx a)), Idx a))
 
 -- | Easy way to have a CSV field encoded by JSON.
 newtype FieldAsJson a = FieldAsJson { unFieldAsJson :: a}
@@ -217,15 +225,17 @@ fromTLLToExport (p1 ::- p2 ::- Nil) = do
       expObs2 = _obsAgent env2
   expQValues1 <- A.getAssocs $ _qTable env1
   expQValues2 <- A.getAssocs $ _qTable env2
+  bounds1 <- A.getBounds (_qTable env1)
+  bounds2 <- A.getBounds (_qTable env2)
   let
-      expPlayer1 = ExportQValues name1 expIteration1 (FieldAsJson expObs1) (FieldAsJson expQValues1)
-      expPlayer2 = ExportQValues name2 expIteration2 (FieldAsJson expObs2) (FieldAsJson expQValues2)
+      expPlayer1 = ExportQValues name1 expIteration1 (FieldAsJson expObs1) (FieldAsJson expQValues1) bounds1
+      expPlayer2 = ExportQValues name2 expIteration2 (FieldAsJson expObs2) (FieldAsJson expQValues2) bounds2
   pure $ [expPlayer1, expPlayer2]
 
 fromTLLListToExport :: [List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO [ExportQValues]
 fromTLLListToExport = fmap concat . traverse fromTLLToExport
 
-exportQValuesJSON ls = fmap foldable $ fromTLLListToExport ls
+-- exportQValuesJSON ls = fmap foldable $ fromTLLListToExport ls
 
 indexMapObject :: HashMap (Idx PriceSpace) PriceSpace
 indexMapObject = HM.fromList (toList indexMapVector)
@@ -493,15 +503,11 @@ sequenceL (x ::- y ::- Nil) = do
 -- sqlite export
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-Iteration
-    index Int
-    deriving Show
-Player
-  iteration IterationId
-  index Int
-  agent Text
-  obs Text
-  qvalues Text
+QValue
+  iteration Int
+  player Int
+  stateActionIndex Int
+  qvalue Double
   deriving Show
 |]
 
@@ -515,25 +521,55 @@ exportQValuesSqlite results =
           withResource
           (runReaderT
              (do runMigration migrateAll
-                 traverse_
-                   (\(i, x) -> do
-                      players <- liftIO (fromTLLToExport x)
-                      it <- insert Iteration {iterationIndex = i}
-                      insertMany_
-                        (map
-                           (\(pindex, player) ->
-                              Player
-                                { playerIteration = it
-                                , playerIndex = pindex
-                                , playerAgent = T.pack (expName player)
-                                , playerObs =
-                                    T.decodeUtf8
-                                      (L.toStrict
-                                         (Data.Aeson.encode (expObs player)))
-                                , playerQvalues =
-                                    T.decodeUtf8
-                                      (L.toStrict
-                                         (Data.Aeson.encode (expQValues player)))
-                                })
-                           (zip [0 ..] players)))
-                   (zip [0 ..] results)))))
+                 nestedRows <-
+                   fmap
+                     (foldr (<>) mempty)
+                     (mapM
+                        (\(iterationIdx, tll) -> do
+                           players <- liftIO (fromTLLToExport tll)
+                           fmap
+                             (foldr (<>) mempty)
+                             (mapM
+                                (\(player, exportQValues) -> do
+                                   let stateActionValueTriples =
+                                         unFieldAsJson
+                                           (expQValues exportQValues)
+                                   mapM
+                                     (\(stateAndAction, value) -> do
+                                        pure
+                                          QValue
+                                            { qValueIteration = iterationIdx
+                                            , qValuePlayer = player
+                                            , qValueStateActionIndex =
+                                                Ix.index
+                                                  (expQBounds exportQValues)
+                                                  stateAndAction
+                                            , qValueQvalue = value
+                                            })
+                                     (Seq.fromList stateActionValueTriples))
+                                (Seq.fromList (zip [1 ..] players))))
+                        (Seq.fromList (zip [1 ..] results)))
+                 insertMany_ (toList nestedRows :: [QValue])))))
+
+{-traverse_
+  (\(i, x) -> do
+     players <- liftIO (fromTLLToExport x)
+     it <- insert Iteration {iterationIndex = i}
+     insertMany_
+       (map
+          (\(pindex, player) ->
+             Player
+               { playerIteration = it
+               , playerIndex = pindex
+               , playerAgent = T.pack (expName player)
+               , playerObs =
+                   T.decodeUtf8
+                     (L.toStrict
+                        (Data.Aeson.encode (expObs player)))
+               , playerQvalues =
+                   T.decodeUtf8
+                     (L.toStrict
+                        (Data.Aeson.encode (expQValues player)))
+               })
+          (zip [0 ..] players)))
+  (zip [0 ..] results)-}
