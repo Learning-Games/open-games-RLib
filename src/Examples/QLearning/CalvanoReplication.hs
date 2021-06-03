@@ -33,8 +33,11 @@ module Examples.QLearning.CalvanoReplication
   , evalStageM
   , PriceSpace(..)
   ) where
+import qualified Data.HashMap.Strict as HM
+import           Data.HashMap.Strict (HashMap)
+import           Control.Monad.Trans.State
 import qualified Data.Sequence as Seq
-import           Data.Sequence (Seq)
+import           Data.Sequence (Seq(..))
 import qualified Data.Ix as Ix
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
@@ -197,6 +200,7 @@ data ExportQValues = ExportQValues
    , expObs  :: !(FieldAsJson (Memory.Vector Player1N (Observation (Idx PriceSpace))))
    , expQValues  :: !(FieldAsJson [((Memory.Vector Player1N (Observation (Idx PriceSpace)),Idx PriceSpace),Double)])
    , expQBounds :: !(Bounds Player1N Observation PriceSpace) -- Warning: hard-codes memory size of player1.
+   , expKeys :: ![(Memory.Vector Player1N (Observation (Idx PriceSpace)), Idx PriceSpace)]
    } deriving (Generic,Show)
 -- instance ToJSON ExportQValues
 
@@ -227,9 +231,11 @@ fromTLLToExport (p1 ::- p2 ::- Nil) = do
   expQValues2 <- A.getAssocs $ _qTable env2
   bounds1 <- A.getBounds (_qTable env1)
   bounds2 <- A.getBounds (_qTable env2)
+  keys1 <- fmap (fmap fst) (A.getAssocs (_qTable env1))
+  keys2 <- fmap (fmap fst) (A.getAssocs (_qTable env1))
   let
-      expPlayer1 = ExportQValues name1 expIteration1 (FieldAsJson expObs1) (FieldAsJson expQValues1) bounds1
-      expPlayer2 = ExportQValues name2 expIteration2 (FieldAsJson expObs2) (FieldAsJson expQValues2) bounds2
+      expPlayer1 = ExportQValues name1 expIteration1 (FieldAsJson expObs1) (FieldAsJson expQValues1) bounds1 keys1
+      expPlayer2 = ExportQValues name2 expIteration2 (FieldAsJson expObs2) (FieldAsJson expQValues2) bounds2 keys2
   pure $ [expPlayer1, expPlayer2]
 
 fromTLLListToExport :: [List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO [ExportQValues]
@@ -503,14 +509,21 @@ sequenceL (x ::- y ::- Nil) = do
 -- sqlite export
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+StateActionIndex
+  state Text
+  action Text
 QValue
   iteration Int
   player Int
-  stateActionIndex Int
+  stateActionIndex StateActionIndexId
   qvalue Double
   deriving Show
 |]
 
+data Out = Out
+  { qvalues :: !(Seq QValue)
+  , keys :: !(HashMap (ByteString, ByteString) Int)
+  }
 exportQValuesSqlite :: [List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO ()
 exportQValuesSqlite results =
   runNoLoggingT
@@ -521,35 +534,76 @@ exportQValuesSqlite results =
           withResource
           (runReaderT
              (do runMigration migrateAll
-                 nestedRows <-
-                   fmap
-                     (foldr (<>) mempty)
-                     (mapM
+                 Out {..} <-
+                   flip
+                     execStateT
+                     Out {qvalues = mempty, keys = mempty}
+                     (mapM_
                         (\(iterationIdx, tll) -> do
                            players <- liftIO (fromTLLToExport tll)
-                           fmap
-                             (foldr (<>) mempty)
-                             (mapM
-                                (\(player, exportQValues) -> do
-                                   let stateActionValueTriples =
-                                         unFieldAsJson
-                                           (expQValues exportQValues)
-                                   mapM
-                                     (\(stateAndAction, value) -> do
-                                        pure
-                                          QValue
-                                            { qValueIteration = iterationIdx
-                                            , qValuePlayer = player
-                                            , qValueStateActionIndex =
-                                                Ix.index
-                                                  (expQBounds exportQValues)
-                                                  stateAndAction
-                                            , qValueQvalue = value
-                                            })
-                                     (Seq.fromList stateActionValueTriples))
-                                (Seq.fromList (zip [1 ..] players))))
-                        (Seq.fromList (zip [1 ..] results)))
-                 insertMany_ (toList nestedRows :: [QValue])))))
+                           mapM_
+                             (\(player, exportQValues) -> do
+                                let stateActionValueTriples =
+                                      unFieldAsJson (expQValues exportQValues)
+                                mapM_
+                                  (\key@(state, action) ->
+                                     let idx =
+                                           Ix.index
+                                             (expQBounds exportQValues)
+                                             key
+                                      in modify'
+                                           (\Out {..} ->
+                                              Out
+                                                { keys =
+                                                    HM.insert
+                                                      ( L.toStrict
+                                                          (Data.Aeson.encode
+                                                             state)
+                                                      , L.toStrict
+                                                          (Data.Aeson.encode
+                                                             action))
+                                                      idx
+                                                      keys
+                                                , ..
+                                                }))
+                                  (expKeys exportQValues)
+                                mapM_
+                                  (\(stateAndAction, value) -> do
+                                     let newqvalue =
+                                           QValue
+                                             { qValueIteration = iterationIdx
+                                             , qValuePlayer = player
+                                             , qValueStateActionIndex =
+                                                 toSqlKey
+                                                   (fromIntegral
+                                                      (Ix.index
+                                                         (expQBounds
+                                                            exportQValues)
+                                                         stateAndAction))
+                                             , qValueQvalue = value
+                                             }
+                                     modify'
+                                       (\Out {..} ->
+                                          Out
+                                            { qvalues = qvalues Seq.|> newqvalue
+                                            , ..
+                                            }))
+                                  stateActionValueTriples)
+                             (zip [1 ..] players))
+                        (zip [1 ..] results))
+                 insertEntityMany
+                   (map
+                      (\((state, action), idx) ->
+                         Entity
+                           { entityVal =
+                               StateActionIndex
+                                 { stateActionIndexState = T.decodeUtf8 state
+                                 , stateActionIndexAction = T.decodeUtf8 action
+                                 }
+                           , entityKey = toSqlKey (fromIntegral idx)
+                           })
+                      (HM.toList keys))
+                 insertMany_ (toList qvalues)))))
 
 {-traverse_
   (\(i, x) -> do
