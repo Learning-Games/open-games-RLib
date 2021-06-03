@@ -99,7 +99,9 @@ newtype Observation a = Obs
 data PriceSpace = PriceSpace {
    value :: !Double
   , idx :: !Int
-  } deriving (Show, Eq, Ord)
+  } deriving (Show, Eq, Ord, Generic)
+instance ToJSON PriceSpace where
+  toJSON PriceSpace {value} = toJSON value
 instance NFData PriceSpace where
   rnf x =
     let !_ = x -- PriceSpace is strict in its fields.
@@ -551,6 +553,8 @@ exportQValuesSqlite results =
                                            Ix.index
                                              (expQBounds exportQValues)
                                              key
+                                         state' = fmap (fmap (readTable actionSpace)) state
+                                         action' = readTable actionSpace action
                                       in modify'
                                            (\Out {..} ->
                                               Out
@@ -558,10 +562,10 @@ exportQValuesSqlite results =
                                                     HM.insert
                                                       ( L.toStrict
                                                           (Data.Aeson.encode
-                                                             state)
+                                                             state')
                                                       , L.toStrict
                                                           (Data.Aeson.encode
-                                                             action))
+                                                             action'))
                                                       idx
                                                       keys
                                                 , ..

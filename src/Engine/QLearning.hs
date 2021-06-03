@@ -74,6 +74,11 @@ uniformCTable population =
   where
     probability = 1 / fromIntegral (V.length population)
 
+-- | Read the table at an index.
+readTable :: CTable a -> Idx a -> a
+readTable (CTable {population}) (Idx i) =
+  population V.! i
+
 --------------------------------------------------------------------------------
 -- Random sampling
 
