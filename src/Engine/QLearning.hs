@@ -19,42 +19,26 @@ module Engine.QLearning where
 
 import           Control.DeepSeq
 import           Control.Monad.Trans
-import           Control.Monad.Trans.Reader
+import qualified Control.Monad.Trans.State as ST
 import           Data.Aeson
 import qualified Data.Array.IO as A
-import           Data.Bifunctor
 import           Data.Csv
 import           Data.Hashable
 import           Data.Ix
-import           Data.STRef
 import qualified Data.Vector as V
--- import qualified Data.Vector.Sized as SV
-import qualified Engine.Memory as Memory
 import           Engine.Memory (Memory)
+import qualified Engine.Memory as Memory
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
 import           GHC.Generics
-import           GHC.TypeNats
+import           Optics.Operators
+import           Optics.Optic ((%))
+import           Optics.TH (makeLenses)
 import           System.Random
+import qualified System.Random as Rand
 import           System.Random.MWC.CondensedTable
 import           System.Random.Stateful
-
-import           Control.Comonad
-import           Control.Monad.State.Class
-import qualified Control.Monad.Trans.State as ST
--- import           Control.Monad.ST
-import           Data.List (maximumBy)
-import           Data.Ord (comparing)
-import qualified System.Random as Rand
-import qualified GHC.Arr as A
-
-
-
-import           Optics.TH (makeLenses)
-import           Optics.Optic ((%))
-import           Optics.Operators
-
 
 --------------------------------------------------------------------------------
 -- A simple condensed table type
@@ -383,56 +367,3 @@ fromLens v u = OpenGame {
 {-# INLINE fromFunctions #-}
 fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
-
---------------------------------------------------------------------------------
--- Sliding window functionality
-
--- Example:
---
--- > Memory.pushEnd (fromJust $ SV.fromList [1,2,3,4] :: Memory.Vector 4 Int) 5
--- Vector [2,3,4,5]
--- > pushStart 0 (fromJust $ SV.fromList [1,2,3,4] :: Memory.Vector 4 Int)
--- Vector [0,1,2,3]
-
--- Iterative use:
---
--- > foldl Memory.pushEnd (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: Memory.Vector 8 Int) [55,66,77]
--- Vector [4,5,6,7,8,55,66,77]
--- > foldr pushStart (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: Memory.Vector 8 Int) [55,66,77]
--- Vector [55,66,77,1,2,3,4,5]
-
--- -- Trivial, but expensive.
--- {-# INLINE Memory.pushEnd_slow  #-}
--- Memory.pushEnd_slow :: Memory.Vector (1 + n) a -> a -> Memory.Vector (n + 1) a
--- Memory.pushEnd_slow vec a = SV.snoc (SV.tail vec) a
-
--- -- Trivial, but expensive.
--- {-# INLINE pushStart_slow  #-}
--- pushStart_slow :: a -> Memory.Vector (n + 1) a -> Memory.Vector (1 + n) a
--- pushStart_slow a vec = SV.cons a (SV.init vec)
-
--- -- Faster with a better type.
--- {-# INLINE _pushStart  #-}
--- _pushStart :: a -> Memory.Vector n a -> Memory.Vector n a
--- _pushStart a vec =
---   SV.knownLength
---     vec
---     (SV.imap
---        (\idx _ ->
---           if idx == 0
---             then a
---             else SV.index vec (idx - 1))
---        vec)
-
--- -- Faster with a better type.
--- {-# INLINE Memory.pushEnd  #-}
--- Memory.pushEnd :: Memory.Vector n a -> a -> Memory.Vector n a
--- Memory.pushEnd vec a =
---   SV.knownLength
---     vec
---     (SV.imap
---        (\idx _ ->
---           if fromIntegral idx == SV.length vec - 1
---             then a
---             else SV.index vec (idx + 1))
---        vec)
