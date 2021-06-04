@@ -18,6 +18,7 @@
 module Engine.QLearning where
 
 import           Control.DeepSeq
+import           Control.Monad.Reader
 import           Control.Monad.Trans
 import qualified Control.Monad.Trans.State as ST
 import           Data.Aeson
@@ -35,10 +36,17 @@ import           GHC.Generics
 import           Optics.Operators
 import           Optics.Optic ((%))
 import           Optics.TH (makeLenses)
+import qualified RIO
+import           RIO (RIO, glog, GLogFunc, HasGLogFunc(..))
 import           System.Random
 import qualified System.Random as Rand
 import           System.Random.MWC.CondensedTable
 import           System.Random.Stateful
+
+--------------------------------------------------------------------------------
+-- Logging
+
+data QLearningMsg n o a
 
 --------------------------------------------------------------------------------
 -- A simple condensed table type
@@ -216,7 +224,7 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 -- 2.1. e-greedy experimentation
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
 {-# INLINE chooseActionNoExplore  #-}
-chooseActionNoExplore :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseActionNoExplore :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseActionNoExplore support s = do
   maxed <- liftIO $ maxScore obsVec (_qTable $ _env s) support
@@ -228,7 +236,7 @@ chooseActionNoExplore support s = do
 -- | Choose the optimal action given the current state or explore greedily
 
 {-# INLINE chooseExploreAction #-}
-chooseExploreAction :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreAction support s = do
   -- NOTE: gen'' is not updated anywhere...!!!
@@ -244,7 +252,7 @@ chooseExploreAction support s = do
   where  obsVec = _obsAgent (_env s)
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
 {-# INLINE chooseExploreActionDecrTemp  #-}
-chooseExploreActionDecrTemp :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseExploreActionDecrTemp :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   Temperature -> CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreActionDecrTemp tempThreshold support  s = do
     let temp           = _temperature $ _env s
@@ -272,7 +280,7 @@ chooseExploreActionDecrTemp tempThreshold support  s = do
 -- | TODO Constant exploration rate
 
 {-# INLINE updateQTableST #-}
-updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+updateQTableST ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
@@ -290,7 +298,7 @@ updateQTableST learningRate gamma support s obs2 action reward  = do
 -- | Update the qmatrix with evolving exploration rate
 
 {-# INLINE chooseLearnDecrExploreQTable #-}
-chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s

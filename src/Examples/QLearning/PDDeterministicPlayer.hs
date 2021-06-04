@@ -21,7 +21,6 @@ module Examples.QLearning.PDDeterministicPlayer
 --                     )
                      where
 
-import qualified Engine.Memory as Memory
 import           Control.Comonad
 import           Control.DeepSeq
 import           Control.Monad.IO.Class
@@ -33,8 +32,11 @@ import           Data.Functor.Identity
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
+import qualified Engine.Memory as Memory
 import           GHC.Generics
 import           Language.Haskell.TH
+import qualified RIO
+import           RIO (RIO, glog, GLogFunc, HasGLogFunc(..))
 import qualified System.Random as Rand
 
 import           Engine.QLearning
@@ -44,6 +46,8 @@ import           Engine.OpticClass
 import           Preprocessor.AbstractSyntax
 import           Preprocessor.Compile
 import           Preprocessor.THSyntax
+
+type M = RIO (GLogFunc (QLearningMsg N Observation Action))
 
 type N = 1
 
@@ -121,9 +125,9 @@ initialArray = liftIO (do
 
 
 -- initialEnv N Observation and parameters
-initialEnv1 :: IO (Env N Observation Action)
+initialEnv1 :: M (Env N Observation Action)
 initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" arr  0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx)(Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999)
-initialEnv2 :: IO (Env N Observation Action)
+initialEnv2 :: M (Env N Observation Action)
 initialEnv2 = initialArray >>= \arr ->  pure $ Env "Player2" arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx)(Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
@@ -143,7 +147,7 @@ initialContext :: Monad m => MonadContext m (Observation Action,Observation Acti
 initialContext = MonadContext (pure (() ,initialObservationContext)) (\_ -> (\_ -> pure ()))
 
 -- initialstrategy
-initiateStrat :: IO (List '[IO (Action, Env N Observation Action ), IO Action])
+initiateStrat :: M (List '[M (Action, Env N Observation Action ), M Action])
 initiateStrat = do e <- initialEnv1
                    pure $ pure (Action True,e) ::- pure (Action True) ::- Nil
 
@@ -151,7 +155,7 @@ initiateStrat = do e <- initialEnv1
 ------------------------------
 -- Updating state
 
-toObs :: IO (Action,Env N Observation Action) -> IO Action -> IO ((), (Observation Action,Observation Action))
+toObs :: M (Action,Env N Observation Action) -> M Action -> M ((), (Observation Action,Observation Action))
 toObs a1 a2 = do
              (act1,env1) <- a1
              act2 <- a2
@@ -160,13 +164,13 @@ toObs a1 a2 = do
                  in return ((),(obs1,obs2))
 
 
-toObsFromLS :: List '[IO (Action,Env N Observation Action), IO Action] -> IO ((), (Observation Action,Observation Action))
+toObsFromLS :: List '[M (Action,Env N Observation Action), M Action] -> M ((), (Observation Action,Observation Action))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: List '[IO (Action,Env N Observation Action), IO Action] ->
-                     MonadContext IO (Observation Action, Observation Action) () (Action,Action) ()
+fromEvalToContext :: List '[M (Action,Env N Observation Action), M Action] ->
+                     MonadContext M (Observation Action, Observation Action) () (Action,Action) ()
 fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
@@ -200,9 +204,9 @@ stageDeterministic = [opengame|
 -- Defining the iterator structure
 
 evalStage ::
-     List '[ IO (Action, Env N Observation Action), IO Action]
-  -> MonadContext IO (Observation Action, Observation Action) () (Action, Action) ()
-  -> List '[ IO (Action, Env N Observation Action), IO Action]
+     List '[ M (Action, Env N Observation Action), M Action]
+  -> MonadContext M (Observation Action, Observation Action) () (Action, Action) ()
+  -> List '[ M (Action, Env N Observation Action), M Action]
 evalStage  strat context  = evaluate stageDeterministic strat context
 
 evalStageLS startValue n =
@@ -214,7 +218,7 @@ evalStageLS startValue n =
 evalStageM ::
      List '[ (Action, Env N Observation Action), Action]
   -> Int
-  -> IO [List '[ (Action, Env N Observation Action), Action]]
+  -> M [List '[ (Action, Env N Observation Action), Action]]
 evalStageM startValue 0 = pure []
 evalStageM startValue n = do
   newStrat <-

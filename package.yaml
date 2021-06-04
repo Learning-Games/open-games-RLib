@@ -67,6 +67,7 @@ dependencies:
     - filepath
     - typed-process
     - clock
+    - rio
     - formatting
     - deepseq
     - array

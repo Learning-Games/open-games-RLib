@@ -31,21 +31,25 @@ import           Data.Functor.Identity
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
+import qualified Engine.Memory as Memory
+import           Engine.OpenGames
+import           Engine.OpticClass
+import           Engine.QLearning
+import           Engine.TLL
 import           GHC.Generics
 import           Language.Haskell.TH
-import           System.Random
-import qualified System.Random as Rand
-import qualified Engine.Memory as Memory
-import           Engine.QLearning
-import           Engine.OpenGames
-import           Engine.TLL
-import           Engine.OpticClass
 import           Preprocessor.AbstractSyntax
 import           Preprocessor.Compile
 import           Preprocessor.THSyntax
+import qualified RIO
+import           RIO (RIO, glog, GLogFunc, HasGLogFunc(..))
+import           System.Random
+import qualified System.Random as Rand
 
 -----------
 -- Types
+
+type M = RIO (GLogFunc (QLearningMsg N Observation Action))
 
 type N = 1
 
@@ -109,9 +113,9 @@ initialArray = liftIO (do
     asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
 
 
-initialEnv1 :: IO (Env N Observation Action)
+initialEnv1 :: M (Env N Observation Action)
 initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" arr  0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx)(Memory.fromSV (SV.replicate initialObservation))) (5 * 0.999)
-initialEnv2 :: IO (Env N Observation Action)
+initialEnv2 :: M (Env N Observation Action)
 initialEnv2 = initialArray >>= \arr ->  pure $ Env "Player2" arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx)(Memory.fromSV (SV.replicate initialObservation))) (5 * 0.999)
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
@@ -131,7 +135,7 @@ initialContext :: Monad m => MonadContext m (Observation Action,Observation Acti
 initialContext = MonadContext (pure (() ,initialObservationContext)) (\_ -> (\_ -> pure ()))
 
 -- initialstrategy
-initiateStrat :: IO (List '[Identity (Action, Env N Observation Action), Identity (Action, Env N Observation Action)])
+initiateStrat :: M (List '[Identity (Action, Env N Observation Action), Identity (Action, Env N Observation Action)])
 initiateStrat = do e1 <- initialEnv1
                    e2 <- initialEnv2
                    pure $ pure (coerce True,e1) ::- pure (coerce True,e2) ::- Nil
@@ -187,14 +191,14 @@ stageSimple = [opengame|
 
 ----------------------------------
 -- Defining the iterator structure
-evalStage :: List '[IO (Action, Env N Observation Action), IO (Action, Env N Observation Action)]
+evalStage :: List '[M (Action, Env N Observation Action), M (Action, Env N Observation Action)]
             -> MonadContext
-                  IO
+                  M
                   (Observation Action, Observation Action)
                   ()
                   (Action, Action)
                   ()
-            -> List '[IO (Action, Env N Observation Action), IO (Action, Env N Observation Action)]
+            -> List '[M (Action, Env N Observation Action), M (Action, Env N Observation Action)]
 evalStage  = evaluate stageSimple
 
 evalStageLS startValue n =
