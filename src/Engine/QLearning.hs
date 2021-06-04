@@ -19,7 +19,6 @@ module Engine.QLearning where
 
 import           Control.DeepSeq
 import           Control.Monad.Reader
-import           Control.Monad.Trans
 import qualified Control.Monad.Trans.State as ST
 import           Data.Aeson
 import qualified Data.Array.IO as A
@@ -37,7 +36,7 @@ import           Optics.Operators
 import           Optics.Optic ((%))
 import           Optics.TH (makeLenses)
 import qualified RIO
-import           RIO (RIO, glog, GLogFunc, HasGLogFunc(..))
+import           RIO (HasGLogFunc(..))
 import           System.Random
 import qualified System.Random as Rand
 import           System.Random.MWC.CondensedTable
@@ -46,7 +45,8 @@ import           System.Random.Stateful
 --------------------------------------------------------------------------------
 -- Logging
 
-data QLearningMsg n o a
+data QLearningMsg n o a =
+  RewardMsg (Memory.Vector n (o (Idx a)), a) Double
 
 --------------------------------------------------------------------------------
 -- A simple condensed table type
@@ -317,7 +317,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
 
 {-# INLINE pureDecisionQStage #-}
-pureDecisionQStage :: Monad m =>
+pureDecisionQStage :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a) =>
                       CTable a
                       -> Agent
                       -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
@@ -339,6 +339,8 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
                    -- ^ Take the (old observation) from the context
                    action <- ST.evalStateT  (chooseAction actionSpace (State pdenv' obs)) (State pdenv' obs)
                    (reward,obsNew) <- k z action
+                   let st = (_obsAgent pdenv')
+                   RIO.glog (RewardMsg (st, action) reward)
                    (State env' _) <- ST.execStateT (updateQTable actionSpace (State pdenv' obs) obsNew  action reward)
                                                    (State pdenv' obs)
                    return (action,env')
@@ -348,7 +350,7 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
 
 
 {-# INLINE deterministicStratStage #-}
-deterministicStratStage ::  Monad m =>  Agent -> (o a -> a) -> QLearningStageGame m '[m a] '[m a] (o a) () a  (Double,(o a))
+deterministicStratStage ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a) =>  Agent -> (o a -> a) -> QLearningStageGame m '[m a] '[m a] (o a) () a  (Double,(o a))
 deterministicStratStage name policy = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
                               in MonadOptic v (\_ -> (\_ -> pure ())),
