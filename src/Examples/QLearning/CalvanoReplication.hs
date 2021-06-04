@@ -27,48 +27,31 @@ module Examples.QLearning.CalvanoReplication
   , beta
   , actionSpace
   , csvParameters
-  , exportQValuesSqlite
   , sequenceL
   , evalStageM
   , PriceSpace(..)
   ) where
-import           RIO (RIO, GLogFunc)
-import qualified Data.HashMap.Strict as HM
-import           Data.HashMap.Strict (HashMap)
-import           Control.Monad.Trans.State
-import qualified Data.Sequence as Seq
-import           Data.Sequence (Seq(..))
-import qualified Data.Ix as Ix
-import qualified Data.Text.Encoding as T
-import           Data.Text (Text)
-import qualified Data.ByteString.Lazy as L
-import           Control.Monad.Trans.Reader
-import           Data.Pool
-import           Database.Persist.TH
-import           Database.Persist
-import           Control.Monad.IO.Class
-import           Control.Monad.Logger
-import           Database.Persist.Sqlite
-import           Data.Foldable
-import qualified Engine.Memory as Memory
+
 import           Control.DeepSeq
-import qualified Data.Vector.Sized as SV
-import qualified Data.Vector as V
-import           Data.ByteString (ByteString)
-import           Data.Array.IO as A
+import           Control.Monad.IO.Class
 import qualified Data.Aeson as Aeson
+import           Data.Array.IO as A
+import qualified Data.ByteString.Lazy as L
 import           Data.Csv
-
+import           Data.Foldable
 import qualified Data.Ix as I
-import           GHC.Generics
-import qualified System.Random as Rand
-import           System.Random
-
-import           Engine.QLearning
+import qualified Data.Vector as V
+import qualified Data.Vector.Sized as SV
+import qualified Engine.Memory as Memory
 import           Engine.OpenGames
-import           Engine.TLL
 import           Engine.OpticClass
+import           Engine.QLearning
+import           Engine.TLL
+import           GHC.Generics
 import           Preprocessor.Compile
+import           RIO (RIO, GLogFunc)
+import           System.Random
+import qualified System.Random as Rand
 
 ----------
 -- 0 Types
@@ -166,44 +149,6 @@ parameters = ExportParameters
 -- | export to CSV
 csvParameters :: L.ByteString
 csvParameters = encodeDefaultOrderedByName  [parameters]
-
--- instance ToNamedRecord ExportQValues
--- instance DefaultOrdered ExportQValues
-
--------------------------
--- 2. Export Data as JSON
--- TODO need to deal with Rand.StdGen
-
--- 2.1. Parameters
-
--- 2.2. Q-values
-
-data ExportQValues = ExportQValues
-   { expQValues  :: ![((Memory.Vector Player1N (Observation (Idx PriceSpace)),Idx PriceSpace),Double)]
-   , expQBounds :: !(Bounds Player1N Observation PriceSpace) -- Warning: hard-codes memory size of player1.
-   , expKeys :: ![(Memory.Vector Player1N (Observation (Idx PriceSpace)), Idx PriceSpace)]
-   } deriving (Generic,Show)
-
-type Bounds n o a
-   = ( (Memory.Vector n (o (Idx a)), Idx a)
-     , (Memory.Vector n (o (Idx a)), Idx a))
-
--- | Extract relevant information into a record to be exported
-fromTLLToExport :: List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)] -> IO [ExportQValues]
-fromTLLToExport (p1 ::- p2 ::- Nil) = do
-  let ((_, env1)) = p1
-      ((_, env2)) = p2
-
-  expQValues1 <- A.getAssocs $ _qTable env1
-  expQValues2 <- A.getAssocs $ _qTable env2
-  bounds1 <- A.getBounds (_qTable env1)
-  bounds2 <- A.getBounds (_qTable env2)
-  keys1 <- fmap (fmap fst) (A.getAssocs (_qTable env1))
-  keys2 <- fmap (fmap fst) (A.getAssocs (_qTable env1))
-  let
-      expPlayer1 = ExportQValues expQValues1 bounds1 keys1
-      expPlayer2 = ExportQValues expQValues2 bounds2 keys2
-  pure $ [expPlayer1, expPlayer2]
 
 ------------------------------------------
 -- 3. Environment variables and parameters
@@ -481,107 +426,3 @@ sequenceL (x ::- y ::- Nil) = do
   v <- x
   v' <- y
   pure (v ::- v' ::- Nil)
-
-
---------------------------------------------------------------------------------
--- sqlite export
-
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-StateActionIndex
-  state Text
-  action Text
-QValue
-  iteration Int
-  player Int
-  stateActionIndex StateActionIndexId
-  qvalue Double
-  deriving Show
-|]
-
-data Out = Out
-  { qvalues :: !(Seq QValue)
-  , keys :: !(HashMap (ByteString, ByteString) Int)
-  }
-exportQValuesSqlite :: [List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO ()
-exportQValuesSqlite results =
-  runNoLoggingT
-    (withSqlitePool
-       "qvalues.sqlite3"
-       1
-       (flip
-          withResource
-          (runReaderT
-             (do runMigration migrateAll
-                 Out {..} <-
-                   flip
-                     execStateT
-                     Out {qvalues = mempty, keys = mempty}
-                     (mapM_
-                        (\(iterationIdx, tll) -> do
-                           players <- liftIO (fromTLLToExport tll)
-                           mapM_
-                             (\(player, exportQValues) -> do
-                                let stateActionValueTriples =
-                                      expQValues exportQValues
-                                mapM_
-                                  (\key@(state0, action) ->
-                                     let idx =
-                                           Ix.index
-                                             (expQBounds exportQValues)
-                                             key
-                                         state' =
-                                           fmap
-                                             (fmap (readTable actionSpace))
-                                             state0
-                                         action' = readTable actionSpace action
-                                      in modify'
-                                           (\Out {..} ->
-                                              Out
-                                                { keys =
-                                                    HM.insert
-                                                      ( L.toStrict
-                                                          (Aeson.encode state')
-                                                      , L.toStrict
-                                                          (Aeson.encode action'))
-                                                      idx
-                                                      keys
-                                                , ..
-                                                }))
-                                  (expKeys exportQValues)
-                                mapM_
-                                  (\(stateAndAction, value) -> do
-                                     let newqvalue =
-                                           QValue
-                                             { qValueIteration = iterationIdx
-                                             , qValuePlayer = player
-                                             , qValueStateActionIndex =
-                                                 toSqlKey
-                                                   (fromIntegral
-                                                      (Ix.index
-                                                         (expQBounds
-                                                            exportQValues)
-                                                         stateAndAction))
-                                             , qValueQvalue = value
-                                             }
-                                     modify'
-                                       (\Out {..} ->
-                                          Out
-                                            { qvalues = qvalues Seq.|> newqvalue
-                                            , ..
-                                            }))
-                                  stateActionValueTriples)
-                             (zip [1 ..] players))
-                        (zip [1 ..] results))
-                 insertEntityMany
-                   (map
-                      (\((state', action), idx) ->
-                         Entity
-                           { entityVal =
-                               StateActionIndex
-                                 { stateActionIndexState = T.decodeUtf8 state'
-                                 , stateActionIndexAction = T.decodeUtf8 action
-                                 }
-                           , entityKey = toSqlKey (fromIntegral idx)
-                           })
-                      (HM.toList keys))
-                 insertMany_ (toList qvalues)))))
