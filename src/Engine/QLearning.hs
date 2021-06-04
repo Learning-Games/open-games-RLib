@@ -25,6 +25,7 @@ import qualified Data.Array.IO as A
 import           Data.Csv
 import           Data.Hashable
 import           Data.Ix
+import qualified Data.Ix as Ix
 import qualified Data.Vector as V
 import           Engine.Memory (Memory)
 import qualified Engine.Memory as Memory
@@ -46,7 +47,15 @@ import           System.Random.Stateful
 -- Logging
 
 data QLearningMsg n o a =
-  RewardMsg (Memory.Vector n (o (Idx a)), a) Double
+  RewardMsg !(Reward n o a)
+
+data Reward n o a = Reward
+  { rewardPlayer :: !Int
+  , rewardIteration :: !Int
+  , rewardStateAction :: (Memory.Vector n (o (Idx a)), a)
+  , rewardStateActionIndex :: !Int
+  , rewardReward :: !Double
+  }
 
 --------------------------------------------------------------------------------
 -- A simple condensed table type
@@ -123,6 +132,7 @@ data State n o a = State
 
 data Env n o a = Env
   { _name   :: String
+  , _player :: Int
   , _qTable :: QTable n o a
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
@@ -317,12 +327,20 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
 
 {-# INLINE pureDecisionQStage #-}
-pureDecisionQStage :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a) =>
-                      CTable a
-                      -> Agent
-                      -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
-                      -> (CTable a -> State n o a -> o a -> a -> Double -> ST.StateT (State n o a) m a)
-                      -> QLearningStageGame m '[m (a,Env n o a)] '[m (a,Env n o a)] (o a) () a (Double,(o a))
+pureDecisionQStage ::
+     ( MonadIO m
+     , MonadReader r m
+     , HasGLogFunc r
+     , GMsg r ~ QLearningMsg n o a
+     , Ix (Memory.Vector n (o (Idx a)))
+     , ToIdx a
+     )
+  => CTable a
+  -> Agent
+  -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
+  -> (CTable a -> State n o a -> o a -> a -> Double -> ST.StateT (State n o a) m a)
+  -> QLearningStageGame m '[ m (a, Env n o a)] '[ m (a, Env n o a)] (o a) () a ( Double
+                                                                               , (o a))
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
@@ -340,7 +358,14 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
                    action <- ST.evalStateT  (chooseAction actionSpace (State pdenv' obs)) (State pdenv' obs)
                    (reward,obsNew) <- k z action
                    let st = (_obsAgent pdenv')
-                   RIO.glog (RewardMsg (st, action) reward)
+                   bounds <- liftIO (A.getBounds (_qTable pdenv'))
+                   RIO.glog (RewardMsg
+                               Reward
+                                 { rewardPlayer = _player pdenv'
+                                 , rewardIteration = (_iteration pdenv')
+                                 , rewardStateAction = (st, action)
+                                 , rewardStateActionIndex = Ix.index bounds (st, toIdx action)
+                                 , rewardReward = reward})
                    (State env' _) <- ST.execStateT (updateQTable actionSpace (State pdenv' obs) obsNew  action reward)
                                                    (State pdenv' obs)
                    return (action,env')

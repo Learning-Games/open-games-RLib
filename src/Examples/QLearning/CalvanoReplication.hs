@@ -268,6 +268,7 @@ initialEnv1 =
     pure
       (Env
          "Player1"
+         1
          arr
          0
          (decreaseFactor beta)
@@ -290,7 +291,7 @@ initialEnv2 =
   liftIO initialArray >>= \arr ->
     pure $
     Env
-      "Player2"
+      "Player2" 2
       (arr)
       0
       (decreaseFactor beta)
