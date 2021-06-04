@@ -27,7 +27,6 @@ module Examples.QLearning.CalvanoReplication
   , beta
   , actionSpace
   , csvParameters
-  -- , exportQValuesJSON
   , exportQValuesSqlite
   , sequenceL
   , evalStageM
@@ -68,7 +67,7 @@ import           Data.ByteString (ByteString)
 import           Data.Array.IO as A
 import           Debug.Trace
 import           Control.DeepSeq
-import           Data.Aeson
+import qualified Data.Aeson as Aeson
 import           Data.Csv
 import           Language.Haskell.TH
 
@@ -94,14 +93,14 @@ type Player2N = 1
 
 newtype Observation a = Obs
   { unObs :: (a, a)
-  } deriving (Show,Generic,I.Ix,Ord, Eq, ToJSON, Functor, NFData)
+  } deriving (Show,Generic,I.Ix,Ord, Eq, Functor, NFData, Aeson.ToJSON)
 
 data PriceSpace = PriceSpace {
    value :: !Double
   , idx :: !Int
   } deriving (Show, Eq, Ord, Generic)
-instance ToJSON PriceSpace where
-  toJSON PriceSpace {value} = toJSON value
+instance Aeson.ToJSON PriceSpace where
+  toJSON PriceSpace {value} = Aeson.toJSON value
 instance NFData PriceSpace where
   rnf x =
     let !_ = x -- PriceSpace is strict in its fields.
@@ -111,13 +110,6 @@ instance ToField PriceSpace where
     toField value <> " [idx=" <> toField idx <> "]"
 instance ToIdx PriceSpace where
   toIdx PriceSpace {idx} = Idx idx
-
-instance ToField Rand.StdGen
-
-
-type Price = Integer
-
-type Index = Integer
 
 ------------------------
 -- 1. Export Data as csv
@@ -197,38 +189,21 @@ csvParameters = encodeDefaultOrderedByName  [parameters]
 -- 2.2. Q-values
 
 data ExportQValues = ExportQValues
-   { expName :: !Agent
-   , expIteration :: !Int
-   , expObs  :: !(FieldAsJson (Memory.Vector Player1N (Observation (Idx PriceSpace))))
-   , expQValues  :: !(FieldAsJson [((Memory.Vector Player1N (Observation (Idx PriceSpace)),Idx PriceSpace),Double)])
+   { expQValues  :: ![((Memory.Vector Player1N (Observation (Idx PriceSpace)),Idx PriceSpace),Double)]
    , expQBounds :: !(Bounds Player1N Observation PriceSpace) -- Warning: hard-codes memory size of player1.
    , expKeys :: ![(Memory.Vector Player1N (Observation (Idx PriceSpace)), Idx PriceSpace)]
    } deriving (Generic,Show)
--- instance ToJSON ExportQValues
 
 type Bounds n o a
    = ( (Memory.Vector n (o (Idx a)), Idx a)
      , (Memory.Vector n (o (Idx a)), Idx a))
-
--- | Easy way to have a CSV field encoded by JSON.
-newtype FieldAsJson a = FieldAsJson { unFieldAsJson :: a}
-  deriving (Generic, Show)
-instance ToJSON a => ToField (FieldAsJson a) where
-  toField = toField . Data.Aeson.encode . unFieldAsJson
-instance ToJSON a => ToJSON (FieldAsJson a) where
-  toJSON = toJSON . unFieldAsJson
 
 -- | Extract relevant information into a record to be exported
 fromTLLToExport :: List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)] -> IO [ExportQValues]
 fromTLLToExport (p1 ::- p2 ::- Nil) = do
   let ((_, env1)) = p1
       ((_, env2)) = p2
-  let name1 = _name env1
-      name2 = _name env2
-      expIteration1 = _iteration env1
-      expIteration2 = _iteration env2
-      expObs1 = _obsAgent env1
-      expObs2 = _obsAgent env2
+
   expQValues1 <- A.getAssocs $ _qTable env1
   expQValues2 <- A.getAssocs $ _qTable env2
   bounds1 <- A.getBounds (_qTable env1)
@@ -236,12 +211,11 @@ fromTLLToExport (p1 ::- p2 ::- Nil) = do
   keys1 <- fmap (fmap fst) (A.getAssocs (_qTable env1))
   keys2 <- fmap (fmap fst) (A.getAssocs (_qTable env1))
   let
-      expPlayer1 = ExportQValues name1 expIteration1 (FieldAsJson expObs1) (FieldAsJson expQValues1) bounds1 keys1
-      expPlayer2 = ExportQValues name2 expIteration2 (FieldAsJson expObs2) (FieldAsJson expQValues2) bounds2 keys2
+      expPlayer1 = ExportQValues expQValues1 bounds1 keys1
+      expPlayer2 = ExportQValues expQValues2 bounds2 keys2
   pure $ [expPlayer1, expPlayer2]
 
-fromTLLListToExport :: [List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)]]-> IO [ExportQValues]
-fromTLLListToExport = fmap concat . traverse fromTLLToExport
+
 
 -- exportQValuesJSON ls = fmap foldable $ fromTLLListToExport ls
 
@@ -546,14 +520,17 @@ exportQValuesSqlite results =
                            mapM_
                              (\(player, exportQValues) -> do
                                 let stateActionValueTriples =
-                                      unFieldAsJson (expQValues exportQValues)
+                                      expQValues exportQValues
                                 mapM_
                                   (\key@(state, action) ->
                                      let idx =
                                            Ix.index
                                              (expQBounds exportQValues)
                                              key
-                                         state' = fmap (fmap (readTable actionSpace)) state
+                                         state' =
+                                           fmap
+                                             (fmap (readTable actionSpace))
+                                             state
                                          action' = readTable actionSpace action
                                       in modify'
                                            (\Out {..} ->
@@ -561,11 +538,9 @@ exportQValuesSqlite results =
                                                 { keys =
                                                     HM.insert
                                                       ( L.toStrict
-                                                          (Data.Aeson.encode
-                                                             state')
+                                                          (Aeson.encode state')
                                                       , L.toStrict
-                                                          (Data.Aeson.encode
-                                                             action'))
+                                                          (Aeson.encode action'))
                                                       idx
                                                       keys
                                                 , ..
@@ -597,37 +572,14 @@ exportQValuesSqlite results =
                         (zip [1 ..] results))
                  insertEntityMany
                    (map
-                      (\((state, action), idx) ->
+                      (\((state', action), idx) ->
                          Entity
                            { entityVal =
                                StateActionIndex
-                                 { stateActionIndexState = T.decodeUtf8 state
+                                 { stateActionIndexState = T.decodeUtf8 state'
                                  , stateActionIndexAction = T.decodeUtf8 action
                                  }
                            , entityKey = toSqlKey (fromIntegral idx)
                            })
                       (HM.toList keys))
                  insertMany_ (toList qvalues)))))
-
-{-traverse_
-  (\(i, x) -> do
-     players <- liftIO (fromTLLToExport x)
-     it <- insert Iteration {iterationIndex = i}
-     insertMany_
-       (map
-          (\(pindex, player) ->
-             Player
-               { playerIteration = it
-               , playerIndex = pindex
-               , playerAgent = T.pack (expName player)
-               , playerObs =
-                   T.decodeUtf8
-                     (L.toStrict
-                        (Data.Aeson.encode (expObs player)))
-               , playerQvalues =
-                   T.decodeUtf8
-                     (L.toStrict
-                        (Data.Aeson.encode (expQValues player)))
-               })
-          (zip [0 ..] players)))
-  (zip [0 ..] results)-}
