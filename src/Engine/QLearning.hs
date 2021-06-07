@@ -362,7 +362,7 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
                    RIO.glog (RewardMsg
                                Reward
                                  { rewardPlayer = _player pdenv'
-                                 , rewardIteration = (_iteration pdenv')
+                                 , rewardIteration = (1 + _iteration pdenv')
                                  , rewardStateAction = (st, action)
                                  , rewardStateActionIndex = Ix.index bounds (st, toIdx action)
                                  , rewardReward = reward})
