@@ -20,6 +20,7 @@ library:
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
+    - Engine.QLearning.Export
     - Engine.QLearningSimple
     - Engine.TLL
     - Preprocessor.AbstractSyntax
@@ -67,6 +68,7 @@ dependencies:
     - filepath
     - typed-process
     - clock
+    - rio
     - formatting
     - deepseq
     - array

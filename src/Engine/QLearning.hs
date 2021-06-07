@@ -18,43 +18,44 @@
 module Engine.QLearning where
 
 import           Control.DeepSeq
-import           Control.Monad.Trans
-import           Control.Monad.Trans.Reader
+import           Control.Monad.Reader
+import qualified Control.Monad.Trans.State as ST
 import           Data.Aeson
 import qualified Data.Array.IO as A
-import           Data.Bifunctor
 import           Data.Csv
 import           Data.Hashable
 import           Data.Ix
-import           Data.STRef
+import qualified Data.Ix as Ix
 import qualified Data.Vector as V
--- import qualified Data.Vector.Sized as SV
-import qualified Engine.Memory as Memory
 import           Engine.Memory (Memory)
+import qualified Engine.Memory as Memory
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
 import           GHC.Generics
-import           GHC.TypeNats
+import           Optics.Operators
+import           Optics.Optic ((%))
+import           Optics.TH (makeLenses)
+import qualified RIO
+import           RIO (HasGLogFunc(..))
 import           System.Random
+import qualified System.Random as Rand
 import           System.Random.MWC.CondensedTable
 import           System.Random.Stateful
 
-import           Control.Comonad
-import           Control.Monad.State.Class
-import qualified Control.Monad.Trans.State as ST
--- import           Control.Monad.ST
-import           Data.List (maximumBy)
-import           Data.Ord (comparing)
-import qualified System.Random as Rand
-import qualified GHC.Arr as A
+--------------------------------------------------------------------------------
+-- Logging
 
+data QLearningMsg n o a =
+  RewardMsg !(Reward n o a)
 
-
-import           Optics.TH (makeLenses)
-import           Optics.Optic ((%))
-import           Optics.Operators
-
+data Reward n o a = Reward
+  { rewardPlayer :: !Int
+  , rewardIteration :: !Int
+  , rewardStateAction :: (Memory.Vector n (o (Idx a)), a)
+  , rewardStateActionIndex :: !Int
+  , rewardReward :: !Double
+  }
 
 --------------------------------------------------------------------------------
 -- A simple condensed table type
@@ -73,6 +74,11 @@ uniformCTable population =
     }
   where
     probability = 1 / fromIntegral (V.length population)
+
+-- | Read the table at an index.
+readTable :: CTable a -> Idx a -> a
+readTable (CTable {population}) (Idx i) =
+  population V.! i
 
 --------------------------------------------------------------------------------
 -- Random sampling
@@ -126,6 +132,7 @@ data State n o a = State
 
 data Env n o a = Env
   { _name   :: String
+  , _player :: Int
   , _qTable :: QTable n o a
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
@@ -227,7 +234,7 @@ updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration
 -- 2.1. e-greedy experimentation
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
 {-# INLINE chooseActionNoExplore  #-}
-chooseActionNoExplore :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseActionNoExplore :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseActionNoExplore support s = do
   maxed <- liftIO $ maxScore obsVec (_qTable $ _env s) support
@@ -239,7 +246,7 @@ chooseActionNoExplore support s = do
 -- | Choose the optimal action given the current state or explore greedily
 
 {-# INLINE chooseExploreAction #-}
-chooseExploreAction :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreAction support s = do
   -- NOTE: gen'' is not updated anywhere...!!!
@@ -255,7 +262,7 @@ chooseExploreAction support s = do
   where  obsVec = _obsAgent (_env s)
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
 {-# INLINE chooseExploreActionDecrTemp  #-}
-chooseExploreActionDecrTemp :: (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseExploreActionDecrTemp :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   Temperature -> CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseExploreActionDecrTemp tempThreshold support  s = do
     let temp           = _temperature $ _env s
@@ -283,7 +290,7 @@ chooseExploreActionDecrTemp tempThreshold support  s = do
 -- | TODO Constant exploration rate
 
 {-# INLINE updateQTableST #-}
-updateQTableST ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+updateQTableST ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 updateQTableST learningRate gamma support s obs2 action reward  = do
         let table0             = _qTable $ _env s
@@ -301,7 +308,7 @@ updateQTableST learningRate gamma support s obs2 action reward  = do
 -- | Update the qmatrix with evolving exploration rate
 
 {-# INLINE chooseLearnDecrExploreQTable #-}
-chooseLearnDecrExploreQTable ::  (MonadIO m, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
        let table0             = _qTable $ _env s
@@ -320,12 +327,20 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
 
 {-# INLINE pureDecisionQStage #-}
-pureDecisionQStage :: Monad m =>
-                      CTable a
-                      -> Agent
-                      -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
-                      -> (CTable a -> State n o a -> o a -> a -> Double -> ST.StateT (State n o a) m a)
-                      -> QLearningStageGame m '[m (a,Env n o a)] '[m (a,Env n o a)] (o a) () a (Double,(o a))
+pureDecisionQStage ::
+     ( MonadIO m
+     , MonadReader r m
+     , HasGLogFunc r
+     , GMsg r ~ QLearningMsg n o a
+     , Ix (Memory.Vector n (o (Idx a)))
+     , ToIdx a
+     )
+  => CTable a
+  -> Agent
+  -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
+  -> (CTable a -> State n o a -> o a -> a -> Double -> ST.StateT (State n o a) m a)
+  -> QLearningStageGame m '[ m (a, Env n o a)] '[ m (a, Env n o a)] (o a) () a ( Double
+                                                                               , (o a))
 pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
@@ -342,6 +357,15 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
                    -- ^ Take the (old observation) from the context
                    action <- ST.evalStateT  (chooseAction actionSpace (State pdenv' obs)) (State pdenv' obs)
                    (reward,obsNew) <- k z action
+                   let st = (_obsAgent pdenv')
+                   bounds <- liftIO (A.getBounds (_qTable pdenv'))
+                   RIO.glog (RewardMsg
+                               Reward
+                                 { rewardPlayer = _player pdenv'
+                                 , rewardIteration = (1 + _iteration pdenv')
+                                 , rewardStateAction = (st, action)
+                                 , rewardStateActionIndex = Ix.index bounds (st, toIdx action)
+                                 , rewardReward = reward})
                    (State env' _) <- ST.execStateT (updateQTable actionSpace (State pdenv' obs) obsNew  action reward)
                                                    (State pdenv' obs)
                    return (action,env')
@@ -351,7 +375,7 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
 
 
 {-# INLINE deterministicStratStage #-}
-deterministicStratStage ::  Monad m =>  Agent -> (o a -> a) -> QLearningStageGame m '[m a] '[m a] (o a) () a  (Double,(o a))
+deterministicStratStage ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a) =>  Agent -> (o a -> a) -> QLearningStageGame m '[m a] '[m a] (o a) () a  (Double,(o a))
 deterministicStratStage name policy = OpenGame {
   play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
                               in MonadOptic v (\_ -> (\_ -> pure ())),
@@ -378,56 +402,3 @@ fromLens v u = OpenGame {
 {-# INLINE fromFunctions #-}
 fromFunctions :: Monad m => (x -> y) -> (r -> s) -> QLearningStageGame m '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
-
---------------------------------------------------------------------------------
--- Sliding window functionality
-
--- Example:
---
--- > Memory.pushEnd (fromJust $ SV.fromList [1,2,3,4] :: Memory.Vector 4 Int) 5
--- Vector [2,3,4,5]
--- > pushStart 0 (fromJust $ SV.fromList [1,2,3,4] :: Memory.Vector 4 Int)
--- Vector [0,1,2,3]
-
--- Iterative use:
---
--- > foldl Memory.pushEnd (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: Memory.Vector 8 Int) [55,66,77]
--- Vector [4,5,6,7,8,55,66,77]
--- > foldr pushStart (fromJust $ SV.fromList [1,2,3,4,5,6,7,8] :: Memory.Vector 8 Int) [55,66,77]
--- Vector [55,66,77,1,2,3,4,5]
-
--- -- Trivial, but expensive.
--- {-# INLINE Memory.pushEnd_slow  #-}
--- Memory.pushEnd_slow :: Memory.Vector (1 + n) a -> a -> Memory.Vector (n + 1) a
--- Memory.pushEnd_slow vec a = SV.snoc (SV.tail vec) a
-
--- -- Trivial, but expensive.
--- {-# INLINE pushStart_slow  #-}
--- pushStart_slow :: a -> Memory.Vector (n + 1) a -> Memory.Vector (1 + n) a
--- pushStart_slow a vec = SV.cons a (SV.init vec)
-
--- -- Faster with a better type.
--- {-# INLINE _pushStart  #-}
--- _pushStart :: a -> Memory.Vector n a -> Memory.Vector n a
--- _pushStart a vec =
---   SV.knownLength
---     vec
---     (SV.imap
---        (\idx _ ->
---           if idx == 0
---             then a
---             else SV.index vec (idx - 1))
---        vec)
-
--- -- Faster with a better type.
--- {-# INLINE Memory.pushEnd  #-}
--- Memory.pushEnd :: Memory.Vector n a -> a -> Memory.Vector n a
--- Memory.pushEnd vec a =
---   SV.knownLength
---     vec
---     (SV.imap
---        (\idx _ ->
---           if fromIntegral idx == SV.length vec - 1
---             then a
---             else SV.index vec (idx + 1))
---        vec)
