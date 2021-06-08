@@ -225,7 +225,9 @@ runLocal rootDir gamesDir sourceFile name = do
               (setWorkingDir
                  (toFilePath gamesDir)
                  (proc "git" ["commit", "-m", "Updated: " ++ unName name]))
-            _ <- runProcess (setWorkingDir (toFilePath gamesDir) (proc "git" ["push"]))
+            _ <-
+              runProcess
+                (setWorkingDir (toFilePath gamesDir) (proc "git" ["push"]))
             hash <- getHash
             putStrLn ("Saved as: " ++ unHashedName hash)
             pure hash
@@ -246,6 +248,7 @@ runLocal rootDir gamesDir sourceFile name = do
                 , "-O2"
                 , "-fforce-recomp"
                 , "-Wall"
+                , "-rtsopts"
                 ]))
         hashedNameDir <- parseRelDir (unHashedName hashedName)
         let resultDir = rootDir </> resultsRelDir </> hashedNameDir
@@ -265,7 +268,7 @@ runLocal rootDir gamesDir sourceFile name = do
                         (useHandleClose outfile)
                         (setWorkingDir
                            (toFilePath resultDir)
-                           (proc (toFilePath binaryAbsFile) []))))
+                           (proc (toFilePath binaryAbsFile) ["+RTS", "-s"]))))
               end <- getTime Monotonic
               endTime <- getCurrentTime
               if status == ExitSuccess
