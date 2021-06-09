@@ -38,6 +38,7 @@ import           FastCsv
 import           Prelude hiding (putStrLn)
 import qualified RIO
 import           RIO (MonadUnliftIO, RIO, GLogFunc)
+import           System.IO (hSetBuffering, BufferMode(..))
 
 --------------------------------------------------------------------------------
 -- Schema
@@ -142,6 +143,7 @@ exportQValuesCsv ::
   -> (forall x. x -> x -> o x)
   -> m ()
 exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation = do
+  liftIO (hSetBuffering RIO.stdout NoBuffering)
   liftIO (putStrLn "Writing state action index ...")
   withCsvFile
     "state_action_index.csv"
