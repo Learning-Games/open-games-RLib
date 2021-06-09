@@ -1,6 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications, DuplicateRecordFields #-}
-{-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DerivingStrategies, MonadComprehensions #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -27,8 +26,7 @@
 -- |
 
 module Engine.QLearning.Export
-  ( exportQValuesSqlite
-  , exportingRewardsSqlite
+  ( exportingRewardsSqlite
   , exportQValuesCsv
   ) where
 
@@ -36,27 +34,17 @@ import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Logger
 import           Control.Monad.Trans.Reader
-import           Control.Monad.Trans.State hiding (state)
 import           Data.Aeson
-import qualified Data.Aeson as Aeson
 import           Data.Array.Base as A
 import           Data.Array.IO as A
-import           Data.ByteString (ByteString)
-import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as S8
-import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
-import           Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HM
 import           Data.IORef
 import qualified Data.Ix as Ix
 import           Data.Pool
-import           Data.Sequence (Seq(..))
 import qualified Data.Sequence as Seq
-import           Data.Text (Text)
-import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
 import           Database.Persist
@@ -74,15 +62,6 @@ import           RIO (MonadUnliftIO, RIO, GLogFunc)
 -- Schema
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-StateActionIndex
-  state Text
-  action Text
-QValue
-  iteration Int
-  player Int
-  stateActionIndex Int
-  qvalue Double
-  deriving Show
 Reward
   iteration Int
   player Int
@@ -90,24 +69,6 @@ Reward
   reward Double
   deriving Show
 |]
-
---------------------------------------------------------------------------------
--- Types
-
-data ExportQValues n o a = ExportQValues
-   { expQValues  :: ![((Memory.Vector n (o (Idx a)),Idx a),Double)]
-   , expQBounds :: !(Bounds n o a)
-   , expKeys :: ![(Memory.Vector n (o (Idx a)), Idx a)]
-   }
-
-type Bounds n o a
-   = ( (Memory.Vector n (o (Idx a)), Idx a)
-     , (Memory.Vector n (o (Idx a)), Idx a))
-
-data Out = Out
-  { qvalues :: !(Seq QValue)
-  , keys :: !(HashMap (ByteString, ByteString) Int)
-  }
 
 --------------------------------------------------------------------------------
 -- Top-level functions
@@ -153,119 +114,6 @@ exportingRewardsSqlite m =
             (not (null stack))
             (withResource pool (runReaderT (insertMany_ (toList stack))))
           pure result))
-
-exportQValuesSqlite ::
-     ( ToJSON a
-     , Show (o (Idx a))
-     , Ix (Memory.Vector n (o (Idx a)))
-     , Functor (Memory.Vector n)
-     , Functor o
-     , Memory.Memory n
-     , ToJSON (o a)
-     )
-  => [List '[(a, Env n o a), (a, Env n o a)]]
-  -> CTable a
-  -> IO ()
-exportQValuesSqlite results actionSpace =
-  runNoLoggingT
-    (withSqlitePool
-       "qvalues.sqlite3"
-       1
-       (flip
-          withResource
-          (runReaderT
-             (do runMigration migrateAll
-                 Out {..} <-
-                   flip
-                     execStateT
-                     Out {qvalues = mempty, keys = mempty}
-                     (mapM_
-                        (\(iterationIdx, tll) -> do
-                           players <- liftIO (fromTLLToExport tll)
-                           mapM_
-                             (\(player, exportQValues) -> do
-                                let stateActionValueTriples =
-                                      expQValues exportQValues
-                                mapM_
-                                  (\key@(state0, action) ->
-                                     let idx =
-                                           Ix.index
-                                             (expQBounds exportQValues)
-                                             key
-                                         state' =
-                                           fmap
-                                             (fmap (QLearning.readTable actionSpace))
-                                             state0
-                                         action' = QLearning.readTable actionSpace action
-                                      in modify'
-                                           (\Out {..} ->
-                                              Out
-                                                { keys =
-                                                    HM.insert
-                                                      ( L.toStrict
-                                                          (Aeson.encode state')
-                                                      , L.toStrict
-                                                          (Aeson.encode action'))
-                                                      idx
-                                                      keys
-                                                , ..
-                                                }))
-                                  (expKeys exportQValues)
-                                mapM_
-                                  (\(stateAndAction, value) -> do
-                                     let newqvalue =
-                                           QValue
-                                             { qValueIteration = iterationIdx
-                                             , qValuePlayer = player
-                                             , qValueStateActionIndex =
-                                                 Ix.index
-                                                   (expQBounds
-                                                      exportQValues)
-                                                   stateAndAction
-                                             , qValueQvalue = value
-                                             }
-                                     modify'
-                                       (\Out {..} ->
-                                          Out
-                                            { qvalues = qvalues Seq.|> newqvalue
-                                            , ..
-                                            }))
-                                  stateActionValueTriples)
-                             (zip [1 ..] players))
-                        (zip [1 ..] results))
-                 insertEntityMany
-                   (map
-                      (\((state', action), idx) ->
-                         Entity
-                           { entityVal =
-                               StateActionIndex
-                                 { stateActionIndexState = T.decodeUtf8 state'
-                                 , stateActionIndexAction = T.decodeUtf8 action
-                                 }
-                           , entityKey = toSqlKey (fromIntegral idx)
-                           })
-                      (HM.toList keys))
-                 insertMany_ (toList qvalues)))))
-
--- | Extract relevant information into a record to be exported
-fromTLLToExport ::
-     (Ix (Memory.Vector n (o (Idx a))))
-  => List '[ (a, Env n o a), (a, Env n o a)]
-  -> IO [ExportQValues n o a]
-fromTLLToExport (p1 ::- p2 ::- Nil) = do
-  let ((_, env1)) = p1
-      ((_, env2)) = p2
-
-  expQValues1 <- A.getAssocs $ QLearning._qTable env1
-  expQValues2 <- A.getAssocs $ QLearning._qTable env2
-  bounds1 <- A.getBounds (QLearning._qTable env1)
-  bounds2 <- A.getBounds (QLearning._qTable env2)
-  keys1 <- fmap (fmap fst) (A.getAssocs (QLearning._qTable env1))
-  keys2 <- fmap (fmap fst) (A.getAssocs (QLearning._qTable env1))
-  let
-      expPlayer1 = ExportQValues expQValues1 bounds1 keys1
-      expPlayer2 = ExportQValues expQValues2 bounds2 keys2
-  pure $ [expPlayer1, expPlayer2]
 
 --------------------------------------------------------------------------------
 -- Fast CSV export
