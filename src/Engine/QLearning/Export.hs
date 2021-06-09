@@ -21,11 +21,13 @@ import           Control.Monad.IO.Class
 import           Data.Aeson
 import           Data.Array.Base as A
 import           Data.Array.IO as A
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
 import qualified Data.Ix as Ix
+import           Data.Time
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
 import qualified Engine.Memory as Memory
@@ -33,6 +35,7 @@ import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTa
 import qualified Engine.QLearning as QLearning
 import           Engine.TLL
 import           FastCsv
+import           Prelude hiding (putStrLn)
 import qualified RIO
 import           RIO (MonadUnliftIO, RIO, GLogFunc)
 
@@ -139,7 +142,7 @@ exportQValuesCsv ::
   -> (forall x. x -> x -> o x)
   -> m ()
 exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation = do
-  liftIO (S8.putStrLn "Writing state action index ...")
+  liftIO (putStrLn "Writing state action index ...")
   withCsvFile
     "state_action_index.csv"
     (\writeRow -> do
@@ -160,7 +163,7 @@ exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation =
                              (mkObservation (toIdx player1) (toIdx player2)))
                       , toIdx action)
             ]))
-  liftIO (S8.putStrLn "Running iterations ...")
+  liftIO (putStrLn "Running iterations ...")
   withCsvFile
     "qvalues.csv"
     (\writeRow ->
@@ -174,7 +177,7 @@ exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation =
                     else prev
             when
               (save /= prev)
-              (liftIO (S8.putStrLn (toFixed 2 percent <> "% complete ...")))
+              (liftIO (putStrLn (toFixed 2 percent <> "% complete ...")))
             let writePlayer player (_, env) = do
                   liftIO
                     (mapWithIndex_
@@ -200,3 +203,12 @@ mapWithIndex_ f marr = do
        !e <- unsafeRead marr idx
        f idx e)
 {-# INLINE mapWithIndex_ #-}
+
+--------------------------------------------------------------------------------
+-- Threaded IO
+
+-- | This is a thread-safe stdout printer, with timestamp.
+putStrLn :: ByteString -> IO ()
+putStrLn s = do
+  now' <- getCurrentTime
+  S8.putStrLn (S8.pack (show now') <> ": " <> s)
