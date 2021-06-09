@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs, OverloadedStrings, MonadComprehensions #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -15,6 +16,7 @@ module Engine.QLearning.Export
   , exportQValuesCsv
   ) where
 
+import           Control.Monad
 import           Control.Monad.IO.Class
 import           Data.Aeson
 import           Data.Array.Base as A
@@ -44,7 +46,7 @@ data StateActionIndex' state action = StateActionIndex'
   }
 
 instance BuildHeaders (StateActionIndex' a b) where
-  buildHeaders _ = "state_action_index,action,qvalue"
+  buildHeaders _ = "state,action,action,index"
   {-# INLINE buildHeaders #-}
 
 instance (BuildCsvField state, BuildCsvField action) =>
@@ -126,9 +128,11 @@ exportQValuesCsv ::
      , n ~ 1
      )
   => Int
-  -> (   (Int -> List '[ (a, Env n o a), (a, Env n o a)] -> m ())
+  -> (forall s.
+         (s -> List '[ (a, Env n o a), (a, Env n o a)] -> m s)
       -> List '[ ( a , Env n o a), ( a , Env n o a)]
       -> Int
+      -> s
       -> m ())
   -> List '[ ( a , Env n o a), ( a , Env n o a)]
   -> CTable a
@@ -161,7 +165,16 @@ exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation =
     "qvalues.csv"
     (\writeRow ->
        mapStagesM_
-         (\iteration (p1 ::- p2 ::- Nil) -> do
+         (\(prev, iteration) (p1 ::- p2 ::- Nil) -> do
+            let percent :: Double =
+                  fromIntegral iteration / fromIntegral steps * 100
+                save =
+                  if percent >= prev + 10
+                    then percent
+                    else prev
+            when
+              (save /= prev)
+              (liftIO (S8.putStrLn (toFixed 2 percent <> "% complete ...")))
             let writePlayer player (_, env) = do
                   liftIO
                     (mapWithIndex_
@@ -169,9 +182,11 @@ exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation =
                           writeRow QValueRow {state_action_index, ..})
                        (QLearning._qTable env))
              in do writePlayer 1 p1
-                   writePlayer 2 p2)
+                   writePlayer 2 p2
+                   pure (save, iteration + 1))
          initial
-         steps)
+         steps
+         (0, 1))
 
 -- | A slightly more efficient mapper -- speculated.
 mapWithIndex_ :: (MArray a e m, Ix i) => (Int -> e -> m ()) -> a i e -> m ()
