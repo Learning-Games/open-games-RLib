@@ -29,7 +29,9 @@ module Examples.QLearning.CalvanoReplication
   , csvParameters
   , sequenceL
   , evalStageM
+  , mapStagesM_
   , PriceSpace(..)
+  , Observation(..)
   ) where
 
 import           Control.DeepSeq
@@ -37,7 +39,9 @@ import           Control.Monad.IO.Class
 import qualified Data.Aeson as Aeson
 import           Data.Array.IO as A
 import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Csv
+import           Data.Double.Conversion.ByteString
 import           Data.Foldable
 import qualified Data.Ix as I
 import qualified Data.Vector as V
@@ -47,6 +51,7 @@ import           Engine.OpenGames
 import           Engine.OpticClass
 import           Engine.QLearning
 import           Engine.TLL
+import           FastCsv
 import           GHC.Generics
 import           Preprocessor.Compile
 import           RIO (RIO, GLogFunc)
@@ -55,6 +60,17 @@ import qualified System.Random as Rand
 
 ----------
 -- 0 Types
+
+instance FastCsv.BuildCsvField (PriceSpace, PriceSpace) where
+  {-# INLINE buildCsvField #-}
+  buildCsvField (PriceSpace {value=p1},PriceSpace {value=p2}) =
+    SB.byteString (toShortest p1) <> " " <>
+    SB.byteString (toShortest p2)
+
+instance FastCsv.BuildCsvField PriceSpace where
+  buildCsvField (PriceSpace {value=p1}) =
+    SB.byteString (toShortest p1)
+  {-# INLINE buildCsvField #-}
 
 -- Warning: assumes players have same memory arity.
 type M = RIO (GLogFunc (QLearningMsg Player1N Observation PriceSpace))
@@ -410,6 +426,24 @@ evalStageM startValue n = do
       (evalStage (hoist startValue) (fromEvalToContext (hoist startValue)))
   rest <- evalStageM newStrat (pred n)
   pure (newStrat : rest)
+
+{-# INLINE mapStagesM_ #-}
+mapStagesM_ ::
+     (s ->  List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
+                                                                        , Env Player2N Observation PriceSpace)] -> M s)
+  -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
+                                                                , Env Player2N Observation PriceSpace)]
+  -> Int
+  -> s
+  -> M ()
+mapStagesM_ f startValue n0 s0 = go s0 startValue n0
+  where
+    go _ _ 0 = pure ()
+    go s value !n = do
+      newStrat <-
+        sequenceL (evalStage (hoist value) (fromEvalToContext (hoist value)))
+      s' <- f s newStrat
+      go s' newStrat (pred n)
 
 hoist ::
      Applicative f

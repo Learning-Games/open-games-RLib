@@ -5,13 +5,18 @@ import qualified Data.ByteString.Lazy as BS
 import qualified Engine.QLearning.Export as QLearning
 import qualified Examples.QLearning.CalvanoReplication as Scenario
 
+iters :: Int
+iters = 100
+
 main :: IO ()
 main = do
   BS.writeFile "parameters.csv" $ Scenario.csvParameters
-  results <-
-    QLearning.exportingRewardsSqlite
-      (do strat <- Scenario.initialStrat >>= Scenario.sequenceL
-          results <- Scenario.evalStageM strat 100
-          pure results)
-  QLearning.exportQValuesSqlite results Scenario.actionSpace
-  putStrLn "output completed"
+  QLearning.exportingRewardsCsv
+    (do strat <- Scenario.initialStrat >>= Scenario.sequenceL
+        QLearning.exportQValuesCsv
+          iters
+          Scenario.mapStagesM_
+          strat
+          Scenario.actionSpace
+          (\a b -> Scenario.Obs (a,b)))
+  putStrLn "completed"

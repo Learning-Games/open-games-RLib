@@ -1,150 +1,123 @@
-{-# OPTIONS_GHC -fno-warn-unused-binds #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, OverloadedStrings, MonadComprehensions #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- |
 
 module Engine.QLearning.Export
-  ( exportQValuesSqlite
-  , exportingRewardsSqlite
+  ( exportingRewardsCsv
+  , exportQValuesCsv
   ) where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
-import           Control.Monad.Logger
-import           Control.Monad.Trans.Reader
-import           Control.Monad.Trans.State
 import           Data.Aeson
-import qualified Data.Aeson as Aeson
+import           Data.Array.Base as A
 import           Data.Array.IO as A
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as S8
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy.Builder as SB
+import           Data.Double.Conversion.ByteString
 import           Data.Foldable
-import           Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HM
-import           Data.IORef
 import qualified Data.Ix as Ix
-import           Data.Pool
-import           Data.Sequence (Seq(..))
-import qualified Data.Sequence as Seq
-import           Data.Text (Text)
-import qualified Data.Text.Encoding as T
-import           Database.Persist
-import           Database.Persist.Sqlite
-import           Database.Persist.TH
+import           Data.Time
+import qualified Data.Vector as V
+import qualified Data.Vector.Sized as SV
 import qualified Engine.Memory as Memory
-import           Engine.QLearning (Idx, QLearningMsg(..), Env, CTable)
+import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTable(..))
 import qualified Engine.QLearning as QLearning
 import           Engine.TLL
+import           FastCsv
+import           Prelude hiding (putStrLn)
 import qualified RIO
-import           RIO (RIO, GLogFunc)
+import           RIO (MonadUnliftIO, RIO, GLogFunc)
+import           System.IO (hSetBuffering, BufferMode(..))
 
 --------------------------------------------------------------------------------
 -- Schema
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-StateActionIndex
-  state Text
-  action Text
-QValue
-  iteration Int
-  player Int
-  stateActionIndex Int
-  qvalue Double
-  deriving Show
-Reward
-  iteration Int
-  player Int
-  stateActionIndex Int
-  reward Double
-  deriving Show
-|]
-
---------------------------------------------------------------------------------
--- Types
-
-data ExportQValues n o a = ExportQValues
-   { expQValues  :: ![((Memory.Vector n (o (Idx a)),Idx a),Double)]
-   , expQBounds :: !(Bounds n o a)
-   , expKeys :: ![(Memory.Vector n (o (Idx a)), Idx a)]
-   }
-
-type Bounds n o a
-   = ( (Memory.Vector n (o (Idx a)), Idx a)
-     , (Memory.Vector n (o (Idx a)), Idx a))
-
-data Out = Out
-  { qvalues :: !(Seq QValue)
-  , keys :: !(HashMap (ByteString, ByteString) Int)
+data StateActionIndex' state action = StateActionIndex'
+  { state :: state
+  , action :: action
+  , index :: Int
   }
+
+instance BuildHeaders (StateActionIndex' a b) where
+  buildHeaders _ = "state,action,action,index"
+  {-# INLINE buildHeaders #-}
+
+instance (BuildCsvField state, BuildCsvField action) =>
+         BuildCsvRow (StateActionIndex' state action) where
+  {-# INLINE buildCsvRow #-}
+  buildCsvRow StateActionIndex' {state, action, index = i} =
+    buildCsvField state <> "," <> buildCsvField action <> "," <> SB.intDec i
+
+data QValueRow = QValueRow
+  { iteration, player, state_action_index :: !Int
+  , qvalue :: !Double
+  }
+
+instance BuildCsvRow QValueRow where
+  buildCsvRow QValueRow{iteration,player,state_action_index,qvalue} =
+    SB.intDec iteration <> "," <>
+    SB.intDec player <> "," <>
+    SB.intDec state_action_index <> "," <>
+    SB.byteString (toShortest qvalue)
+  {-# INLINE buildCsvRow #-}
+
+instance BuildHeaders QValueRow where
+  buildHeaders _ = "iteration,player,state_action_index,qvalue"
+  {-# INLINE buildHeaders #-}
+
+data Reward = Reward
+  { iteration, player, state_action_index :: !Int
+  , reward :: !Double
+  }
+
+instance BuildCsvRow Reward where
+  buildCsvRow Reward{iteration,player,state_action_index,reward} =
+    SB.intDec iteration <> "," <>
+    SB.intDec player <> "," <>
+    SB.intDec state_action_index <> "," <>
+    SB.byteString (toShortest reward)
+  {-# INLINE buildCsvRow #-}
+
+instance BuildHeaders Reward where
+  buildHeaders _ = "iteration,player,state_action_index,reward"
+  {-# INLINE buildHeaders #-}
 
 --------------------------------------------------------------------------------
 -- Top-level functions
 
-stackSize :: Int
-stackSize = 1000
+{-# INLINE exportingRewardsCsv #-}
+exportingRewardsCsv :: RIO (GLogFunc (QLearningMsg n o a)) () -> IO ()
+exportingRewardsCsv m =
+  withCsvFile
+    "rewards.csv"
+    (\writeRow -> do
+       RIO.runRIO
+         (RIO.mkGLogFunc
+            (\_backtrace msg ->
+               case msg of
+                 RewardMsg QLearning.Reward {..} -> do
+                   writeRow
+                     Reward
+                       { iteration = rewardIteration
+                       , player = rewardPlayer
+                       , state_action_index = rewardStateActionIndex
+                       , reward = rewardReward
+                       }))
+         m)
 
-exportingRewardsSqlite ::
-     RIO (GLogFunc (QLearningMsg n o a)) x
-  -> IO x
-exportingRewardsSqlite m =
-  runNoLoggingT
-    (withSqlitePool
-       "rewards.sqlite3"
-       1
-       (\pool -> do
-          withResource pool (runReaderT (runMigration migrateAll))
-          stackRef <- liftIO (newIORef mempty)
-          result <-
-            RIO.runRIO
-              (RIO.mkGLogFunc
-                 (\_backtrace msg ->
-                    case msg of
-                      RewardMsg QLearning.Reward {..} -> do
-                        let reward =
-                              Reward
-                                { rewardIteration
-                                , rewardPlayer
-                                , rewardStateActionIndex
-                                , rewardReward
-                                }
-                        modifyIORef stackRef (Seq.|> reward)
-                        stack <- readIORef stackRef
-                        when
-                          (length stack > stackSize)
-                          (do writeIORef stackRef mempty
-                              withResource
-                                pool
-                                (runReaderT (insertMany_ (toList stack))))))
-              m
-          stack <- liftIO (readIORef stackRef)
-          when
-            (not (null stack))
-            (withResource pool (runReaderT (insertMany_ (toList stack))))
-          pure result))
-
-exportQValuesSqlite ::
+{-# INLINE exportQValuesCsv #-}
+exportQValuesCsv ::
      ( ToJSON a
      , Show (o (Idx a))
      , Ix (Memory.Vector n (o (Idx a)))
@@ -152,107 +125,92 @@ exportQValuesSqlite ::
      , Functor o
      , Memory.Memory n
      , ToJSON (o a)
+     , MonadUnliftIO m
+     , ToIdx a
+     , BuildCsvField a
+     , BuildCsvField (a, a)
+     , n ~ 1
      )
-  => [List '[(a, Env n o a), (a, Env n o a)]]
+  => Int
+  -> (forall s.
+         (s -> List '[ (a, Env n o a), (a, Env n o a)] -> m s)
+      -> List '[ ( a , Env n o a), ( a , Env n o a)]
+      -> Int
+      -> s
+      -> m ())
+  -> List '[ ( a , Env n o a), ( a , Env n o a)]
   -> CTable a
-  -> IO ()
-exportQValuesSqlite results actionSpace =
-  runNoLoggingT
-    (withSqlitePool
-       "qvalues.sqlite3"
-       1
-       (flip
-          withResource
-          (runReaderT
-             (do runMigration migrateAll
-                 Out {..} <-
-                   flip
-                     execStateT
-                     Out {qvalues = mempty, keys = mempty}
-                     (mapM_
-                        (\(iterationIdx, tll) -> do
-                           players <- liftIO (fromTLLToExport tll)
-                           mapM_
-                             (\(player, exportQValues) -> do
-                                let stateActionValueTriples =
-                                      expQValues exportQValues
-                                mapM_
-                                  (\key@(state0, action) ->
-                                     let idx =
-                                           Ix.index
-                                             (expQBounds exportQValues)
-                                             key
-                                         state' =
-                                           fmap
-                                             (fmap (QLearning.readTable actionSpace))
-                                             state0
-                                         action' = QLearning.readTable actionSpace action
-                                      in modify'
-                                           (\Out {..} ->
-                                              Out
-                                                { keys =
-                                                    HM.insert
-                                                      ( L.toStrict
-                                                          (Aeson.encode state')
-                                                      , L.toStrict
-                                                          (Aeson.encode action'))
-                                                      idx
-                                                      keys
-                                                , ..
-                                                }))
-                                  (expKeys exportQValues)
-                                mapM_
-                                  (\(stateAndAction, value) -> do
-                                     let newqvalue =
-                                           QValue
-                                             { qValueIteration = iterationIdx
-                                             , qValuePlayer = player
-                                             , qValueStateActionIndex =
-                                                 Ix.index
-                                                   (expQBounds
-                                                      exportQValues)
-                                                   stateAndAction
-                                             , qValueQvalue = value
-                                             }
-                                     modify'
-                                       (\Out {..} ->
-                                          Out
-                                            { qvalues = qvalues Seq.|> newqvalue
-                                            , ..
-                                            }))
-                                  stateActionValueTriples)
-                             (zip [1 ..] players))
-                        (zip [1 ..] results))
-                 insertEntityMany
-                   (map
-                      (\((state', action), idx) ->
-                         Entity
-                           { entityVal =
-                               StateActionIndex
-                                 { stateActionIndexState = T.decodeUtf8 state'
-                                 , stateActionIndexAction = T.decodeUtf8 action
-                                 }
-                           , entityKey = toSqlKey (fromIntegral idx)
-                           })
-                      (HM.toList keys))
-                 insertMany_ (toList qvalues)))))
+  -> (forall x. x -> x -> o x)
+  -> m ()
+exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation = do
+  liftIO (hSetBuffering RIO.stdout NoBuffering)
+  liftIO (putStrLn "Writing state action index ...")
+  withCsvFile
+    "state_action_index.csv"
+    (\writeRow -> do
+       let (_, env) ::- _ = initial
+       bounds' <- liftIO (A.getBounds (QLearning._qTable env))
+       liftIO
+         (V.sequence_
+            [ writeRow
+              StateActionIndex' {state = (player1, player2), action, index = i}
+            | player1 <- population
+            , player2 <- population
+            , action <- population
+            , let i =
+                    Ix.index
+                      bounds'
+                      ( Memory.fromSV
+                          (SV.replicate
+                             (mkObservation (toIdx player1) (toIdx player2)))
+                      , toIdx action)
+            ]))
+  liftIO (putStrLn "Running iterations ...")
+  withCsvFile
+    "qvalues.csv"
+    (\writeRow ->
+       mapStagesM_
+         (\(prev, iteration) (p1 ::- p2 ::- Nil) -> do
+            let percent :: Double =
+                  fromIntegral iteration / fromIntegral steps * 100
+                save =
+                  if percent >= prev + 10
+                    then percent
+                    else prev
+            when
+              (save /= prev)
+              (liftIO (putStrLn (toFixed 2 percent <> "% complete ...")))
+            let writePlayer player (_, env) = do
+                  liftIO
+                    (mapWithIndex_
+                       (\state_action_index qvalue ->
+                          writeRow QValueRow {state_action_index, ..})
+                       (QLearning._qTable env))
+             in do writePlayer 1 p1
+                   writePlayer 2 p2
+                   pure (save, iteration + 1))
+         initial
+         steps
+         (0, 1))
 
--- | Extract relevant information into a record to be exported
-fromTLLToExport ::
-     (Ix (Memory.Vector n (o (Idx a))))
-  => List '[ (a, Env n o a), (a, Env n o a)]
-  -> IO [ExportQValues n o a]
-fromTLLToExport (p1 ::- p2 ::- Nil) = do
-  let ((_, env1)) = p1
-      ((_, env2)) = p2
+-- | A slightly more efficient mapper -- speculated.
+mapWithIndex_ :: (MArray a e m, Ix i) => (Int -> e -> m ()) -> a i e -> m ()
+mapWithIndex_ f marr = do
+  n <- A.getNumElements marr
+  bounds' <- A.getBounds marr
+  for_
+    (range bounds')
+    (\i -> do
+       let !idx = safeIndex bounds' n i
+       !e <- unsafeRead marr idx
+       f idx e)
+{-# INLINE mapWithIndex_ #-}
 
-  expQValues1 <- A.getAssocs $ QLearning._qTable env1
-  expQValues2 <- A.getAssocs $ QLearning._qTable env2
-  bounds1 <- A.getBounds (QLearning._qTable env1)
-  bounds2 <- A.getBounds (QLearning._qTable env2)
-  keys1 <- fmap (fmap fst) (A.getAssocs (QLearning._qTable env1))
-  keys2 <- fmap (fmap fst) (A.getAssocs (QLearning._qTable env1))
-  let
-      expPlayer1 = ExportQValues expQValues1 bounds1 keys1
-      expPlayer2 = ExportQValues expQValues2 bounds2 keys2
-  pure $ [expPlayer1, expPlayer2]
+--------------------------------------------------------------------------------
+-- Threaded IO
+
+-- | This is a thread-safe stdout printer, with timestamp.
+putStrLn :: ByteString -> IO ()
+putStrLn s = do
+  now' <- getCurrentTime
+  S8.putStrLn (S8.pack (show now') <> ": " <> s)
