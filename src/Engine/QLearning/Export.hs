@@ -275,9 +275,11 @@ instance BuildCsvRow QValueRow where
     SB.intDec player <> "," <>
     SB.intDec state_action_index <> "," <>
     SB.byteString (toShortest qvalue)
+  {-# INLINE buildCsvRow #-}
 
 instance BuildHeaders QValueRow where
   buildHeaders _ = "iteration,player,state_action_index,qvalue"
+  {-# INLINE buildHeaders #-}
 
 {-# INLINE exportQValuesCsv #-}
 exportQValuesCsv ::
@@ -326,3 +328,4 @@ mapWithIndex_ f marr = do
        let !idx = safeIndex bounds' n i
        !e <- unsafeRead marr idx
        f idx e)
+{-# INLINE mapWithIndex_ #-}
