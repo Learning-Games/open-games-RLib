@@ -83,6 +83,7 @@ dependencies:
     - resource-pool
     - text
     - unliftio
+    - double-conversion
 
 executables:
   learning-exe:

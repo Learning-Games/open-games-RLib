@@ -42,6 +42,7 @@ import           Data.Array.IO as A
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Builder as SB
+import           Data.Double.Conversion.ByteString
 import           Data.Foldable
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
@@ -273,7 +274,7 @@ instance BuildCsvRow QValueRow where
     SB.intDec iteration <> "," <>
     SB.intDec player <> "," <>
     SB.intDec state_action_index <> "," <>
-    SB.doubleHexFixed qvalue
+    SB.byteString (toShortest qvalue)
 
 instance BuildHeaders QValueRow where
   buildHeaders _ = "iteration,player,state_action_index,qvalue"
