@@ -1,6 +1,8 @@
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications, DuplicateRecordFields #-}
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingStrategies, MonadComprehensions #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -34,12 +36,14 @@ import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Logger
 import           Control.Monad.Trans.Reader
-import           Control.Monad.Trans.State
+import           Control.Monad.Trans.State hiding (state)
 import           Data.Aeson
 import qualified Data.Aeson as Aeson
 import           Data.Array.Base as A
 import           Data.Array.IO as A
 import           Data.ByteString (ByteString)
+import           Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Double.Conversion.ByteString
@@ -53,11 +57,13 @@ import           Data.Sequence (Seq(..))
 import qualified Data.Sequence as Seq
 import           Data.Text (Text)
 import qualified Data.Text.Encoding as T
+import qualified Data.Vector as V
+import qualified Data.Vector.Sized as SV
 import           Database.Persist
 import           Database.Persist.Sqlite
 import           Database.Persist.TH
 import qualified Engine.Memory as Memory
-import           Engine.QLearning (Idx, QLearningMsg(..), Env, CTable)
+import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTable(..))
 import qualified Engine.QLearning as QLearning
 import           Engine.TLL
 import           FastCsv
@@ -264,6 +270,22 @@ fromTLLToExport (p1 ::- p2 ::- Nil) = do
 --------------------------------------------------------------------------------
 -- Fast CSV export
 
+data StateActionIndex' state action = StateActionIndex'
+  { state :: state
+  , action :: action
+  , index :: Int
+  }
+
+instance BuildHeaders (StateActionIndex' a b) where
+  buildHeaders _ = "state_action_index,action,qvalue"
+  {-# INLINE buildHeaders #-}
+
+instance (BuildCsvField state, BuildCsvField action) =>
+         BuildCsvRow (StateActionIndex' state action) where
+  {-# INLINE buildCsvRow #-}
+  buildCsvRow StateActionIndex' {state, action, index = i} =
+    buildCsvField state <> "," <> buildCsvField action <> "," <> SB.intDec i
+
 data QValueRow = QValueRow
   { iteration, player, state_action_index :: !Int
   , qvalue :: !Double
@@ -291,6 +313,10 @@ exportQValuesCsv ::
      , Memory.Memory n
      , ToJSON (o a)
      , MonadUnliftIO m
+     , ToIdx a
+     , BuildCsvField a
+     , BuildCsvField (a, a)
+     , n ~ 1
      )
   => Int
   -> (   (Int -> List '[ (a, Env n o a), (a, Env n o a)] -> m ())
@@ -299,8 +325,31 @@ exportQValuesCsv ::
       -> m ())
   -> List '[ ( a , Env n o a), ( a , Env n o a)]
   -> CTable a
+  -> (forall x. x -> x -> o x)
   -> m ()
-exportQValuesCsv steps mapStagesM_ initial _ctable =
+exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation = do
+  liftIO (S8.putStrLn "Writing state action index ...")
+  withCsvFile
+    "state_action_index.csv"
+    (\writeRow -> do
+       let (_, env) ::- _ = initial
+       bounds' <- liftIO (A.getBounds (QLearning._qTable env))
+       liftIO
+         (V.sequence_
+            [ writeRow
+              StateActionIndex' {state = (player1, player2), action, index = i}
+            | player1 <- population
+            , player2 <- population
+            , action <- population
+            , let i =
+                    Ix.index
+                      bounds'
+                      ( Memory.fromSV
+                          (SV.replicate
+                             (mkObservation (toIdx player1) (toIdx player2)))
+                      , toIdx action)
+            ]))
+  liftIO (S8.putStrLn "Running iterations ...")
   withCsvFile
     "qvalues.csv"
     (\writeRow ->
