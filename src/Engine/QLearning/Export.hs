@@ -27,6 +27,7 @@
 module Engine.QLearning.Export
   ( exportQValuesSqlite
   , exportingRewardsSqlite
+  , exportQValuesCsv
   ) where
 
 import           Control.Monad
@@ -36,10 +37,11 @@ import           Control.Monad.Trans.Reader
 import           Control.Monad.Trans.State
 import           Data.Aeson
 import qualified Data.Aeson as Aeson
+import           Data.Array.Base as A
 import           Data.Array.IO as A
 import           Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Foldable
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
@@ -57,8 +59,9 @@ import qualified Engine.Memory as Memory
 import           Engine.QLearning (Idx, QLearningMsg(..), Env, CTable)
 import qualified Engine.QLearning as QLearning
 import           Engine.TLL
+import           FastCsv
 import qualified RIO
-import           RIO (RIO, GLogFunc)
+import           RIO (MonadUnliftIO, RIO, GLogFunc)
 
 --------------------------------------------------------------------------------
 -- Schema
@@ -256,3 +259,69 @@ fromTLLToExport (p1 ::- p2 ::- Nil) = do
       expPlayer1 = ExportQValues expQValues1 bounds1 keys1
       expPlayer2 = ExportQValues expQValues2 bounds2 keys2
   pure $ [expPlayer1, expPlayer2]
+
+--------------------------------------------------------------------------------
+-- Fast CSV export
+
+data QValueRow = QValueRow
+  { iteration, player, state_action_index :: !Int
+  , qvalue :: !Double
+  }
+
+instance BuildCsvRow QValueRow where
+  buildCsvRow QValueRow{iteration,player,state_action_index,qvalue} =
+    SB.intDec iteration <> "," <>
+    SB.intDec player <> "," <>
+    SB.intDec state_action_index <> "," <>
+    SB.doubleHexFixed qvalue
+
+instance BuildHeaders QValueRow where
+  buildHeaders _ = "iteration,player,state_action_index,qvalue"
+
+{-# INLINE exportQValuesCsv #-}
+exportQValuesCsv ::
+     ( ToJSON a
+     , Show (o (Idx a))
+     , Ix (Memory.Vector n (o (Idx a)))
+     , Functor (Memory.Vector n)
+     , Functor o
+     , Memory.Memory n
+     , ToJSON (o a)
+     , MonadUnliftIO m
+     )
+  => Int
+  -> (   (Int -> List '[ (a, Env n o a), (a, Env n o a)] -> m ())
+      -> List '[ ( a , Env n o a), ( a , Env n o a)]
+      -> Int
+      -> m ())
+  -> List '[ ( a , Env n o a), ( a , Env n o a)]
+  -> CTable a
+  -> m ()
+exportQValuesCsv steps mapStagesM_ initial _ctable =
+  withCsvFile
+    "qvalues.csv"
+    (\writeRow ->
+       mapStagesM_
+         (\iteration (p1 ::- p2 ::- Nil) -> do
+            let writePlayer player (_, env) = do
+                  liftIO
+                    (mapWithIndex_
+                       (\state_action_index qvalue ->
+                          writeRow QValueRow {state_action_index, ..})
+                       (QLearning._qTable env))
+             in do writePlayer 1 p1
+                   writePlayer 2 p2)
+         initial
+         steps)
+
+-- | A slightly more efficient mapper -- speculated.
+mapWithIndex_ :: (MArray a e m, Ix i) => (Int -> e -> m ()) -> a i e -> m ()
+mapWithIndex_ f marr = do
+  n <- A.getNumElements marr
+  bounds' <- A.getBounds marr
+  for_
+    (range bounds')
+    (\i -> do
+       let !idx = safeIndex bounds' n i
+       !e <- unsafeRead marr idx
+       f idx e)

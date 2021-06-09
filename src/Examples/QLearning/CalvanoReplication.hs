@@ -29,6 +29,7 @@ module Examples.QLearning.CalvanoReplication
   , csvParameters
   , sequenceL
   , evalStageM
+  , mapStagesM_
   , PriceSpace(..)
   ) where
 
@@ -410,6 +411,22 @@ evalStageM startValue n = do
       (evalStage (hoist startValue) (fromEvalToContext (hoist startValue)))
   rest <- evalStageM newStrat (pred n)
   pure (newStrat : rest)
+
+mapStagesM_ ::
+     (Int -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
+                                                                        , Env Player2N Observation PriceSpace)] -> M ())
+  -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
+                                                                , Env Player2N Observation PriceSpace)]
+  -> Int
+  -> M ()
+mapStagesM_ f startValue n0 = go startValue n0
+  where
+    go _ 0 = pure ()
+    go value !n = do
+      newStrat <-
+        sequenceL (evalStage (hoist value) (fromEvalToContext (hoist value)))
+      f n newStrat
+      go newStrat (pred n)
 
 hoist ::
      Applicative f

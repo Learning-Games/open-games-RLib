@@ -82,6 +82,7 @@ dependencies:
     - persistent
     - resource-pool
     - text
+    - unliftio
 
 executables:
   learning-exe:
