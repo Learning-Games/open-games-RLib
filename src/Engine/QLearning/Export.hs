@@ -1,39 +1,21 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications, DuplicateRecordFields #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DerivingStrategies, MonadComprehensions #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GADTs, OverloadedStrings, MonadComprehensions #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- |
 
 module Engine.QLearning.Export
-  ( exportingRewardsSqlite
+  ( exportingRewardsCsv
   , exportQValuesCsv
   ) where
 
-import           Control.Monad
 import           Control.Monad.IO.Class
-import           Control.Monad.Logger
-import           Control.Monad.Trans.Reader
 import           Data.Aeson
 import           Data.Array.Base as A
 import           Data.Array.IO as A
@@ -41,15 +23,9 @@ import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
-import           Data.IORef
 import qualified Data.Ix as Ix
-import           Data.Pool
-import qualified Data.Sequence as Seq
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
-import           Database.Persist
-import           Database.Persist.Sqlite
-import           Database.Persist.TH
 import qualified Engine.Memory as Memory
 import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTable(..))
 import qualified Engine.QLearning as QLearning
@@ -60,63 +36,6 @@ import           RIO (MonadUnliftIO, RIO, GLogFunc)
 
 --------------------------------------------------------------------------------
 -- Schema
-
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-Reward
-  iteration Int
-  player Int
-  stateActionIndex Int
-  reward Double
-  deriving Show
-|]
-
---------------------------------------------------------------------------------
--- Top-level functions
-
-stackSize :: Int
-stackSize = 1000
-
-exportingRewardsSqlite ::
-     RIO (GLogFunc (QLearningMsg n o a)) x
-  -> IO x
-exportingRewardsSqlite m =
-  runNoLoggingT
-    (withSqlitePool
-       "rewards.sqlite3"
-       1
-       (\pool -> do
-          withResource pool (runReaderT (runMigration migrateAll))
-          stackRef <- liftIO (newIORef mempty)
-          result <-
-            RIO.runRIO
-              (RIO.mkGLogFunc
-                 (\_backtrace msg ->
-                    case msg of
-                      RewardMsg QLearning.Reward {..} -> do
-                        let reward =
-                              Reward
-                                { rewardIteration
-                                , rewardPlayer
-                                , rewardStateActionIndex
-                                , rewardReward
-                                }
-                        modifyIORef stackRef (Seq.|> reward)
-                        stack <- readIORef stackRef
-                        when
-                          (length stack > stackSize)
-                          (do writeIORef stackRef mempty
-                              withResource
-                                pool
-                                (runReaderT (insertMany_ (toList stack))))))
-              m
-          stack <- liftIO (readIORef stackRef)
-          when
-            (not (null stack))
-            (withResource pool (runReaderT (insertMany_ (toList stack))))
-          pure result))
-
---------------------------------------------------------------------------------
--- Fast CSV export
 
 data StateActionIndex' state action = StateActionIndex'
   { state :: state
@@ -150,6 +69,46 @@ instance BuildCsvRow QValueRow where
 instance BuildHeaders QValueRow where
   buildHeaders _ = "iteration,player,state_action_index,qvalue"
   {-# INLINE buildHeaders #-}
+
+data Reward = Reward
+  { iteration, player, state_action_index :: !Int
+  , reward :: !Double
+  }
+
+instance BuildCsvRow Reward where
+  buildCsvRow Reward{iteration,player,state_action_index,reward} =
+    SB.intDec iteration <> "," <>
+    SB.intDec player <> "," <>
+    SB.intDec state_action_index <> "," <>
+    SB.byteString (toShortest reward)
+  {-# INLINE buildCsvRow #-}
+
+instance BuildHeaders Reward where
+  buildHeaders _ = "iteration,player,state_action_index,reward"
+  {-# INLINE buildHeaders #-}
+
+--------------------------------------------------------------------------------
+-- Top-level functions
+
+{-# INLINE exportingRewardsCsv #-}
+exportingRewardsCsv :: RIO (GLogFunc (QLearningMsg n o a)) () -> IO ()
+exportingRewardsCsv m =
+  withCsvFile
+    "rewards.csv"
+    (\writeRow -> do
+       RIO.runRIO
+         (RIO.mkGLogFunc
+            (\_backtrace msg ->
+               case msg of
+                 RewardMsg QLearning.Reward {..} -> do
+                   writeRow
+                     Reward
+                       { iteration = rewardIteration
+                       , player = rewardPlayer
+                       , state_action_index = rewardStateActionIndex
+                       , reward = rewardReward
+                       }))
+         m)
 
 {-# INLINE exportQValuesCsv #-}
 exportQValuesCsv ::
