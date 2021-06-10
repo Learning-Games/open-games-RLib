@@ -165,7 +165,7 @@ runQLearningExporting exportConfig = do
                           (incrementalMode exportConfig)
                           (writeQValueRow
                              QValueRow
-                               { iteration = dirtiedIteration
+                               { iteration = dirtiedIteration + 1
                                , player = dirtiedPlayer
                                , state_action_index = dirtiedStateActionIndex
                                , qvalue = dirtiedQValue
@@ -216,10 +216,11 @@ writeStateActionIndex ExportConfig {..} initial' = do
 --------------------------------------------------------------------------------
 -- Write QValues
 
--- | State for the exportQValuesCsv function's loop.
+-- | State for the writeQValueRow function's loop.
 data State n o a = State
   { prev :: Double -- ^ Previous percentage complete.
   , iteration :: Int -- ^ Iteration number.
+  , skipping :: Int -- ^ Skip every N dumps.
   }
 
 writeQValues ::
@@ -228,36 +229,42 @@ writeQValues ::
   -> List '[ ( a , Env n o a), ( a , Env n o a)]
   -> (QValueRow -> IO ())
   -> m ()
-writeQValues ExportConfig {..} initial' writeRow = do
+writeQValues ExportConfig {..} initial'@(p1_0 ::- p2_0 ::- Nil) writeRow = do
+  putStrLn "Writing initial tables"
+  writePlayerQTable 0 1 p1_0
+  writePlayerQTable 0 2 p2_0
   putStrLn "Running iterations ..."
   mapStagesM_
-    (\State {prev, iteration} (p1 ::- p2 ::- Nil) -> do
+    (\State {prev, iteration, skipping} (p1 ::- p2 ::- Nil) -> do
        let !percent = fromIntegral iteration / fromIntegral iterations * 100
            !save =
              if percent >= prev + 10
                then percent
                else prev
        when (save /= prev) (putStrLn (toFixed 2 percent <> "% complete ..."))
-       let writePlayerQTable player (_, env) = do
-             putStrLn
-               ("Dumping whole QTable for player " <> fromString (show player) <>
-                " on iteration " <>
-                fromString (show iteration))
-             liftIO
-               (mapWithIndex_
-                  (\_i state_action_index qvalue ->
-                     writeRow QValueRow {state_action_index, ..})
-                  (QLearning._qTable env))
+       let
         in when
              -- Always include the first and last iteration.
-             ((outputEveryN < 2 && iteration < 2) ||
-              iteration == iterations || not incrementalMode)
-             (do writePlayerQTable 1 p1
-                 writePlayerQTable 2 p2)
-       pure State {prev = save, iteration = iteration + 1})
+             (iteration == iterations || (not incrementalMode && (skipping == 0 || iteration == 1)))
+             (do putStrLn ("Dumping QTable on iteration " <> fromString (show iteration))
+                 writePlayerQTable iteration 1 p1
+                 writePlayerQTable iteration 2 p2)
+       pure
+         State
+           { prev = save
+           , iteration = iteration + 1
+           , skipping = Prelude.mod (skipping + 1) outputEveryN
+           })
     initial'
     iterations
-    State {prev = 0, iteration = 1}
+    State {prev = 0, iteration = 1, skipping = 1}
+  where
+    writePlayerQTable iteration player (_, env) = do
+      liftIO
+        (mapWithIndex_
+           (\_i state_action_index qvalue ->
+              writeRow QValueRow {state_action_index, ..})
+           (QLearning._qTable env))
 
 -- | A slightly more efficient mapper -- speculated.
 mapWithIndex_ :: (MArray a e m, Ix i) => (i -> Int -> e -> m ()) -> a i e -> m ()
