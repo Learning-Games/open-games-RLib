@@ -14,6 +14,7 @@
 module Engine.QLearning.Export
   ( exportingRewardsCsv
   , exportQValuesCsv
+  , ExportConfig(..)
   ) where
 
 import           Control.Monad
@@ -93,6 +94,32 @@ instance BuildHeaders Reward where
   buildHeaders _ = "iteration,player,state_action_index,reward"
   {-# INLINE buildHeaders #-}
 
+data ExportConfig n o a m = ExportConfig
+  { outputEveryN :: Int
+    -- ^ How often to write iteration outputs. Default=1, 5 would mean
+    -- "output every 5 iterations".
+  , incrementalMode :: Bool
+    -- ^ Whether to only output incremental changes to a QTable of a
+    -- given player for each iteration, or otherwise the whole QTable
+    -- is outputted.
+  , iterations :: Int
+    -- ^ How many iterations to run.
+  , initial :: List '[ ( a , Env n o a), ( a , Env n o a)]
+    -- ^ Initial strategy.
+  , ctable :: CTable a
+    -- ^ Acion space.
+  , mkObservation :: forall x. x -> x -> o x
+    -- ^ How to make an observation of two player actions.
+  , mapStagesM_ ::
+    forall s.
+       (s -> List '[ (a, Env n o a), (a, Env n o a)] -> m s)
+    -> List '[ ( a , Env n o a), ( a , Env n o a)]
+    -> Int -- ^ Count.
+    -> s -- ^ State.
+    -> m ()
+    -- ^ How to map over stages step by step.
+  }
+
 --------------------------------------------------------------------------------
 -- Top-level functions
 
@@ -131,18 +158,9 @@ exportQValuesCsv ::
      , BuildCsvField (a, a)
      , n ~ 1
      )
-  => Int
-  -> (forall s.
-         (s -> List '[ (a, Env n o a), (a, Env n o a)] -> m s)
-      -> List '[ ( a , Env n o a), ( a , Env n o a)]
-      -> Int
-      -> s
-      -> m ())
-  -> List '[ ( a , Env n o a), ( a , Env n o a)]
-  -> CTable a
-  -> (forall x. x -> x -> o x)
+  => ExportConfig n o a m
   -> m ()
-exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation = do
+exportQValuesCsv ExportConfig{..} = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
   liftIO (putStrLn "Writing state action index ...")
   withCsvFile
@@ -154,9 +172,9 @@ exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation =
          (V.sequence_
             [ writeRow
               StateActionIndex' {state = (player1, player2), action, index = i}
-            | player1 <- population
-            , player2 <- population
-            , action <- population
+            | player1 <- population ctable
+            , player2 <- population ctable
+            , action <- population ctable
             , let i =
                     Ix.index
                       bounds'
@@ -172,7 +190,7 @@ exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation =
        mapStagesM_
          (\(prev, iteration) (p1 ::- p2 ::- Nil) -> do
             let percent :: Double =
-                  fromIntegral iteration / fromIntegral steps * 100
+                  fromIntegral iteration / fromIntegral iterations * 100
                 save =
                   if percent >= prev + 10
                     then percent
@@ -190,7 +208,7 @@ exportQValuesCsv steps mapStagesM_ initial (CTable {population}) mkObservation =
                    writePlayer 2 p2
                    pure (save, iteration + 1))
          initial
-         steps
+         iterations
          (0, 1))
 
 -- | A slightly more efficient mapper -- speculated.
