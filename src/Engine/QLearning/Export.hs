@@ -36,6 +36,7 @@ import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTa
 import qualified Engine.QLearning as QLearning
 import           Engine.TLL
 import           FastCsv
+import           GHC.TypeNats
 import           Prelude hiding (putStrLn)
 import qualified RIO
 import           RIO (MonadUnliftIO, RIO, GLogFunc)
@@ -143,13 +144,6 @@ exportingRewardsCsv m =
                        }))
          m)
 
--- | State for the exportQValuesCsv function's loop.
-data State = State
-  { prev :: Double -- ^ Previous percentage complete.
-  , iteration :: Int -- ^ Iteration number.
-  , skips :: Int -- ^ How many iterations to skip before writing an output.
-  }
-
 {-# INLINE exportQValuesCsv #-}
 exportQValuesCsv ::
      ( ToJSON a
@@ -167,8 +161,27 @@ exportQValuesCsv ::
      )
   => ExportConfig n o a m
   -> m ()
-exportQValuesCsv ExportConfig {..} = do
+exportQValuesCsv exportConfig@ExportConfig {..} = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
+  writeStateActionIndex exportConfig
+  writeQValues exportConfig
+
+--------------------------------------------------------------------------------
+-- Write state_action_index
+
+-- | Dump the complete set of possible indices to the QTable.
+writeStateActionIndex ::
+     ( BuildCsvField action
+     , BuildCsvField (action, action)
+     , MonadUnliftIO m1
+     , Ix (Memory.Vector n (o (Idx action)))
+     , Memory.Memory n
+     , KnownNat n
+     , ToIdx action
+     )
+  => ExportConfig n o action m2
+  -> m1 ()
+writeStateActionIndex ExportConfig {..} = do
   putStrLn "Writing state action index ..."
   withCsvFile
     "state_action_index.csv"
@@ -190,15 +203,31 @@ exportQValuesCsv ExportConfig {..} = do
                              (mkObservation (toIdx player1) (toIdx player2)))
                       , toIdx action)
             ]))
+
+--------------------------------------------------------------------------------
+-- Write QValues
+
+-- | State for the exportQValuesCsv function's loop.
+data State = State
+  { prev :: Double -- ^ Previous percentage complete.
+  , iteration :: Int -- ^ Iteration number.
+  , skips :: Int -- ^ How many iterations to skip before writing an output.
+  }
+
+writeQValues ::
+     (MonadUnliftIO m, Ix (Memory.Vector n (o (Idx a))))
+  => ExportConfig n o a m
+  -> m ()
+writeQValues ExportConfig {..} = do
   putStrLn "Running iterations ..."
   withCsvFile
     "qvalues.csv"
     (\writeRow ->
        mapStagesM_
          (\State {prev, iteration, skips} (p1 ::- p2 ::- Nil) -> do
-            let percent :: Double =
+            let !percent =
                   fromIntegral iteration / fromIntegral iterations * 100
-                save =
+                !save =
                   if percent >= prev + 10
                     then percent
                     else prev
@@ -211,10 +240,10 @@ exportQValuesCsv ExportConfig {..} = do
                        (\state_action_index qvalue ->
                           writeRow QValueRow {state_action_index, ..})
                        (QLearning._qTable env))
-            when
-              (outputEveryN < 2 || skips == 0)
-              (do writePlayer 1 p1
-                  writePlayer 2 p2)
+             in when
+                  (outputEveryN < 2 || skips == 0)
+                  (do writePlayer 1 p1
+                      writePlayer 2 p2)
             pure
               State
                 { prev = save
@@ -224,6 +253,7 @@ exportQValuesCsv ExportConfig {..} = do
          initial
          iterations
          State {prev = 0, iteration = 1, skips = 1})
+
 
 -- | A slightly more efficient mapper -- speculated.
 mapWithIndex_ :: (MArray a e m, Ix i) => (Int -> e -> m ()) -> a i e -> m ()
