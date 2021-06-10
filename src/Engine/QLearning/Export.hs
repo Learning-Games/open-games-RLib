@@ -208,10 +208,13 @@ writeStateActionIndex ExportConfig {..} = do
 -- Write QValues
 
 -- | State for the exportQValuesCsv function's loop.
-data State = State
+data State n o a = State
   { prev :: Double -- ^ Previous percentage complete.
   , iteration :: Int -- ^ Iteration number.
   , skips :: Int -- ^ How many iterations to skip before writing an output.
+  , mpreviousQTables :: Maybe (QLearning.QTable n o a, QLearning.QTable n o a)
+    -- ^ We keep the QTable from the previous outputted iteration,
+    -- only outputting the indices that have changed since last time.
   }
 
 writeQValues ::
@@ -221,10 +224,10 @@ writeQValues ::
 writeQValues ExportConfig {..} = do
   putStrLn "Running iterations ..."
   withCsvFile
-    "qvalues.csv"
+    "/dev/null" {-"qvalues.csv"-}
     (\writeRow ->
        mapStagesM_
-         (\State {prev, iteration, skips} (p1 ::- p2 ::- Nil) -> do
+         (\State {prev, iteration, skips, mpreviousQTables} (p1 ::- p2 ::- Nil) -> do
             let !percent =
                   fromIntegral iteration / fromIntegral iterations * 100
                 !save =
@@ -234,29 +237,56 @@ writeQValues ExportConfig {..} = do
             when
               (save /= prev)
               (putStrLn (toFixed 2 percent <> "% complete ..."))
-            let writePlayer player (_, env) = do
+            let writePlayer player (_, env) mprevQTable = do
                   liftIO
-                    (mapWithIndex_
-                       (\state_action_index qvalue ->
-                          writeRow QValueRow {state_action_index, ..})
-                       (QLearning._qTable env))
+                    -- The case below is intentional for performance reasons.
+                    (case mprevQTable of
+                       Nothing -> do
+                         putStrLn "Dumping whole QTable!"
+                         mapWithIndex_
+                           (\_i state_action_index qvalue ->
+                              writeRow QValueRow {state_action_index, ..})
+                           (QLearning._qTable env)
+                       Just prevQTable -> do
+                         putStrLn "Diffed dump..."
+                         mapWithIndex_
+                           (\i state_action_index qvalue -> do
+                              prevqvalue <- A.readArray prevQTable i
+                              if qvalue /= prevqvalue
+                                then do
+                                  putStrLn "Writing"
+                                  writeRow QValueRow {state_action_index, ..}
+                                else pure ())
+                           (QLearning._qTable env))
              in when
-                  (outputEveryN < 2 || skips == 0)
-                  (do writePlayer 1 p1
-                      writePlayer 2 p2)
+                  -- Always include the first and last iteration, and
+                  -- then otherwise only when we're not skipping.
+                  (outputEveryN < 2 || skips == 0 || iteration == iterations)
+                  (do writePlayer
+                        1
+                        p1
+                        (do guard (iteration /= iterations)
+                            fmap fst mpreviousQTables)
+                      writePlayer
+                        2
+                        p2
+                        (do guard (iteration /= iterations)
+                            fmap snd mpreviousQTables))
             pure
               State
                 { prev = save
                 , iteration = iteration + 1
                 , skips = mod (skips + 1) outputEveryN
+                , mpreviousQTables =
+                    pure
+                      (QLearning._qTable (snd p1), QLearning._qTable (snd p2))
                 })
          initial
          iterations
-         State {prev = 0, iteration = 1, skips = 1})
-
+         State {prev = 0, iteration = 1, skips = 1, mpreviousQTables = Nothing})
 
 -- | A slightly more efficient mapper -- speculated.
-mapWithIndex_ :: (MArray a e m, Ix i) => (Int -> e -> m ()) -> a i e -> m ()
+mapWithIndex_ :: (MArray a e m, Ix i) => (i -> Int -> e -> m ()) -> a i e -> m ()
 mapWithIndex_ f marr = do
   n <- A.getNumElements marr
   bounds' <- A.getBounds marr
@@ -265,7 +295,7 @@ mapWithIndex_ f marr = do
     (\i -> do
        let !idx = safeIndex bounds' n i
        !e <- unsafeRead marr idx
-       f idx e)
+       f i idx e)
 {-# INLINE mapWithIndex_ #-}
 
 --------------------------------------------------------------------------------
