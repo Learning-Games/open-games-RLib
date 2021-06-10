@@ -12,8 +12,7 @@
 -- |
 
 module Engine.QLearning.Export
-  ( exportingRewardsCsv
-  , exportQValuesCsv
+  ( runQLearningExporting
   , ExportConfig(..)
   ) where
 
@@ -28,6 +27,7 @@ import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
 import qualified Data.Ix as Ix
+import           Data.String
 import           Data.Time
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
@@ -105,7 +105,7 @@ data ExportConfig n o a m = ExportConfig
     -- is outputted.
   , iterations :: Int
     -- ^ How many iterations to run.
-  , initial :: List '[ ( a , Env n o a), ( a , Env n o a)]
+  , initial :: m (List '[ ( a , Env n o a), ( a , Env n o a)])
     -- ^ Initial strategy.
   , ctable :: CTable a
     -- ^ Acion space.
@@ -124,28 +124,8 @@ data ExportConfig n o a m = ExportConfig
 --------------------------------------------------------------------------------
 -- Top-level functions
 
-{-# INLINE exportingRewardsCsv #-}
-exportingRewardsCsv :: RIO (GLogFunc (QLearningMsg n o a)) () -> IO ()
-exportingRewardsCsv m =
-  withCsvFile
-    "rewards.csv"
-    (\writeRow -> do
-       RIO.runRIO
-         (RIO.mkGLogFunc
-            (\_backtrace msg ->
-               case msg of
-                 RewardMsg QLearning.Reward {..} ->
-                   writeRow
-                     Reward
-                       { iteration = rewardIteration
-                       , player = rewardPlayer
-                       , state_action_index = rewardStateActionIndex
-                       , reward = rewardReward
-                       }))
-         m)
-
-{-# INLINE exportQValuesCsv #-}
-exportQValuesCsv ::
+{-# INLINE runQLearningExporting #-}
+runQLearningExporting ::
      ( ToJSON a
      , Show (o (Idx a))
      , Ix (Memory.Vector n (o (Idx a)))
@@ -153,18 +133,46 @@ exportQValuesCsv ::
      , Functor o
      , Memory.Memory n
      , ToJSON (o a)
-     , MonadUnliftIO m
      , ToIdx a
      , BuildCsvField a
      , BuildCsvField (a, a)
      , n ~ 1
      )
-  => ExportConfig n o a m
-  -> m ()
-exportQValuesCsv exportConfig@ExportConfig {..} = do
+  => ExportConfig n o a (RIO (GLogFunc (QLearningMsg n o a)))
+  -> IO ()
+runQLearningExporting exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
-  writeStateActionIndex exportConfig
-  writeQValues exportConfig
+  withCsvFile
+    "rewards.csv"
+    (\writeRewardRow ->
+       withCsvFile
+         "qvalues.csv"
+         (\writeQValueRow ->
+            RIO.runRIO
+              (RIO.mkGLogFunc
+                 (\_backtrace msg ->
+                    case msg of
+                      RewardMsg QLearning.Reward {..} ->
+                        writeRewardRow
+                          Reward
+                            { iteration = rewardIteration
+                            , player = rewardPlayer
+                            , state_action_index = rewardStateActionIndex
+                            , reward = rewardReward
+                            }
+                      QTableDirtied QLearning.Dirtied {..} ->
+                        when
+                          (incrementalMode exportConfig)
+                          (writeQValueRow
+                             QValueRow
+                               { iteration = dirtiedIteration
+                               , player = dirtiedPlayer
+                               , state_action_index = dirtiedStateActionIndex
+                               , qvalue = dirtiedQValue
+                               })))
+              (do initial' <- initial exportConfig
+                  writeStateActionIndex exportConfig initial'
+                  writeQValues exportConfig initial' writeQValueRow)))
 
 --------------------------------------------------------------------------------
 -- Write state_action_index
@@ -180,13 +188,14 @@ writeStateActionIndex ::
      , ToIdx action
      )
   => ExportConfig n o action m2
+  -> List '[ ( action , Env n o action), ( action , Env n o action)]
   -> m1 ()
-writeStateActionIndex ExportConfig {..} = do
+writeStateActionIndex ExportConfig {..} initial' = do
   putStrLn "Writing state action index ..."
   withCsvFile
     "state_action_index.csv"
     (\writeRow -> do
-       let (_, env) ::- _ = initial
+       let (_, env) ::- _ = initial'
        bounds' <- liftIO (A.getBounds (QLearning._qTable env))
        liftIO
          (V.sequence_
@@ -211,51 +220,44 @@ writeStateActionIndex ExportConfig {..} = do
 data State n o a = State
   { prev :: Double -- ^ Previous percentage complete.
   , iteration :: Int -- ^ Iteration number.
-  , skips :: Int -- ^ How many iterations to skip before writing an output.
   }
 
 writeQValues ::
      (MonadUnliftIO m, Ix (Memory.Vector n (o (Idx a))))
   => ExportConfig n o a m
+  -> List '[ ( a , Env n o a), ( a , Env n o a)]
+  -> (QValueRow -> IO ())
   -> m ()
-writeQValues ExportConfig {..} = do
+writeQValues ExportConfig {..} initial' writeRow = do
   putStrLn "Running iterations ..."
-  withCsvFile
-    "qvalues.csv"
-    (\writeRow ->
-       mapStagesM_
-         (\State {prev, iteration, skips} (p1 ::- p2 ::- Nil) -> do
-            let !percent =
-                  fromIntegral iteration / fromIntegral iterations * 100
-                !save =
-                  if percent >= prev + 10
-                    then percent
-                    else prev
-            when
-              (save /= prev)
-              (putStrLn (toFixed 2 percent <> "% complete ..."))
-            let writePlayer player (_, env) = do
-                  putStrLn "Dumping whole QTable!"
-                  liftIO
-                    (mapWithIndex_
-                       (\_i state_action_index qvalue ->
-                          writeRow QValueRow {state_action_index, ..})
-                       (QLearning._qTable env))
-             in when
-                  -- Always include the first and last iteration, and
-                  -- then otherwise only when we're not skipping.
-                  (outputEveryN < 2 || skips == 0 || iteration == iterations)
-                  (do writePlayer 1 p1
-                      writePlayer 2 p2)
-            pure
-              State
-                { prev = save
-                , iteration = iteration + 1
-                , skips = mod (skips + 1) outputEveryN
-                })
-         initial
-         iterations
-         State {prev = 0, iteration = 1, skips = 1})
+  mapStagesM_
+    (\State {prev, iteration} (p1 ::- p2 ::- Nil) -> do
+       let !percent = fromIntegral iteration / fromIntegral iterations * 100
+           !save =
+             if percent >= prev + 10
+               then percent
+               else prev
+       when (save /= prev) (putStrLn (toFixed 2 percent <> "% complete ..."))
+       let writePlayerQTable player (_, env) = do
+             putStrLn
+               ("Dumping whole QTable for player " <> fromString (show player) <>
+                " on iteration " <>
+                fromString (show iteration))
+             liftIO
+               (mapWithIndex_
+                  (\_i state_action_index qvalue ->
+                     writeRow QValueRow {state_action_index, ..})
+                  (QLearning._qTable env))
+        in when
+             -- Always include the first and last iteration.
+             ((outputEveryN < 2 && iteration < 2) ||
+              iteration == iterations || not incrementalMode)
+             (do writePlayerQTable 1 p1
+                 writePlayerQTable 2 p2)
+       pure State {prev = save, iteration = iteration + 1})
+    initial'
+    iterations
+    State {prev = 0, iteration = 1}
 
 -- | A slightly more efficient mapper -- speculated.
 mapWithIndex_ :: (MArray a e m, Ix i) => (i -> Int -> e -> m ()) -> a i e -> m ()

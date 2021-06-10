@@ -8,16 +8,14 @@ import qualified Examples.QLearning.CalvanoReplication as Scenario
 main :: IO ()
 main = do
   BS.writeFile "parameters.csv" $ Scenario.csvParameters
-  QLearning.exportingRewardsCsv
-    (do strat <- Scenario.initialStrat >>= Scenario.sequenceL
-        QLearning.exportQValuesCsv
-          QLearning.ExportConfig
-            { iterations = 100
-            , outputEveryN = 1
-            , incrementalMode = False
-            , mapStagesM_ = Scenario.mapStagesM_
-            , initial = strat
-            , ctable = Scenario.actionSpace
-            , mkObservation = \a b -> Scenario.Obs (a, b)
-            })
+  QLearning.runQLearningExporting
+    QLearning.ExportConfig
+      { iterations = 100
+      , outputEveryN = 1
+      , incrementalMode = True
+      , mapStagesM_ = Scenario.mapStagesM_
+      , initial = Scenario.initialStrat >>= Scenario.sequenceL
+      , ctable = Scenario.actionSpace
+      , mkObservation = \a b -> Scenario.Obs (a, b)
+      }
   putStrLn "completed"
