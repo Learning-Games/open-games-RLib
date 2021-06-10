@@ -134,7 +134,7 @@ exportingRewardsCsv m =
          (RIO.mkGLogFunc
             (\_backtrace msg ->
                case msg of
-                 RewardMsg QLearning.Reward {..} -> do
+                 RewardMsg QLearning.Reward {..} ->
                    writeRow
                      Reward
                        { iteration = rewardIteration
@@ -221,7 +221,7 @@ writeQValues ::
 writeQValues ExportConfig {..} = do
   putStrLn "Running iterations ..."
   withCsvFile
-    "/dev/null" {-"qvalues.csv"-}
+    "qvalues.csv"
     (\writeRow ->
        mapStagesM_
          (\State {prev, iteration, skips} (p1 ::- p2 ::- Nil) -> do
