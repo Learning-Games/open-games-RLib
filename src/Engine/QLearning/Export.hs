@@ -245,8 +245,13 @@ writeQValues ExportConfig {..} initial'@(p1_0 ::- p2_0 ::- Nil) writeRow = do
        let
         in when
              -- Always include the first and last iteration.
-             (iteration == iterations || (not incrementalMode && (skipping == 0 || iteration == 1)))
-             (do putStrLn ("Dumping QTable on iteration " <> fromString (show iteration))
+             (iteration == iterations ||
+              (not incrementalMode && (skipping == 0 || iteration == 1)))
+             (do when
+                   False
+                   (putStrLn
+                      ("Dumping QTable on iteration " <>
+                       fromString (show iteration)))
                  writePlayerQTable iteration 1 p1
                  writePlayerQTable iteration 2 p2)
        pure
