@@ -212,9 +212,6 @@ data State n o a = State
   { prev :: Double -- ^ Previous percentage complete.
   , iteration :: Int -- ^ Iteration number.
   , skips :: Int -- ^ How many iterations to skip before writing an output.
-  , mpreviousQTables :: Maybe (QLearning.QTable n o a, QLearning.QTable n o a)
-    -- ^ We keep the QTable from the previous outputted iteration,
-    -- only outputting the indices that have changed since last time.
   }
 
 writeQValues ::
@@ -227,7 +224,7 @@ writeQValues ExportConfig {..} = do
     "/dev/null" {-"qvalues.csv"-}
     (\writeRow ->
        mapStagesM_
-         (\State {prev, iteration, skips, mpreviousQTables} (p1 ::- p2 ::- Nil) -> do
+         (\State {prev, iteration, skips} (p1 ::- p2 ::- Nil) -> do
             let !percent =
                   fromIntegral iteration / fromIntegral iterations * 100
                 !save =
@@ -237,53 +234,28 @@ writeQValues ExportConfig {..} = do
             when
               (save /= prev)
               (putStrLn (toFixed 2 percent <> "% complete ..."))
-            let writePlayer player (_, env) mprevQTable = do
+            let writePlayer player (_, env) = do
+                  putStrLn "Dumping whole QTable!"
                   liftIO
-                    -- The case below is intentional for performance reasons.
-                    (case mprevQTable of
-                       Nothing -> do
-                         putStrLn "Dumping whole QTable!"
-                         mapWithIndex_
-                           (\_i state_action_index qvalue ->
-                              writeRow QValueRow {state_action_index, ..})
-                           (QLearning._qTable env)
-                       Just prevQTable -> do
-                         putStrLn "Diffed dump..."
-                         mapWithIndex_
-                           (\i state_action_index qvalue -> do
-                              prevqvalue <- A.readArray prevQTable i
-                              if qvalue /= prevqvalue
-                                then do
-                                  putStrLn "Writing"
-                                  writeRow QValueRow {state_action_index, ..}
-                                else pure ())
-                           (QLearning._qTable env))
+                    (mapWithIndex_
+                       (\_i state_action_index qvalue ->
+                          writeRow QValueRow {state_action_index, ..})
+                       (QLearning._qTable env))
              in when
                   -- Always include the first and last iteration, and
                   -- then otherwise only when we're not skipping.
                   (outputEveryN < 2 || skips == 0 || iteration == iterations)
-                  (do writePlayer
-                        1
-                        p1
-                        (do guard (iteration /= iterations)
-                            fmap fst mpreviousQTables)
-                      writePlayer
-                        2
-                        p2
-                        (do guard (iteration /= iterations)
-                            fmap snd mpreviousQTables))
+                  (do writePlayer 1 p1
+                      writePlayer 2 p2)
             pure
               State
                 { prev = save
                 , iteration = iteration + 1
                 , skips = mod (skips + 1) outputEveryN
-                , mpreviousQTables =
-                    pure
-                      (QLearning._qTable (snd p1), QLearning._qTable (snd p2))
                 })
          initial
          iterations
-         State {prev = 0, iteration = 1, skips = 1, mpreviousQTables = Nothing})
+         State {prev = 0, iteration = 1, skips = 1})
 
 -- | A slightly more efficient mapper -- speculated.
 mapWithIndex_ :: (MArray a e m, Ix i) => (i -> Int -> e -> m ()) -> a i e -> m ()
