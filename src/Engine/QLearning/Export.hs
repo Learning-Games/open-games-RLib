@@ -160,9 +160,9 @@ exportQValuesCsv ::
      )
   => ExportConfig n o a m
   -> m ()
-exportQValuesCsv ExportConfig{..} = do
+exportQValuesCsv ExportConfig {..} = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
-  liftIO (putStrLn "Writing state action index ...")
+  putStrLn "Writing state action index ..."
   withCsvFile
     "state_action_index.csv"
     (\writeRow -> do
@@ -183,12 +183,12 @@ exportQValuesCsv ExportConfig{..} = do
                              (mkObservation (toIdx player1) (toIdx player2)))
                       , toIdx action)
             ]))
-  liftIO (putStrLn "Running iterations ...")
+  putStrLn "Running iterations ..."
   withCsvFile
     "qvalues.csv"
     (\writeRow ->
        mapStagesM_
-         (\(prev, iteration) (p1 ::- p2 ::- Nil) -> do
+         (\(prev, iteration, skips) (p1 ::- p2 ::- Nil) -> do
             let percent :: Double =
                   fromIntegral iteration / fromIntegral iterations * 100
                 save =
@@ -197,19 +197,21 @@ exportQValuesCsv ExportConfig{..} = do
                     else prev
             when
               (save /= prev)
-              (liftIO (putStrLn (toFixed 2 percent <> "% complete ...")))
+              (putStrLn (toFixed 2 percent <> "% complete ..."))
             let writePlayer player (_, env) = do
                   liftIO
                     (mapWithIndex_
                        (\state_action_index qvalue ->
                           writeRow QValueRow {state_action_index, ..})
                        (QLearning._qTable env))
-             in do writePlayer 1 p1
-                   writePlayer 2 p2
-                   pure (save, iteration + 1))
+            when
+              (outputEveryN < 2 || skips == 0)
+              (do writePlayer 1 p1
+                  writePlayer 2 p2)
+            pure (save, iteration + 1, mod (skips + 1) outputEveryN))
          initial
          iterations
-         (0, 1))
+         (0, 1, 1))
 
 -- | A slightly more efficient mapper -- speculated.
 mapWithIndex_ :: (MArray a e m, Ix i) => (Int -> e -> m ()) -> a i e -> m ()
@@ -228,7 +230,8 @@ mapWithIndex_ f marr = do
 -- Threaded IO
 
 -- | This is a thread-safe stdout printer, with timestamp.
-putStrLn :: ByteString -> IO ()
-putStrLn s = do
-  now' <- getCurrentTime
-  S8.putStrLn (S8.pack (show now') <> ": " <> s)
+putStrLn :: MonadIO m => ByteString -> m ()
+putStrLn s =
+  liftIO
+    (do now' <- getCurrentTime
+        S8.putStrLn (S8.pack (show now') <> ": " <> s))
