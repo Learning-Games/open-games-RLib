@@ -143,6 +143,13 @@ exportingRewardsCsv m =
                        }))
          m)
 
+-- | State for the exportQValuesCsv function's loop.
+data State = State
+  { prev :: Double -- ^ Previous percentage complete.
+  , iteration :: Int -- ^ Iteration number.
+  , skips :: Int -- ^ How many iterations to skip before writing an output.
+  }
+
 {-# INLINE exportQValuesCsv #-}
 exportQValuesCsv ::
      ( ToJSON a
@@ -188,7 +195,7 @@ exportQValuesCsv ExportConfig {..} = do
     "qvalues.csv"
     (\writeRow ->
        mapStagesM_
-         (\(prev, iteration, skips) (p1 ::- p2 ::- Nil) -> do
+         (\State {prev, iteration, skips} (p1 ::- p2 ::- Nil) -> do
             let percent :: Double =
                   fromIntegral iteration / fromIntegral iterations * 100
                 save =
@@ -208,10 +215,15 @@ exportQValuesCsv ExportConfig {..} = do
               (outputEveryN < 2 || skips == 0)
               (do writePlayer 1 p1
                   writePlayer 2 p2)
-            pure (save, iteration + 1, mod (skips + 1) outputEveryN))
+            pure
+              State
+                { prev = save
+                , iteration = iteration + 1
+                , skips = mod (skips + 1) outputEveryN
+                })
          initial
          iterations
-         (0, 1, 1))
+         State {prev = 0, iteration = 1, skips = 1})
 
 -- | A slightly more efficient mapper -- speculated.
 mapWithIndex_ :: (MArray a e m, Ix i) => (Int -> e -> m ()) -> a i e -> m ()
