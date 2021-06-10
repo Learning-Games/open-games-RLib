@@ -46,8 +46,16 @@ import           System.Random.Stateful
 --------------------------------------------------------------------------------
 -- Logging
 
-data QLearningMsg n o a =
-  RewardMsg !(Reward n o a)
+data QLearningMsg n o a
+  = RewardMsg !(Reward n o a)
+  | QTableDirtied !(Dirtied n o a)
+
+data Dirtied n o a = Dirtied
+  { dirtiedIteration :: !Int
+  , dirtiedPlayer :: !Int
+  , dirtiedStateActionIndex :: !Int
+  , dirtiedQValue :: !Double
+  }
 
 data Reward n o a = Reward
   { rewardPlayer :: !Int
@@ -299,7 +307,7 @@ updateQTableST learningRate gamma support s obs2 action reward  = do
         let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue  = reward + gamma * (fst $ maxed)
             newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
-        liftIO $ A.writeArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
+        recordingWriteArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
         ST.put $ updateRandomGAndQTable s gen'
         return action
   where  obsVec = _obsAgent (_env s)
@@ -317,11 +325,28 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-       liftIO $ A.writeArray table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
+       recordingWriteArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
   where obsVec = _obsAgent (_env s)
 
+{-# INLINE recordingWriteArray #-}
+recordingWriteArray :: (MonadIO m, A.MArray a1 Double IO, Ix i, HasGLogFunc env, MonadReader env m, GMsg env ~ QLearningMsg n o a2) => Int -> Int -> a1 i Double -> i -> Double -> m ()
+recordingWriteArray dirtiedIteration dirtiedPlayer table0 index' value = do
+  value0 <- liftIO $ A.readArray table0 index'
+  if value0 /= value
+    then do
+      liftIO $ A.writeArray table0 index' value
+      bounds <- liftIO (A.getBounds table0)
+      RIO.glog
+        (QTableDirtied
+           Dirtied
+             { dirtiedIteration
+             , dirtiedPlayer
+             , dirtiedStateActionIndex = Ix.index bounds index'
+             , dirtiedQValue = value
+             })
+    else pure ()
 
 -----------------
 -- TODO the assumption on Comonad, Monad structure; works for Identity; should we further simplify this?
