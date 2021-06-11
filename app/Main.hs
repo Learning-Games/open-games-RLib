@@ -3,8 +3,7 @@
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Engine.QLearning.Export as QLearning
-import qualified Examples.QLearning.CalvanoReplicationExportParameters as Scenario
-import qualified Examples.QLearning.CalvanoReplication as ScenarioOld
+import qualified Examples.QLearning.CalvanoReplication as Scenario
 
 
 
