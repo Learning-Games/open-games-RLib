@@ -100,13 +100,15 @@ executables:
 
 tests:
   test-open-games:
-    buildable: False
-    main: THTests
+    buildable: True
+    main: Spec
     source-dirs: tests
     dependencies:
+      - open-games-hs
       - template-haskell
       - base
       - hspec
+      - QuickCheck
 
 benchmarks:
   learning-bench:
