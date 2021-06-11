@@ -38,6 +38,7 @@ library:
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.CalvanoReplication
+    - Examples.QLearning.CalvanoReplicationExportParameters
     - Examples.QLearning.BestReply
 
 dependencies:
