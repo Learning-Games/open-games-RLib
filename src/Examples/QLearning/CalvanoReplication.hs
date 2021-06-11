@@ -182,9 +182,9 @@ decreaseFactor b = (log 1) ** b
 
 -- NOTE that the the prices are determined by calculations for the exact values
 bertrandPrice :: Double
-bertrandPrice = 1
+bertrandPrice = 1.47
 monopolyPrice :: Double
-monopolyPrice = 6
+monopolyPrice = 1.92
 
 
 -- fixing outside parameters
@@ -198,16 +198,16 @@ mu :: Double
 mu = 0.25
 
 a1 :: Double
-a1 = 1.5
+a1 = 2
 
 a2 :: Double
-a2 = 1
+a2 = 2
 
 a0 :: Double
-a0 = 1
+a0 = 0
 
 c1 :: Double
-c1 = 0.5
+c1 = 1
 
 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
 m :: Double
@@ -270,12 +270,16 @@ pricePairs =
   , y <- V.toList (population actionSpace)
   ]
 
+
 -- initiate a first fixed list of values at average
--- TODO change later to random values
 lsValues :: [(((PriceSpace, PriceSpace), PriceSpace), Double)]
-lsValues  = [(((x,y),z),avg)| (x,y) <- xs, (z,_) <- xs]
+lsValues  = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
   where  xs = pricePairs
-         avg = (lowerBound + upperBound) / 2
+         value p1 = (sum  $ fmap (\p2 -> profit a0 a1 a2 p1 p2 mu c1) priceLs) / ((1 - gamma) * (fromIntegral $ length priceLs))
+         priceLs = V.toList (population actionSpace)
+
+
+
 
 -- initiate the environment
 initialEnv1 :: M (Env Player1N Observation PriceSpace)
