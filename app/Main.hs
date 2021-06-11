@@ -4,6 +4,8 @@
 import qualified Data.ByteString.Lazy as BS
 import qualified Engine.QLearning.Export as QLearning
 import qualified Examples.QLearning.CalvanoReplicationExportParameters as Scenario
+import qualified Examples.QLearning.CalvanoReplication as ScenarioOld
+
 
 
 parameters = Scenario.Parameters
@@ -43,4 +45,4 @@ main :: IO ()
 main = do
   BS.writeFile "parameters.csv" $ Scenario.csvParameters parameters
   QLearning.runQLearningExporting exportConfig
-  putStrLn "completed"
+  putStrLn "completed task"
