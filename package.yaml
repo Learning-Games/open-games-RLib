@@ -107,7 +107,6 @@ tests:
       - template-haskell
       - base
       - hspec
-      - QuickCheck
 
 benchmarks:
   learning-bench:
