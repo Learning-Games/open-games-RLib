@@ -113,12 +113,12 @@ data Parameters = Parameters
   , pA0 :: Double
   , pC1 :: Double
   , pM  :: Double
-  , pGeneratorEnv1 :: Int
-  , pGeneratorEnv2 :: Int
-  , pGeneratorPrice1 :: Int
-  , pGeneratorPrice2 :: Int
-  , pGeneratorObs1 :: Int
-  , pGeneratorObs2 :: Int
+  , pGeneratorEnv1 :: StdGen
+  , pGeneratorEnv2 :: StdGen
+  , pGeneratorPrice1 :: StdGen
+  , pGeneratorPrice2 :: StdGen
+  , pGeneratorObs1 :: StdGen
+  , pGeneratorObs2 :: StdGen
   } deriving (Generic,Show)
 
 
@@ -190,7 +190,7 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          arr
          0
          (decreaseFactor pBeta)
-         (Rand.mkStdGen pGeneratorEnv1)
+         pGeneratorEnv1
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999))
   where
@@ -214,7 +214,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       (arr)
       0
       (decreaseFactor pBeta)
-      (Rand.mkStdGen pGeneratorEnv2)
+      pGeneratorEnv2
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
   where
@@ -235,7 +235,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 -- First observation, randomly determined
 initialObservation :: Parameters -> Observation PriceSpace
 initialObservation par@Parameters{pGeneratorPrice1,pGeneratorPrice2} =
-  Obs (samplePopulation_ (actionSpace par) (mkStdGen pGeneratorPrice1), samplePopulation_ (actionSpace par) (mkStdGen pGeneratorPrice2))
+  Obs (samplePopulation_ (actionSpace par) pGeneratorPrice1, samplePopulation_ (actionSpace par) pGeneratorPrice2)
 
 -- Initiate strategy: start with random price
 initialStrat :: Parameters -> M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
@@ -243,8 +243,8 @@ initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2}= do
   e1 <- initialEnv1 par
   e2 <- initialEnv2 par
   pure
-    (pure (samplePopulation_ (actionSpace par) (mkStdGen pGeneratorObs1), e1) ::-
-     pure (samplePopulation_ (actionSpace par) (mkStdGen pGeneratorObs2), e2) ::-
+    (pure (samplePopulation_ (actionSpace par) pGeneratorObs1, e1) ::-
+     pure (samplePopulation_ (actionSpace par) pGeneratorObs2, e2) ::-
      Nil)
 
 
@@ -394,12 +394,12 @@ data ExportParameters = ExportParameters
   , expM  :: !Double
   , expLowerBound :: !Double
   , expUpperBound :: !Double
-  , expGeneratorEnv1 :: !Int
-  , expGeneratorEnv2 :: !Int
-  , expGeneratorPrice1 :: !Int
-  , expGeneratorPrice2 :: !Int
-  , expGeneratorObs1 :: !Int
-  , expGeneratorObs2 :: !Int
+  , expGeneratorEnv1 :: !String
+  , expGeneratorEnv2 :: !String
+  , expGeneratorPrice1 :: !String
+  , expGeneratorPrice2 :: !String
+  , expGeneratorObs1 :: !String
+  , expGeneratorObs2 :: !String
   , expInitialObservation1 :: !PriceSpace
   , expInitialObservation2 :: !PriceSpace
   , expInitialPrice1 :: !PriceSpace
@@ -427,16 +427,16 @@ exportParameters par = ExportParameters
   (pM par)
   (lowerBound par)
   (upperBound par)
-  (pGeneratorEnv1 par)
-  (pGeneratorEnv2 par)
-  (pGeneratorPrice1 par)
-  (pGeneratorPrice2 par)
-  (pGeneratorObs1 par)
-  (pGeneratorObs2 par)
-  (samplePopulation_ (actionSpace par) (mkStdGen $ pGeneratorObs1 par))
-  (samplePopulation_ (actionSpace par) (mkStdGen $ pGeneratorObs2 par))
-  (samplePopulation_ (actionSpace par) (mkStdGen $ pGeneratorPrice1 par))
-  (samplePopulation_ (actionSpace par) (mkStdGen $ pGeneratorPrice2 par))
+  (show $ pGeneratorEnv1 par)
+  (show $ pGeneratorEnv2 par)
+  (show $ pGeneratorPrice1 par)
+  (show $ pGeneratorPrice2 par)
+  (show $ pGeneratorObs1 par)
+  (show $ pGeneratorObs2 par)
+  (samplePopulation_ (actionSpace par) (pGeneratorObs1 par))
+  (samplePopulation_ (actionSpace par) (pGeneratorObs2 par))
+  (samplePopulation_ (actionSpace par) (pGeneratorPrice1 par))
+  (samplePopulation_ (actionSpace par) (pGeneratorPrice2 par))
 
 -- | export to CSV
 csvParameters :: Parameters -> L.ByteString
