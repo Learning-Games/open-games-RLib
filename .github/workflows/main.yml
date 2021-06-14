@@ -17,7 +17,7 @@ on:
 jobs:
   runhaskell:
     name: Hello World
-    runs-on: ubuntu-latest # or macOS-latest, or windows-latest
+    runs-on: macOS-latest # or macOS-latest, or windows-latest
     steps:
       - uses: actions/checkout@v2
       - uses: haskell/actions/setup@v1
