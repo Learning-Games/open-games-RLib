@@ -1,7 +1,12 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
@@ -13,7 +18,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Examples.QLearning.SandholmCritesReplication
                      ( evalStageLS
@@ -301,3 +307,20 @@ evalStageM startValue n = do
       (evalStage (hoist startValue) (fromEvalToContext (hoist startValue)))
   rest <- evalStageM newStrat (pred n)
   pure (newStrat : rest)
+
+{-# INLINE mapStagesM_ #-}
+mapStagesM_ ::
+  (s ->  List '[ (Action, Env Player1N Observation Action), Action] -> M s)
+  -> List '[ (Action, Env Player1N Observation Action), Action]
+  -> Int
+  -> s
+  -> M ()
+mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
+  where
+    go _ _ 0 = pure ()
+    go s value !n = do
+      newStrat <-
+        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+      s' <- f s newStrat
+      go s' newStrat (pred n)
+
