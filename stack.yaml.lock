@@ -88,6 +88,13 @@ packages:
       sha256: 8d1a410d34fd77e9b6603c9d1a940d7de63a85c852dbde467c0ef38c82ef6ea0
   original:
     hackage: fsnotify-0.3.0.1
+- completed:
+    hackage: QuickCheck-2.13.2@sha256:636e7265bf75122e7e2f97627c47aad3b772ee3b35b134cafb6095116ce8d07a,6974
+    pantry-tree:
+      size: 2202
+      sha256: b917f922fc59d98d47b789f50c5a569d1b80ae08d52f4fbebbaad7fc62479e0d
+  original:
+    hackage: QuickCheck-2.13.2
 snapshots:
 - completed:
     size: 533053

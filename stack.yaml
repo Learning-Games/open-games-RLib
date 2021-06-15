@@ -47,8 +47,7 @@ extra-deps:
  - splitmix-0.1.0.3
  - path-io-1.6.2
  - fsnotify-0.3.0.1
-
-allow-newer: true
+ - QuickCheck-2.13.2
 
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
