@@ -268,6 +268,7 @@ chooseExploreAction support s = do
       let optimalAction = snd $  maxed
       return optimalAction
   where  obsVec = _obsAgent (_env s)
+  
 -- | Explore until temperature is below exgogenous threshold; with each round the threshold gets reduced
 {-# INLINE chooseExploreActionDecrTemp  #-}
 chooseExploreActionDecrTemp :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>

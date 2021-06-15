@@ -3,6 +3,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -310,17 +311,17 @@ evalStageM startValue n = do
 
 {-# INLINE mapStagesM_ #-}
 mapStagesM_ ::
-  (s ->  List '[ (Action, Env Player1N Observation Action), Action] -> M s)
-  -> List '[ (Action, Env Player1N Observation Action), Action]
+  (s ->  List '[ (Action, Env N Observation Action), Action] -> M s)
+  -> List '[ (Action, Env N Observation Action), Action]
   -> Int
   -> s
   -> M ()
-mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
+mapStagesM_ f startValue n0 s0 = go s0 startValue n0
   where
     go _ _ 0 = pure ()
     go s value !n = do
       newStrat <-
-        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage  (hoist value) (fromEvalToContext (hoist value)))
       s' <- f s newStrat
       go s' newStrat (pred n)
 
