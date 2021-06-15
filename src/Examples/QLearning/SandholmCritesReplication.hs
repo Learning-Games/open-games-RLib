@@ -70,7 +70,7 @@ chooseBoltzQTable ::
      MonadIO m
   => CTable Action
   -> State N Observation Action
-  -> ST.StateT (State N Observation Action) m Action
+  -> ST.StateT (State N Observation Action) m (Action,ActionChoice)
 chooseBoltzQTable ls s = do
     theMaxScore <- liftIO $ maxScore obsVec (_qTable $ _env s) ls
     let temp      = _temperature $ _env s
@@ -80,7 +80,7 @@ chooseBoltzQTable ls s = do
             do
               let (_, gen'')   = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
                   action'      = snd $  theMaxScore
-              return action'
+              return (action',"Exploitation")
     qCooperate    <- liftIO $ A.readArray q (obsVec, toIdx (Action True))
     qDefect       <- liftIO $ A.readArray q (obsVec, toIdx (Action False))
     let chooseExplore  =
@@ -91,7 +91,7 @@ chooseBoltzQTable ls s = do
                 probCooperate    = eCooperate / (eCooperate + eDefect)
                 (actionP, gen'') = Rand.randomR (0.0 :: Double, 1.0 :: Double) gen'
                 action'          = Action (if actionP < probCooperate then True else False)
-            return action'
+            return (action',"Exploration")
         in if temp < 0.01
            then chooseNoExplore
            else chooseExplore
@@ -103,16 +103,14 @@ chooseUpdateBoltzQTable ::
   => CTable Action
   -> State N Observation Action
   -> Observation Action
-  -> Action
+  -> (Action,ActionChoice)
   -> Double
   -> ST.StateT (State N Observation Action) m Action
-chooseUpdateBoltzQTable ls s obs2 action reward  = do
+chooseUpdateBoltzQTable ls s obs2 (action,_) reward  = do
     let q         = _qTable $ _env s
     prediction    <- liftIO $ A.readArray q (obsVec, toIdx action)
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-
-
     maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx (_obs s))) q ls
     let updatedValue = reward + gamma * (fst $ maxed)
         newValue     = (1 - learningRate) * prediction + learningRate * updatedValue

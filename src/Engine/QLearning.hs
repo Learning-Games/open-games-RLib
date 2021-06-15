@@ -277,69 +277,11 @@ chooseActionNoExplore support s = do
   return optimalAction
   where  obsVec = _obsAgent (_env s)
 
--- | Choose the optimal action given the current state or explore greedily
+-- | Choose the optimal action given the current state or explore; indicate whether exploration tool place (False) or randomization tool place (True)
 {-# INLINE chooseExploreAction #-}
 chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
-  CTable a -> State n o a -> ST.StateT (State n o a) m a
-chooseExploreAction support s = do
-  -- NOTE: gen'' is not updated anywhere...!!!
-  let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
-  if exploreR < _exploreRate (_env s)
-    then do
-      let !action' = samplePopulation_ support gen'
-      return action'
-    else do
-      maxed <- liftIO $ maxScore obsVec (_qTable $ _env s) support
-      let optimalAction = snd $  maxed
-      return optimalAction
-  where  obsVec = _obsAgent (_env s)
-
-
-
--- 2.2. Different updates of the qmatrix depending on learning form
--- | Given an action, state, obs and a reward, update the qmatrix
--- | TODO Constant exploration rate
-
-{-# INLINE updateQTableST #-}
-updateQTableST ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
-                     LearningRate ->  DiscountFactor ->   CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
-updateQTableST learningRate gamma support s obs2 action reward  = do
-        let table0             = _qTable $ _env s
-        prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
-        maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
-        let (_exp, gen')  = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-            updatedValue  = reward + gamma * (fst $ maxed)
-            newValue      = (1 - learningRate) * prediction + learningRate * updatedValue
-        recordingWriteArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
-        ST.put $ updateRandomGAndQTable s gen'
-        return action
-  where  obsVec = _obsAgent (_env s)
-
-
--- | Update the qmatrix with evolving exploration rate
-
-{-# INLINE chooseLearnDecrExploreQTable #-}
-chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> a -> Double ->  ST.StateT (State n o a) m a
-chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 action reward  = do
-       let table0             = _qTable $ _env s
-       prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
-       maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
-       let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-            updatedValue = reward + gamma * (fst $ maxed)
-            newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-       recordingWriteArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
-       ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
-       return action
-  where obsVec = _obsAgent (_env s)
-
--- 2.3 extra diagnostic information
-
--- | Choose the optimal action given the current state or explore; indicate whether exploration tool place (False) or randomization tool place (True)
-{-# INLINE chooseExploreActionDiag #-}
-chooseExploreActionDiag :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice)
-chooseExploreActionDiag support s = do
+chooseExploreAction support s = do
   -- NOTE: gen'' is not updated anywhere...!!!
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
@@ -355,11 +297,12 @@ chooseExploreActionDiag support s = do
 
 
 
-
-{-# INLINE chooseLearnDecrExploreQTableDiag #-}
-chooseLearnDecrExploreQTableDiag ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+-- 2.2. Different updates of the qmatrix depending on learning form
+-- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
+{-# INLINE chooseLearnDecrExploreQTable #-}
+chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
-chooseLearnDecrExploreQTableDiag learningRate gamma decreaseFactorExplore support s obs2 (action,info) reward  = do
+chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 (action,info) reward  = do
        let table0             = _qTable $ _env s
        prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
        maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
@@ -370,6 +313,7 @@ chooseLearnDecrExploreQTableDiag learningRate gamma decreaseFactorExplore suppor
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
   where obsVec = _obsAgent (_env s)
+
 
 
 
@@ -410,58 +354,11 @@ pureDecisionQStage ::
      )
   => CTable a
   -> Agent
-  -> (CTable a -> State n o a -> ST.StateT (State n o a) m a)
-  -> (CTable a -> State n o a -> o a -> a -> Double -> ST.StateT (State n o a) m a)
-  -> QLearningStageGame m '[ m (a, Env n o a)] '[ m (a, Env n o a)] (o a) () a ( Double
-                                                                               , (o a))
-pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
-  play =  \(strat ::- Nil) -> let  v obs = do
-                                           (_,env') <- strat
-                                           let s obs = State env' obs
-                                           action   <- ST.evalStateT  (chooseAction actionSpace (s obs)) (s obs)
-                                           pure ((),action)
-                                        in MonadOptic v (\_ -> (\_ -> pure ())),
-  -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
-  evaluate = \(strat ::- Nil) (MonadContext h k) ->
-              let
-                output = do
-                   (_,pdenv') <- strat
-                   (z,obs) <- h
-                   -- ^ Take the (old observation) from the context
-                   action <- ST.evalStateT  (chooseAction actionSpace (State pdenv' obs)) (State pdenv' obs)
-                   (reward,obsNew) <- k z action
-                   let st = (_obsAgent pdenv')
-                   bounds <- liftIO (A.getBounds (_qTable pdenv'))
-                   RIO.glog (RewardMsg
-                               Reward
-                                 { rewardPlayer = _player pdenv'
-                                 , rewardIteration = (1 + _iteration pdenv')
-                                 , rewardStateAction = (st, action)
-                                 , rewardStateActionIndex = Ix.index bounds (st, toIdx action)
-                                 , rewardReward = reward})
-                   (State env' _) <- ST.execStateT (updateQTable actionSpace (State pdenv' obs) obsNew  action reward)
-                                                   (State pdenv' obs)
-                   return (action,env')
-                in (output ::- Nil)}
-
--- Open game definition for extra Diagnostics
-
-{-# INLINE pureDecisionQStageDiagnostics #-}
-pureDecisionQStageDiagnostics ::
-     ( MonadIO m
-     , MonadReader r m
-     , HasGLogFunc r
-     , GMsg r ~ QLearningMsg n o a
-     , Ix (Memory.Vector n (o (Idx a)))
-     , ToIdx a
-     )
-  => CTable a
-  -> Agent
   -> (CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice))
   -> (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m a)
   -> QLearningStageGame m '[ m (a, Env n o a)] '[ m (a, Env n o a)] (o a) () a ( Double
                                                                                , (o a))
-pureDecisionQStageDiagnostics actionSpace name chooseAction updateQTable = OpenGame {
+pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
                                            let s obs = State env' obs
@@ -492,8 +389,6 @@ pureDecisionQStageDiagnostics actionSpace name chooseAction updateQTable = OpenG
                                                    (State pdenv' obs)
                    return (action,env')
                 in (output ::- Nil)}
-
-
 
 
 {-# INLINE deterministicStratStage #-}

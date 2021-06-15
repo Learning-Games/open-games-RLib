@@ -74,7 +74,7 @@ gamma = 0.7
 
 learningRate = 0.40
 
-
+beta = 0.95
 
 pdMatrix :: Action -> Action -> Double
 pdMatrix = on pdMatrix' coerce
@@ -172,13 +172,13 @@ stageSimple = [opengame|
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStage actionSpace "Player1" chooseExploreAction (updateQTableST learningRate gamma) ;
+   operation : pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma beta) ;
    outputs   :  act1 ;
    returns   :  (pdMatrix act1 act2, Obs (act1,act2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
-   operation : pureDecisionQStage actionSpace  "Player2" chooseExploreAction (updateQTableST learningRate gamma) ;
+   operation : pureDecisionQStage actionSpace  "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma beta) ;
    outputs   :  act2 ;
    returns   :  (pdMatrix act2 act1, Obs (act1,act2))    ;
    :-----------------:
