@@ -98,23 +98,23 @@ instance BuildHeaders Reward where
 
 data RewardDiagnostics = RewardDiagnostics
   { iteration, player, state_action_index :: !Int
-  , actionChoice :: !ActionChoice
+  , action_choice :: !ActionChoice
+  , explore_rate :: !QLearning.ExploreRate
   , reward :: !Double
   }
 
-
-
 instance BuildCsvRow RewardDiagnostics where
-  buildCsvRow RewardDiagnostics{iteration,player,state_action_index,actionChoice,reward} =
+  buildCsvRow RewardDiagnostics{iteration,player,state_action_index,action_choice,explore_rate,reward} =
     SB.intDec iteration <> "," <>
     SB.intDec player <> "," <>
     SB.intDec state_action_index <> "," <>
-    SB.stringUtf8 actionChoice <> "," <>
+    SB.stringUtf8 action_choice <> "," <>
+    SB.byteString (toShortest explore_rate) <> "," <>
     SB.byteString (toShortest reward)
   {-# INLINE buildCsvRow #-}
 
 instance BuildHeaders RewardDiagnostics where
-  buildHeaders _ = "iteration,player,state_action_index,action_choice,reward"
+  buildHeaders _ = "iteration,player,state_action_index,action_choice,explore_rate,reward"
   {-# INLINE buildHeaders #-}
 
 
@@ -219,7 +219,7 @@ runQLearningExportingDiagnostics ::
 runQLearningExportingDiagnostics exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
   withCsvFile
-    "rewards.csv"
+    "rewardsDiagnostic.csv"
     (\writeRewardRow ->
        withCsvFile
          "qvalues.csv"
@@ -234,10 +234,10 @@ runQLearningExportingDiagnostics exportConfig = do
                             { iteration = rewardDiagIteration
                             , player = rewardDiagPlayer
                             , state_action_index = rewardDiagStateActionIndex
-                            , actionChoice = rewardDiagActionChoice
+                            , action_choice = rewardDiagActionChoice
+                            , explore_rate  = rewardDiagExploreRate
                             , reward = rewardDiagReward
                             }
-
                       QTableDirtied QLearning.Dirtied {..} ->
                         when
                           (incrementalMode exportConfig)

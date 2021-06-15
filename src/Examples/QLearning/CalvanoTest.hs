@@ -133,7 +133,7 @@ profit a0 a1 a2 (PriceSpace p1 _) (PriceSpace p2 _) mu c1 = (p1 - c1)* (demand a
 
 -- Functional form for decreasing exploration
 decreaseFactor :: Floating a => a -> a
-decreaseFactor b = (log 1) ** b
+decreaseFactor b = (exp 1) ** b
 ------------------------------------------------------
 -- Create index on the basis of the actual prices used
 -- Also allows for different price types
