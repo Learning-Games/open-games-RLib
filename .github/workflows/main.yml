@@ -2,7 +2,7 @@
 
 name: CI
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
@@ -20,10 +20,13 @@ jobs:
     runs-on: macOS-latest # or macOS-latest, or windows-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: haskell/actions/setup@v1
+      - uses: haskell/actions/setup@v1.2.2
         with:
           ghc-version: '8.8.4' # Exact version of ghc to use
           # cabal-version: 'latest'. Omitted, but defaults to 'latest'
           enable-stack: true
           stack-version: 'latest'
-      - run: stack test
+      - run: stack --version
+      - run: pwd
+      - run: cat stack.yaml
+      - run: stack test -v --system-ghc
