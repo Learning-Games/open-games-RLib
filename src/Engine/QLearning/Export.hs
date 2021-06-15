@@ -13,6 +13,7 @@
 
 module Engine.QLearning.Export
   ( runQLearningExporting
+  , runQLearningExportingDiagnostics
   , ExportConfig(..)
   ) where
 
@@ -32,7 +33,7 @@ import           Data.Time
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
 import qualified Engine.Memory as Memory
-import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTable(..))
+import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTable(..),ActionChoice(..))
 import qualified Engine.QLearning as QLearning
 import           Engine.TLL
 import           FastCsv
@@ -94,6 +95,31 @@ instance BuildCsvRow Reward where
 instance BuildHeaders Reward where
   buildHeaders _ = "iteration,player,state_action_index,reward"
   {-# INLINE buildHeaders #-}
+
+data RewardDiagnostics = RewardDiagnostics
+  { iteration, player, state_action_index :: !Int
+  , actionChoice :: !ActionChoice
+  , reward :: !Double
+  }
+
+
+
+instance BuildCsvRow RewardDiagnostics where
+  buildCsvRow RewardDiagnostics{iteration,player,state_action_index,actionChoice,reward} =
+    SB.intDec iteration <> "," <>
+    SB.intDec player <> "," <>
+    SB.intDec state_action_index <> "," <>
+    SB.stringUtf8 actionChoice <> "," <>
+    SB.byteString (toShortest reward)
+  {-# INLINE buildCsvRow #-}
+
+instance BuildHeaders RewardDiagnostics where
+  buildHeaders _ = "iteration,player,state_action_index,action_choice,reward"
+  {-# INLINE buildHeaders #-}
+
+
+
+
 
 data ExportConfig n o a m = ExportConfig
   { outputEveryN :: Int
@@ -173,6 +199,60 @@ runQLearningExporting exportConfig = do
               (do initial' <- initial exportConfig
                   writeStateActionIndex exportConfig initial'
                   writeQValues exportConfig initial' writeQValueRow)))
+
+{-# INLINE runQLearningExportingDiagnostics #-}
+runQLearningExportingDiagnostics ::
+     ( ToJSON a
+     , Show (o (Idx a))
+     , Ix (Memory.Vector n (o (Idx a)))
+     , Functor (Memory.Vector n)
+     , Functor o
+     , Memory.Memory n
+     , ToJSON (o a)
+     , ToIdx a
+     , BuildCsvField a
+     , BuildCsvField (a, a)
+     , n ~ 1
+     )
+  => ExportConfig n o a (RIO (GLogFunc (QLearningMsg n o a)))
+  -> IO ()
+runQLearningExportingDiagnostics exportConfig = do
+  liftIO (hSetBuffering RIO.stdout NoBuffering)
+  withCsvFile
+    "rewards.csv"
+    (\writeRewardRow ->
+       withCsvFile
+         "qvalues.csv"
+         (\writeQValueRow ->
+            RIO.runRIO
+              (RIO.mkGLogFunc
+                 (\_backtrace msg ->
+                    case msg of
+                      RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} ->
+                        writeRewardRow
+                          RewardDiagnostics
+                            { iteration = rewardDiagIteration
+                            , player = rewardDiagPlayer
+                            , state_action_index = rewardDiagStateActionIndex
+                            , actionChoice = rewardDiagActionChoice
+                            , reward = rewardDiagReward
+                            }
+
+                      QTableDirtied QLearning.Dirtied {..} ->
+                        when
+                          (incrementalMode exportConfig)
+                          (writeQValueRow
+                             QValueRow
+                               { iteration = dirtiedIteration + 1
+                               , player = dirtiedPlayer
+                               , state_action_index = dirtiedStateActionIndex
+                               , qvalue = dirtiedQValue
+                               })))
+              (do initial' <- initial exportConfig
+                  writeStateActionIndex exportConfig initial'
+                  writeQValues exportConfig initial' writeQValueRow)))
+
+
 
 --------------------------------------------------------------------------------
 -- Write state_action_index

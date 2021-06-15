@@ -21,7 +21,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.CalvanoReplication
+module Examples.QLearning.CalvanoTest
   ( evalStageLS
   , initialStrat
   , actionSpace
@@ -282,13 +282,13 @@ stageSimple par@Parameters{pBeta,pLearningRate,pGamma,pA0,pA1,pA2,pMu,pC1} = [op
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStage (actionSpace par) "Player1" chooseExploreAction (chooseLearnDecrExploreQTable pLearningRate pGamma (decreaseFactor pBeta)) ;
+   operation : pureDecisionQStageDiagnostics (actionSpace par) "Player1" chooseExploreActionDiag (chooseLearnDecrExploreQTableDiag pLearningRate pGamma (decreaseFactor pBeta)) ;
    outputs   :  p1 ;
    returns   :  (profit pA0 pA1 pA2 p1 p2 pMu pC1, Obs (p1,p2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
-   operation : pureDecisionQStage (actionSpace par) "Player2" chooseExploreAction (chooseLearnDecrExploreQTable pLearningRate pGamma (decreaseFactor pBeta)) ;
+   operation : pureDecisionQStageDiagnostics (actionSpace par) "Player2" chooseExploreActionDiag (chooseLearnDecrExploreQTableDiag pLearningRate pGamma (decreaseFactor pBeta)) ;
    outputs   :  p2 ;
    returns   :  (profit pA0 pA1 pA2 p2 p1 pMu pC1, Obs (p1,p2))    ;
    :-----------------:
