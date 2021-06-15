@@ -48,6 +48,8 @@ extra-deps:
  - path-io-1.6.2
  - fsnotify-0.3.0.1
 
+allow-newer: true
+
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
