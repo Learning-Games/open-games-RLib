@@ -26,4 +26,4 @@ jobs:
           # cabal-version: 'latest'. Omitted, but defaults to 'latest'
           enable-stack: true
           stack-version: 'latest'
-      - run: stack test --system-ghc
+      - run: stack build --test --system-ghc --dry-run --no-run-tests
