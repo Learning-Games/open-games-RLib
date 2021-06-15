@@ -29,7 +29,6 @@ module Examples.QLearning.CalvanoTest
   , sequenceL
   , evalStageM
   , mapStagesM_
-  , decreaseFactor
   , PriceSpace(..)
   , Observation(..) 
   , Parameters(..)
@@ -131,9 +130,6 @@ demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
 profit :: Double -> Double -> Double -> PriceSpace -> PriceSpace -> Double -> Double -> Double
 profit a0 a1 a2 (PriceSpace p1 _) (PriceSpace p2 _) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
--- Functional form for decreasing exploration
-decreaseFactor :: Floating a => a -> a
-decreaseFactor b = (exp 1) ** b
 ------------------------------------------------------
 -- Create index on the basis of the actual prices used
 -- Also allows for different price types
@@ -189,7 +185,7 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          1
          arr
          0
-         (decreaseFactor pBeta)
+         ((exp 1) ** 0)
          pGeneratorEnv1
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999)
@@ -214,7 +210,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       "Player2" 2
       (arr)
       0
-      (decreaseFactor pBeta)
+      ((exp 1) ** 0)
       pGeneratorEnv2
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
@@ -282,13 +278,13 @@ stageSimple par@Parameters{pBeta,pLearningRate,pGamma,pA0,pA1,pA2,pMu,pC1} = [op
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStageDiagnostics (actionSpace par) "Player1" chooseExploreActionDiag (chooseLearnDecrExploreQTableDiag pLearningRate pGamma (decreaseFactor pBeta)) ;
+   operation : pureDecisionQStageDiagnostics (actionSpace par) "Player1" chooseExploreActionDiag (chooseLearnDecrExploreQTableDiag pLearningRate pGamma pBeta) ;
    outputs   :  p1 ;
    returns   :  (profit pA0 pA1 pA2 p1 p2 pMu pC1, Obs (p1,p2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
-   operation : pureDecisionQStageDiagnostics (actionSpace par) "Player2" chooseExploreActionDiag (chooseLearnDecrExploreQTableDiag pLearningRate pGamma (decreaseFactor pBeta)) ;
+   operation : pureDecisionQStageDiagnostics (actionSpace par) "Player2" chooseExploreActionDiag (chooseLearnDecrExploreQTableDiag pLearningRate pGamma pBeta) ;
    outputs   :  p2 ;
    returns   :  (profit pA0 pA1 pA2 p2 p1 pMu pC1, Obs (p1,p2))    ;
    :-----------------:
@@ -416,7 +412,7 @@ exportParameters :: Parameters -> ExportParameters
 exportParameters par = ExportParameters
   (pKsi par)
   (pBeta par)
-  (decreaseFactor $ pBeta par)
+  (pBeta par)
   (pBertrandPrice par)
   (pMonopolyPrice par)
   (pGamma par)
