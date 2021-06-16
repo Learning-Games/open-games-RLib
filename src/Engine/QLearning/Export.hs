@@ -53,7 +53,7 @@ data StateActionIndex' state action = StateActionIndex'
   }
 
 instance BuildHeaders (StateActionIndex' a b) where
-  buildHeaders _ = "state,action,action,index"
+  buildHeaders _ = "state,action,action_index"
   {-# INLINE buildHeaders #-}
 
 instance (BuildCsvField state, BuildCsvField action) =>

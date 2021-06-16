@@ -16,6 +16,7 @@ library:
     - Engine.BayesianGames
     - Engine.Diagnostics
     - Engine.Engine
+    - Engine.Memory
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
@@ -38,8 +39,8 @@ library:
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.CalvanoReplication
-    - Examples.QLearning.CalvanoReplication.Internal
     - Examples.QLearning.BestReply
+    - Examples.QLearning.CalvanoReplication.Internal
 
 dependencies:
     - base >=4.7 && <5
@@ -78,6 +79,7 @@ dependencies:
     - path-io
     - unliftio
     - double-conversion
+    - hspec
 
 executables:
   learning-exe:
@@ -108,6 +110,7 @@ tests:
       - template-haskell
       - base
       - hspec
+
 
 benchmarks:
   learning-bench:
