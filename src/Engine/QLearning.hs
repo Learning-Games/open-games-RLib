@@ -112,8 +112,8 @@ samplePopulation_ :: CTable a -> StdGen -> a
 samplePopulation_ population gen = fst $ samplePopulation population gen
 
 --------------------------------------------------------------------------------
--- Indexable values
-
+-- | Indexable values
+-- We use this type for constructing indices out of specific action spaces (for each application)
 newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show, NFData, ToJSON, Hashable, ToField)
 class ToIdx a where
   toIdx :: a -> Idx a

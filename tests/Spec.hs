@@ -8,18 +8,25 @@
 module Spec where
 
 import qualified Data.Vector as V
+import qualified Data.Vector.Sized as SV
 import           RIO hiding (preview)
 import           System.Random
 import           Test.Hspec
 
-import qualified Engine.QLearning as QLearning
-import Examples.QLearning.CalvanoReplication 
+import Engine.QLearning
+import Examples.QLearning.CalvanoReplication.Internal
+
+-- TODO Start with fixed values and then extend to more general values
+-- TODO Start with Calvano example and the test functionality more generally
+
+-------------
+-- 0. Types
 
 
---------------------------------------------------------------------------------
--- Test types
 
 
+---------------------
+-- 1. Top-level file
 main :: IO ()
 main = do
   gEnv1   <- newStdGen
@@ -49,12 +56,24 @@ main = do
           , pGeneratorObs1 = gObs1
           , pGeneratorObs2 = gObs2
           }
-  hspec $ spec parametersTest
+  hspec $ do spec1 parametersTest
+             spec2 parametersTest
 
-spec parametersTest =
-        describe
-          "ActionSpace" $ do
-            it "computes the correct list of action values" $ do
-                shouldBe 
-                    (V.toList (QLearning.population $ actionSpace parametersTest))
-                    [PriceSpace {value = 1.425, idx = 0},PriceSpace {value = 1.4635714285714285, idx = 1},PriceSpace {value = 1.502142857142857, idx = 2},PriceSpace {value = 1.5407142857142855, idx = 3},PriceSpace {value = 1.579285714285714, idx = 4},PriceSpace {value = 1.6178571428571424, idx = 5},PriceSpace {value = 1.656428571428571, idx = 6},PriceSpace {value = 1.6949999999999994, idx = 7},PriceSpace {value = 1.7335714285714279, idx = 8},PriceSpace {value = 1.7721428571428564, idx = 9},PriceSpace {value = 1.8107142857142848, idx = 10},PriceSpace {value = 1.8492857142857133, idx = 11},PriceSpace {value = 1.8878571428571418, idx = 12},PriceSpace {value = 1.9264285714285703, idx = 13},PriceSpace {value = 1.9649999999999987, idx = 14}]
+
+
+spec1 par = describe
+  "actionSpace" $ do
+    it "computes the correct action values?" $ do
+        shouldBe
+            (fmap value $ population $ actionSpace par)
+            (V.fromList [lowerBound par,lowerBound par + dist par .. upperBound par])
+
+spec2 par = describe
+  "lowestIndex" $ do
+    it "checks the lowest index is correct" $ do
+      shouldBe
+          (minimum $ fmap idx $ population $ actionSpace par)
+          0
+
+
+
