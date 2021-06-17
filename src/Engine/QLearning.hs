@@ -325,20 +325,16 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 {-# INLINE recordingWriteArray #-}
 recordingWriteArray :: (MonadIO m, A.MArray a1 Double IO, Ix i, HasGLogFunc env, MonadReader env m, GMsg env ~ QLearningMsg n o a2) => Int -> Int -> a1 i Double -> i -> Double -> m ()
 recordingWriteArray dirtiedIteration dirtiedPlayer table0 index' value = do
-  value0 <- liftIO $ A.readArray table0 index'
-  if value0 /= value
-    then do
-      liftIO $ A.writeArray table0 index' value
-      bounds <- liftIO (A.getBounds table0)
-      RIO.glog
-        (QTableDirtied
-           Dirtied
-             { dirtiedIteration
-             , dirtiedPlayer
-             , dirtiedStateActionIndex = Ix.index bounds index'
-             , dirtiedQValue = value
-             })
-    else pure ()
+  liftIO $ A.writeArray table0 index' value
+  bounds <- liftIO (A.getBounds table0)
+  RIO.glog
+    (QTableDirtied
+       Dirtied
+         { dirtiedIteration
+         , dirtiedPlayer
+         , dirtiedStateActionIndex = Ix.index bounds index'
+         , dirtiedQValue = value
+         })
 
 -----------------
 -- Open game definition for Qlearning
