@@ -8,6 +8,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE BlockArguments #-}
 
 -- |
 
@@ -19,6 +20,7 @@ module Engine.QLearning.Export
 
 import           Control.Monad
 import           Control.Monad.IO.Class
+import qualified Control.Conditional as CC
 import           Data.Aeson
 import           Data.Array.Base as A
 import           Data.Array.IO as A
@@ -145,6 +147,8 @@ data ExportConfig n o a m = ExportConfig
     -> s -- ^ State.
     -> m ()
     -- ^ How to map over stages step by step.
+  , keepOnlyNLinesReward :: Int
+    -- ^ Determines which lines are saved for simpler export
   }
 
 --------------------------------------------------------------------------------
@@ -170,35 +174,35 @@ runQLearningExporting exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
   withCsvFile
     "rewards.csv"
-    (\writeRewardRow ->
-       withCsvFile
-         "qvalues.csv"
-         (\writeQValueRow ->
-            RIO.runRIO
-              (RIO.mkGLogFunc
-                 (\_backtrace msg ->
-                    case msg of
-                      RewardMsg QLearning.Reward {..} ->
-                        writeRewardRow
-                          Reward
-                            { iteration = rewardIteration
-                            , player = rewardPlayer
-                            , state_action_index = rewardStateActionIndex
-                            , reward = rewardReward
-                            }
-                      QTableDirtied QLearning.Dirtied {..} ->
-                        when
-                          (incrementalMode exportConfig)
-                          (writeQValueRow
-                             QValueRow
-                               { iteration = dirtiedIteration + 1
-                               , player = dirtiedPlayer
-                               , state_action_index = dirtiedStateActionIndex
-                               , qvalue = dirtiedQValue
-                               })))
-              (do initial' <- initial exportConfig
-                  writeStateActionIndex exportConfig initial'
-                  writeQValues exportConfig initial' writeQValueRow)))
+      (\writeRewardRow ->
+            withCsvFile
+              "qvalues.csv"
+              (\writeQValueRow ->
+                  RIO.runRIO
+                    (RIO.mkGLogFunc
+                      (\_backtrace msg ->
+                          case msg of
+                            RewardMsg QLearning.Reward {..} ->  do
+                              writeRewardRow
+                                Reward
+                                  { iteration = rewardIteration
+                                  , player = rewardPlayer
+                                  , state_action_index = rewardStateActionIndex
+                                  , reward = rewardReward
+                                  }
+                            QTableDirtied QLearning.Dirtied {..} ->
+                              when
+                                (incrementalMode exportConfig)
+                                (writeQValueRow
+                                  QValueRow
+                                    { iteration = dirtiedIteration + 1
+                                    , player = dirtiedPlayer
+                                    , state_action_index = dirtiedStateActionIndex
+                                    , qvalue = dirtiedQValue
+                                    })))
+                    (do initial' <- initial exportConfig
+                        writeStateActionIndex exportConfig initial'
+                        writeQValues exportConfig initial' writeQValueRow)))
 
 {-# INLINE runQLearningExportingDiagnostics #-}
 runQLearningExportingDiagnostics ::
@@ -219,38 +223,55 @@ runQLearningExportingDiagnostics ::
 runQLearningExportingDiagnostics exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
   withCsvFile
-    "rewardsDiagnostic.csv"
-    (\writeRewardRow ->
-       withCsvFile
-         "qvalues.csv"
-         (\writeQValueRow ->
-            RIO.runRIO
-              (RIO.mkGLogFunc
-                 (\_backtrace msg ->
-                    case msg of
-                      RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} ->
-                        writeRewardRow
-                          RewardDiagnostics
-                            { iteration = rewardDiagIteration
-                            , player = rewardDiagPlayer
-                            , state_action_index = rewardDiagStateActionIndex
-                            , action_choice = rewardDiagActionChoice
-                            , explore_rate  = rewardDiagExploreRate
-                            , reward = rewardDiagReward
-                            }
-                      QTableDirtied QLearning.Dirtied {..} ->
-                        when
-                          (incrementalMode exportConfig)
-                          (writeQValueRow
-                             QValueRow
-                               { iteration = dirtiedIteration + 1
-                               , player = dirtiedPlayer
-                               , state_action_index = dirtiedStateActionIndex
-                               , qvalue = dirtiedQValue
-                               })))
-              (do initial' <- initial exportConfig
-                  writeStateActionIndex exportConfig initial'
-                  writeQValues exportConfig initial' writeQValueRow)))
+    "rewards.csv"
+      (\writeRewardRow ->
+         withCsvFile
+           "rewardsNEndLines.csv"
+              (\writeRewardEndNLinesRow ->
+                    withCsvFile
+                      "qvalues.csv"
+                      (\writeQValueRow ->
+                          RIO.runRIO
+                            (RIO.mkGLogFunc
+                              (\_backtrace msg ->
+                                  case msg of
+                                    RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} -> do
+                                      writeRewardRow
+                                        RewardDiagnostics
+                                          { iteration = rewardDiagIteration
+                                          , player = rewardDiagPlayer
+                                          , state_action_index = rewardDiagStateActionIndex
+                                          , action_choice = rewardDiagActionChoice
+                                          , explore_rate  = rewardDiagExploreRate
+                                          , reward = rewardDiagReward
+                                          }
+                                      when
+                                        (rewardDiagIteration > (iterations exportConfig) - (keepOnlyNLinesReward exportConfig))
+                                        (writeRewardEndNLinesRow
+                                          RewardDiagnostics
+                                            { iteration = rewardDiagIteration
+                                            , player = rewardDiagPlayer
+                                            , state_action_index = rewardDiagStateActionIndex
+                                            , action_choice = rewardDiagActionChoice
+                                            , explore_rate  = rewardDiagExploreRate
+                                            , reward = rewardDiagReward
+                                            })
+                                    QTableDirtied QLearning.Dirtied {..} ->
+                                      when
+                                        (incrementalMode exportConfig)
+                                        (writeQValueRow
+                                          QValueRow
+                                            { iteration = dirtiedIteration + 1
+                                            , player = dirtiedPlayer
+                                            , state_action_index = dirtiedStateActionIndex
+                                            , qvalue = dirtiedQValue
+                                            })))
+                            (do initial' <- initial exportConfig
+                                writeStateActionIndex exportConfig initial'
+                                writeQValues exportConfig initial' writeQValueRow))))
+
+
+
 
 
 

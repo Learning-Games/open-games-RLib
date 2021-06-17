@@ -80,6 +80,7 @@ dependencies:
     - unliftio
     - double-conversion
     - hspec
+    - cond
 
 executables:
   learning-exe:
