@@ -376,15 +376,13 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
                    (reward,obsNew) <- k z action
                    let st = (_obsAgent pdenv')
                    bounds <- liftIO (A.getBounds (_qTable pdenv'))
-                   RIO.glog (RewardDiagnosticsMsg
-                               RewardDiagnostics
-                                 { rewardDiagPlayer = _player pdenv'
-                                 , rewardDiagIteration = (1 + _iteration pdenv')
-                                 , rewardDiagStateAction = (st, action)
-                                 , rewardDiagActionChoice = info
-                                 , rewardDiagExploreRate  = _exploreRate pdenv'
-                                 , rewardDiagStateActionIndex = Ix.index bounds (st, toIdx action)
-                                 , rewardDiagReward = reward})
+                   RIO.glog (RewardMsg
+                               Reward
+                                 { rewardPlayer = _player pdenv'
+                                 , rewardIteration = (1 + _iteration pdenv')
+                                 , rewardStateAction = (st, action)
+                                 , rewardStateActionIndex = Ix.index bounds (st, toIdx action)
+                                 , rewardReward = reward})
                    (State env' _) <- ST.execStateT (updateQTable actionSpace (State pdenv' obs) obsNew  (action,info) reward)
                                                    (State pdenv' obs)
                    return (action,env')
