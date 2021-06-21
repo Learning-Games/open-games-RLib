@@ -248,9 +248,8 @@ toObs :: Monad m => m (a,Env Player1N Observation a) -> m (a, Env Player2N Obser
 toObs a1 a2 = do
              (act1,_env1) <- a1
              (act2,_env2) <- a2
-             let obs1 = Obs (act1,act2)
-                 obs2 = Obs (act2,act1)
-                 in return ((),(obs1,obs2))
+             let obs = Obs (act1,act2)
+                 in return ((),(obs,obs))
 
 toObsFromLS :: Monad m => List '[m (a,Env Player1N Observation a), m (a,Env Player2N Observation a)] -> m ((),(Observation a,Observation a))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
