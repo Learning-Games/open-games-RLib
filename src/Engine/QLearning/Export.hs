@@ -148,7 +148,9 @@ data ExportConfig n o a m = ExportConfig
     -> m ()
     -- ^ How to map over stages step by step.
   , keepOnlyNLinesReward :: Int
-    -- ^ Determines which lines are saved for simpler export
+    -- ^ Determines which lines, i.e. number of observations, are saved for simpler export
+  , runName :: String
+    -- ^ Description of file name; main purpose is to run several estimations of the same kind
   }
 
 --------------------------------------------------------------------------------
@@ -173,10 +175,10 @@ runQLearningExporting ::
 runQLearningExporting exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
   withCsvFile
-    "rewards.csv"
+    ("rewards_" <> (runName exportConfig) <> ".csv")
       (\writeRewardRow ->
             withCsvFile
-              "qvalues.csv"
+              ("qvalues_" <> (runName exportConfig) <> ".csv") 
               (\writeQValueRow ->
                   RIO.runRIO
                     (RIO.mkGLogFunc
@@ -223,13 +225,13 @@ runQLearningExportingDiagnostics ::
 runQLearningExportingDiagnostics exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
   withCsvFile
-    "rewards.csv"
+    ("rewards_" <> (runName exportConfig) <> ".csv")
       (\writeRewardRow ->
          withCsvFile
-           "rewardsNEndLines.csv"
+           ("rewardsNEndLines_" <> (runName exportConfig) <> ".csv")
               (\writeRewardEndNLinesRow ->
                     withCsvFile
-                      "qvalues.csv"
+                      ("qvalues_" <> (runName exportConfig) <> ".csv")
                       (\writeQValueRow ->
                           RIO.runRIO
                             (RIO.mkGLogFunc
@@ -294,7 +296,7 @@ writeStateActionIndex ::
 writeStateActionIndex ExportConfig {..} initial' = do
   putStrLn "Writing state action index ..."
   withCsvFile
-    "state_action_index.csv"
+    ("state_action_index_" <> runName  <> ".csv")
     (\writeRow -> do
        let (_, env) ::- _ = initial'
        bounds' <- liftIO (A.getBounds (QLearning._qTable env))

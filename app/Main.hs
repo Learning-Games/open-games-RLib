@@ -8,19 +8,20 @@ import qualified Engine.QLearning.Export as QLearning
 import qualified Examples.QLearning.CalvanoReplication as Scenario
 
 
-
 main :: IO ()
-main = do
+main = sequence_ $ fmap specification $ fmap show [1,2,3,4,5]
+
+specification :: String -> IO ()
+specification name = do
   gEnv1   <- newStdGen
   gEnv2   <- newStdGen
   gPrice1 <- newStdGen
   gPrice2 <- newStdGen
   gObs1   <- newStdGen
   gObs2   <- newStdGen
-  let parameters =
-        Scenario.Parameters
+  let parameters = Scenario.Parameters
           { pKsi = 0.1
-          , pBeta = (- 0.00001)
+          , pBeta = 0.000004
           , pBertrandPrice = 1.47
           , pMonopolyPrice = 1.92
           , pGamma = 0.95
@@ -47,7 +48,9 @@ main = do
           , initial = Scenario.initialStrat parameters >>= Scenario.sequenceL
           , ctable = Scenario.actionSpace parameters
           , mkObservation = \a b -> Scenario.Obs (a, b)
+          , keepOnlyNLinesReward = 10000
+          , runName = name
           }
-  BS.writeFile "parameters.csv" $ Scenario.csvParameters parameters
-  QLearning.runQLearningExporting exportConfig
+  BS.writeFile ("parameters_" <> name <>".csv") $ Scenario.csvParameters parameters
+  QLearning.runQLearningExportingDiagnostics exportConfig
   putStrLn "completed task"
