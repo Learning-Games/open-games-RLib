@@ -9,6 +9,8 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 -- |
 
@@ -39,6 +41,7 @@ import qualified Engine.QLearning as QLearning
 import           Engine.TLL
 import           FastCsv
 import           GHC.TypeNats
+import           Path
 import           Prelude hiding (putStrLn)
 import qualified RIO
 import           RIO (MonadUnliftIO, RIO, GLogFunc)
@@ -152,6 +155,13 @@ data ExportConfig n o a m = ExportConfig
     -- ^ Description of file name; main purpose is to run several estimations of the same kind
   }
 
+-----------------------
+-- File paths
+
+rewardsFile                  = [relfile|rewards.csv|]
+rewardsExtendedFile          = [relfile|rewardsExtended.csv|]
+rewardsExtendedEndNLinesFile = [relfile|rewardsExtendedEndNLines.csv|]
+qValuesFile                  = [relfile|qvalues.csv|]
 --------------------------------------------------------------------------------
 -- Top-level functions
 
@@ -173,17 +183,18 @@ runQLearningExportingDiagnostics ::
   -> IO ()
 runQLearningExportingDiagnostics exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
+  dirResultIteration <- parseRelDir $ (runName exportConfig)
   withCsvFile
-    ("rewards_" <> (runName exportConfig) <> ".csv")
+    (toFilePath (dirResultIteration </> rewardsFile))
       (\writeRewardRow ->
           withCsvFile
-            ("rewardsExtended_" <> (runName exportConfig) <> ".csv")
+            (toFilePath (dirResultIteration </> rewardsExtendedFile))
               (\writeRewardExtendedRow ->
                 withCsvFile
-                  ("rewardsNEndLines_" <> (runName exportConfig) <> ".csv")
+                  (toFilePath (dirResultIteration </> rewardsExtendedEndNLinesFile))
                       (\writeRewardExtendedEndNLinesRow ->
                             withCsvFile
-                              ("qvalues_" <> (runName exportConfig) <> ".csv")
+                            (toFilePath (dirResultIteration </> qValuesFile))
                               (\writeQValueRow ->
                                   RIO.runRIO
                                     (RIO.mkGLogFunc
