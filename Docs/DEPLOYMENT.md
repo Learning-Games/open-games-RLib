@@ -6,22 +6,22 @@
 
 Build an image with the source in it:
 
-    docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-06-17v2 .
+    docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-06-22v3 .
 
 Build a base image with stack and haskell dependencies in it:
 
-    docker image build -f pzahn/learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-06-17v2 pzahn/
+    docker image build -f pzahn/learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-06-22v3 pzahn/
 
 Building the final image for running:
 
-    docker image build -f pzahn/learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-06-17v2
+    docker image build -f pzahn/learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-06-22v3
 
    
 OK, now you can upload everything:
 
-    docker push ghcr.io/philipp-zahn/learning/src:2021-06-17v2
-    docker push ghcr.io/philipp-zahn/learning/base:2021-06-17v2
-    docker push ghcr.io/philipp-zahn/learning/final:2021-06-17v2
+    docker push ghcr.io/philipp-zahn/learning/src:2021-06-22v3
+    docker push ghcr.io/philipp-zahn/learning/base:2021-06-22v3
+    docker push ghcr.io/philipp-zahn/learning/final:2021-06-22v3
 
 Ideally, you'll change the date tag when you change an image.
 
@@ -54,7 +54,7 @@ Login Succeeded
 Run:
 
 ```
-root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-06-17v2  stack run watch
+root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-06-22v3  stack run watch
 Unable to find image 'ghcr.io/philipp-zahn/learning/final:2021-05-29' locally
 2021-05-25: Pulling from philipp-zahn/learning/final
 48839397421a: Pull complete

@@ -164,7 +164,7 @@ rewardsExtendedEndNLinesFile = [relfile|rewardsExtendedEndNLines.csv|]
 qValuesFile                  = [relfile|qvalues.csv|]
 stateActionIndexFile         = [relfile|state_action_index.csv|]
 
-  
+
 --------------------------------------------------------------------------------
 -- Top-level functions
 

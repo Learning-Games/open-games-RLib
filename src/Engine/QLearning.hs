@@ -355,7 +355,7 @@ exportRewards ::
   -> Double
   -> QLearningMsg n o a
 exportRewards exportType player iteration stateAction stateActionIndex actionChoice exploreRate reward
-  | exportType ==  RewardExport =
+  | exportType ==  RewardExtendedExport =
          (RewardDiagnosticsMsg
              RewardDiagnostics
                 { rewardDiagPlayer           = player
