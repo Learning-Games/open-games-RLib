@@ -162,6 +162,9 @@ rewardsFile                  = [relfile|rewards.csv|]
 rewardsExtendedFile          = [relfile|rewardsExtended.csv|]
 rewardsExtendedEndNLinesFile = [relfile|rewardsExtendedEndNLines.csv|]
 qValuesFile                  = [relfile|qvalues.csv|]
+stateActionIndexFile         = [relfile|state_action_index.csv|]
+
+  
 --------------------------------------------------------------------------------
 -- Top-level functions
 
@@ -256,6 +259,7 @@ writeStateActionIndex ::
      ( BuildCsvField action
      , BuildCsvField (action, action)
      , MonadUnliftIO m1
+     , RIO.MonadThrow m1 
      , Ix (Memory.Vector n (o (Idx action)))
      , Memory.Memory n
      , KnownNat n
@@ -265,9 +269,10 @@ writeStateActionIndex ::
   -> List '[ ( action , Env n o action), ( action , Env n o action)]
   -> m1 ()
 writeStateActionIndex ExportConfig {..} initial' = do
+  dirResultIteration <- parseRelDir runName
   putStrLn "Writing state action index ..."
   withCsvFile
-    ("state_action_index_" <> runName  <> ".csv")
+    (toFilePath (dirResultIteration </> stateActionIndexFile))
     (\writeRow -> do
        let (_, env) ::- _ = initial'
        bounds' <- liftIO (A.getBounds (QLearning._qTable env))
