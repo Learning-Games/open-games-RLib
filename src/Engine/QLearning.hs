@@ -51,6 +51,11 @@ data QLearningMsg n o a
   | QTableDirtied !(Dirtied n o a)
   | RewardDiagnosticsMsg !(RewardDiagnostics n o a)
 
+data RewardExportType =
+    RewardExport
+  | RewardExtendedExport
+     deriving (Eq)
+
 data Dirtied n o a = Dirtied
   { dirtiedIteration :: !Int
   , dirtiedPlayer :: !Int
@@ -318,7 +323,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 
 
 
--------------------
+---------------------------------------
 -- Helper function for updating qvalues
 
 
@@ -336,6 +341,47 @@ recordingWriteArray dirtiedIteration dirtiedPlayer table0 index' value = do
          , dirtiedQValue = value
          })
 
+--------------------------------
+-- Helper function for exporting
+-- Determines kind of information being exported
+exportRewards ::
+    RewardExportType
+  -> Int
+  -> Int
+  -> (Memory.Vector n (o (Idx a)), a)
+  -> Int
+  -> ActionChoice
+  -> ExploreRate
+  -> Double
+  -> QLearningMsg n o a
+exportRewards exportType player iteration stateAction stateActionIndex actionChoice exploreRate reward
+  | exportType ==  RewardExport =
+         (RewardDiagnosticsMsg
+             RewardDiagnostics
+                { rewardDiagPlayer           = player
+                , rewardDiagIteration        = iteration
+                , rewardDiagStateAction      = stateAction
+                , rewardDiagStateActionIndex = stateActionIndex
+                , rewardDiagActionChoice     = actionChoice
+                , rewardDiagExploreRate      = exploreRate
+                , rewardDiagReward           = reward
+                })
+  | otherwise =
+         (RewardMsg
+             Reward
+                { rewardPlayer           = player
+                , rewardIteration        = iteration
+                , rewardStateAction      = stateAction
+                , rewardStateActionIndex = stateActionIndex
+                , rewardReward           = reward
+                })
+----------------------------
+-- Define a Qlearning Config
+data ConfigQLearning n o a m = ConfigQLearning
+  { chooseActionFunction :: (CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice))
+  , updateFunction :: (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m a)
+  , exportType :: RewardExportType}
+
 -----------------
 -- Open game definition for Qlearning
 
@@ -348,17 +394,16 @@ pureDecisionQStage ::
      , Ix (Memory.Vector n (o (Idx a)))
      , ToIdx a
      )
-  => CTable a
+  => ConfigQLearning n o a m
+  -> CTable a
   -> Agent
-  -> (CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice))
-  -> (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m a)
   -> QLearningStageGame m '[ m (a, Env n o a)] '[ m (a, Env n o a)] (o a) () a ( Double
                                                                                , (o a))
-pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
+pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
                                            let s obs = State env' obs
-                                           (action,_)   <- ST.evalStateT  (chooseAction actionSpace (s obs)) (s obs)
+                                           (action,_)   <- ST.evalStateT  (chooseActionFunction actionSpace (s obs)) (s obs)
                                            pure ((),action)
                                         in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
@@ -368,20 +413,20 @@ pureDecisionQStage actionSpace name chooseAction updateQTable = OpenGame {
                    (_,pdenv') <- strat
                    (z,obs) <- h
                    -- ^ Take the (old observation) from the context
-                   (action,info) <- ST.evalStateT  (chooseAction actionSpace (State pdenv' obs)) (State pdenv' obs)
+                   (action,actionChoiceType) <- ST.evalStateT  (chooseActionFunction actionSpace (State pdenv' obs)) (State pdenv' obs)
                    (reward,obsNew) <- k z action
                    let st = (_obsAgent pdenv')
                    bounds <- liftIO (A.getBounds (_qTable pdenv'))
-                   RIO.glog (RewardDiagnosticsMsg
-                               RewardDiagnostics
-                                 { rewardDiagPlayer = _player pdenv'
-                                 , rewardDiagIteration = (1 + _iteration pdenv')
-                                 , rewardDiagStateAction = (st, action)
-                                 , rewardDiagActionChoice = info
-                                 , rewardDiagExploreRate  = _exploreRate pdenv'
-                                 , rewardDiagStateActionIndex = Ix.index bounds (st, toIdx action)
-                                 , rewardDiagReward = reward})
-                   (State env' _) <- ST.execStateT (updateQTable actionSpace (State pdenv' obs) obsNew  (action,info) reward)
+                   RIO.glog (exportRewards
+                                exportType
+                                (_player pdenv')
+                                (1 + _iteration pdenv')
+                                (st, action)
+                                (Ix.index bounds (st, toIdx action))
+                                actionChoiceType
+                                (_exploreRate pdenv')
+                                reward)
+                   (State env' _) <- ST.execStateT (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
                                                    (State pdenv' obs)
                    return (action,env')
                 in (output ::- Nil)}

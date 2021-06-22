@@ -48,19 +48,8 @@ import           RIO (RIO, GLogFunc)
 import           System.Random
 import qualified System.Random as Rand
 
-----------
--- 0 Types
-
-instance FastCsv.BuildCsvField (PriceSpace, PriceSpace) where
-  {-# INLINE buildCsvField #-}
-  buildCsvField (PriceSpace {value=p1},PriceSpace {value=p2}) =
-    SB.byteString (toShortest p1) <> " " <>
-    SB.byteString (toShortest p2)
-
-instance FastCsv.BuildCsvField PriceSpace where
-  buildCsvField (PriceSpace {value=p1}) =
-    SB.byteString (toShortest p1)
-  {-# INLINE buildCsvField #-}
+------------------------------------
+-- Configure observations and memory
 
 -- WARNING: assumes players have same memory arity.
 type M = RIO (GLogFunc (QLearningMsg Player1N Observation PriceSpace))
@@ -92,6 +81,7 @@ instance ToField PriceSpace where
 instance ToIdx PriceSpace where
   toIdx PriceSpace {idx} = Idx idx
 
+----------------------
 -- Define parameters needed to specify the game
 data Parameters = Parameters
   { pKsi :: Double
@@ -114,7 +104,30 @@ data Parameters = Parameters
   , pGeneratorObs2 :: StdGen
   } deriving (Generic,Show)
 
+-- Configure QLearning
+-- NOTE Identical for both players
+configQL  Parameters {..} = ConfigQLearning
+  chooseExploreAction
+  (chooseLearnDecrExploreQTable pLearningRate pGamma pBeta)
+  RewardExtendedExport
 
+---------------
+-- Export types
+
+instance FastCsv.BuildCsvField (PriceSpace, PriceSpace) where
+  {-# INLINE buildCsvField #-}
+  buildCsvField (PriceSpace {value=p1},PriceSpace {value=p2}) =
+    SB.byteString (toShortest p1) <> " " <>
+    SB.byteString (toShortest p2)
+
+instance FastCsv.BuildCsvField PriceSpace where
+  buildCsvField (PriceSpace {value=p1}) =
+    SB.byteString (toShortest p1)
+  {-# INLINE buildCsvField #-}
+
+
+-----------------------
+-- Game characteristics
 -- Demand follows eq 5 in Calvano et al.
 demand :: Floating a => a -> a -> a -> a -> a -> a -> a
 demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
@@ -265,20 +278,20 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 ------------------------------
 -- Game stage
 stageSimple :: Parameters -> OpenGame (MonadOptic M) (MonadContext M) ('[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player1N Observation PriceSpace)] +:+ '[]) ('[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player1N Observation PriceSpace)] +:+ '[]) (Observation PriceSpace, Observation PriceSpace) () (PriceSpace, PriceSpace) ()
-stageSimple par@Parameters{pBeta,pLearningRate,pGamma,pA0,pA1,pA2,pMu,pC1} = [opengame|
+stageSimple par@Parameters {..} = [opengame|
    inputs    : (state1,state2) ;
    feedback  :      ;
 
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStage (actionSpace par) "Player1" chooseExploreAction (chooseLearnDecrExploreQTable pLearningRate pGamma pBeta) ;
+   operation : pureDecisionQStage (configQL par) (actionSpace par) "Player1" ;
    outputs   :  p1 ;
    returns   :  (profit pA0 pA1 pA2 p1 p2 pMu pC1, Obs (p1,p2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
-   operation : pureDecisionQStage (actionSpace par) "Player2" chooseExploreAction (chooseLearnDecrExploreQTable pLearningRate pGamma pBeta) ;
+   operation : pureDecisionQStage (configQL par) (actionSpace par) "Player2"  ;
    outputs   :  p2 ;
    returns   :  (profit pA0 pA1 pA2 p2 p1 pMu pC1, Obs (p1,p2))    ;
    :-----------------:

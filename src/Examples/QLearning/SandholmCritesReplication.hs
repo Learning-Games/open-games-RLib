@@ -54,6 +54,11 @@ import           Preprocessor.AbstractSyntax
 import           Preprocessor.Compile
 import           Preprocessor.THSyntax
 
+
+
+------------------------------------
+-- Configure observations and memory
+
 type M = RIO (GLogFunc (QLearningMsg N Observation Action))
 
 type N = 1
@@ -61,6 +66,15 @@ type N = 1
 newtype Observation a = Obs
   { unObs :: (a, a)
   } deriving (Show,Generic,A.Ix,Ord, Eq, Functor)
+
+----------------------
+-- Configure QLearning
+configQL = ConfigQLearning
+  chooseBoltzQTable
+  chooseUpdateBoltzQTable
+  RewardExtendedExport
+
+
 
 ------------------
 -- Introducing specialized learning rule:
@@ -235,8 +249,6 @@ fromEvalToContext :: Monad m =>  List '[m (Action,Env N Observation Action), m A
 fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 
-
-
 ------------------------------
 -- Game stage 1
 stageDeterministic = [opengame|
@@ -246,7 +258,7 @@ stageDeterministic = [opengame|
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStage actionSpace "Player1" chooseBoltzQTable chooseUpdateBoltzQTable ;
+   operation : pureDecisionQStage configQL actionSpace "Player1" ;
    outputs   :  act1 ;
    returns   :  (pdMatrix act1 act2, Obs (act1,act2)) ;
 

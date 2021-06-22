@@ -47,6 +47,11 @@ import           Preprocessor.AbstractSyntax
 import           Preprocessor.Compile
 import           Preprocessor.THSyntax
 
+
+
+------------------------------------
+-- Configure observations and memory
+
 type M = RIO (GLogFunc (QLearningMsg N Observation Action))
 
 type N = 1
@@ -54,6 +59,16 @@ type N = 1
 newtype Observation a = Obs
   { unObs :: (a, a)
   } deriving (Show,Generic,A.Ix,Ord, Eq, Functor, NFData)
+
+----------------------
+-- Configure QLearning
+configQL = ConfigQLearning
+  chooseExploreAction
+  (chooseLearnDecrExploreQTable learningRate gamma beta)
+  RewardExtendedExport
+
+
+
 
 ------------------
 -- Types
@@ -185,7 +200,7 @@ stageDeterministic = [opengame|
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma beta) ;
+   operation : pureDecisionQStage configQL actionSpace "Player1"  ;
    outputs   :  act1 ;
    returns   :  (pdMatrix act1 act2, Obs (act1,act2)) ;
 

@@ -46,8 +46,8 @@ import           RIO (RIO, glog, GLogFunc, HasGLogFunc(..))
 import           System.Random
 import qualified System.Random as Rand
 
------------
--- Types
+--------------------------------------------------
+-- Configure observations, memory, and action type
 
 type M = RIO (GLogFunc (QLearningMsg N Observation Action))
 
@@ -66,6 +66,18 @@ instance ToIdx Action where
 
 actionSpace :: CTable Action
 actionSpace = uniformCTable (fmap coerce (V.fromList [False,True]))
+
+----------------------
+-- Configure QLearning
+-- NOTE: The same for both players
+configQL = ConfigQLearning
+  chooseExploreAction
+  (chooseLearnDecrExploreQTable learningRate gamma beta)
+  RewardExtendedExport
+
+
+
+
 
 -------------
 -- Parameters
@@ -172,13 +184,13 @@ stageSimple = [opengame|
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStage actionSpace "Player1" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma beta) ;
+   operation : pureDecisionQStage configQL actionSpace "Player1"  ;
    outputs   :  act1 ;
    returns   :  (pdMatrix act1 act2, Obs (act1,act2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
-   operation : pureDecisionQStage actionSpace  "Player2" chooseExploreAction (chooseLearnDecrExploreQTable learningRate gamma beta) ;
+   operation : pureDecisionQStage configQL actionSpace  "Player2"  ;
    outputs   :  act2 ;
    returns   :  (pdMatrix act2 act1, Obs (act1,act2))    ;
    :-----------------:
