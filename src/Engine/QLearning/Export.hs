@@ -13,8 +13,7 @@
 -- |
 
 module Engine.QLearning.Export
-  ( runQLearningExporting
-  , runQLearningExportingDiagnostics
+  ( runQLearningExportingDiagnostics
   , ExportConfig(..)
   ) where
 
@@ -155,56 +154,6 @@ data ExportConfig n o a m = ExportConfig
 
 --------------------------------------------------------------------------------
 -- Top-level functions
-
-{-# INLINE runQLearningExporting #-}
-runQLearningExporting ::
-     ( ToJSON a
-     , Show (o (Idx a))
-     , Ix (Memory.Vector n (o (Idx a)))
-     , Functor (Memory.Vector n)
-     , Functor o
-     , Memory.Memory n
-     , ToJSON (o a)
-     , ToIdx a
-     , BuildCsvField a
-     , BuildCsvField (a, a)
-     , n ~ 1
-     )
-  => ExportConfig n o a (RIO (GLogFunc (QLearningMsg n o a)))
-  -> IO ()
-runQLearningExporting exportConfig = do
-  liftIO (hSetBuffering RIO.stdout NoBuffering)
-  withCsvFile
-    ("rewards_" <> (runName exportConfig) <> ".csv")
-      (\writeRewardRow ->
-            withCsvFile
-              ("qvalues_" <> (runName exportConfig) <> ".csv") 
-              (\writeQValueRow ->
-                  RIO.runRIO
-                    (RIO.mkGLogFunc
-                      (\_backtrace msg ->
-                          case msg of
-                            RewardMsg QLearning.Reward {..} ->  do
-                              writeRewardRow
-                                Reward
-                                  { iteration = rewardIteration
-                                  , player = rewardPlayer
-                                  , state_action_index = rewardStateActionIndex
-                                  , reward = rewardReward
-                                  }
-                            QTableDirtied QLearning.Dirtied {..} ->
-                              when
-                                (incrementalMode exportConfig)
-                                (writeQValueRow
-                                  QValueRow
-                                    { iteration = dirtiedIteration + 1
-                                    , player = dirtiedPlayer
-                                    , state_action_index = dirtiedStateActionIndex
-                                    , qvalue = dirtiedQValue
-                                    })))
-                    (do initial' <- initial exportConfig
-                        writeStateActionIndex exportConfig initial'
-                        writeQValues exportConfig initial' writeQValueRow)))
 
 {-# INLINE runQLearningExportingDiagnostics #-}
 runQLearningExportingDiagnostics ::
