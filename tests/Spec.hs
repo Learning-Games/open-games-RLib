@@ -15,6 +15,7 @@ import           Data.List (minimumBy,maximumBy)
 import           RIO hiding (preview)
 import           System.Random
 import           Test.Hspec
+import           Test.QuickCheck
 
 import Engine.QLearning
 import Examples.QLearning.CalvanoReplication.Internal

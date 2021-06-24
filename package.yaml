@@ -81,6 +81,7 @@ dependencies:
     - double-conversion
     - hspec
     - cond
+    - QuickCheck
 
 executables:
   learning-exe:
@@ -111,6 +112,7 @@ tests:
       - template-haskell
       - base
       - hspec
+      - QuickCheck
 
 
 benchmarks:
