@@ -35,12 +35,14 @@ library:
     - Examples.Bayesian
     - Examples.Decision
     - Examples.SequentialMoves
+    - Examples.QLearning.AsymmetricPrices.Internal
+    - Examples.QLearning.AsymmetricPrices
+    - Examples.QLearning.BestReply
+    - Examples.QLearning.CalvanoReplication
+    - Examples.QLearning.CalvanoReplication.Internal
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
-    - Examples.QLearning.CalvanoReplication
-    - Examples.QLearning.BestReply
-    - Examples.QLearning.CalvanoReplication.Internal
 
 dependencies:
     - base >=4.7 && <5

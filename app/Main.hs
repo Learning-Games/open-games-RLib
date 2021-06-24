@@ -46,7 +46,8 @@ specification name = do
           , incrementalMode = True
           , mapStagesM_ = Scenario.mapStagesM_ parameters
           , initial = Scenario.initialStrat parameters >>= Scenario.sequenceL
-          , ctable = Scenario.actionSpace parameters
+          , ctable1 = Scenario.actionSpace parameters
+          , ctable2 = Scenario.actionSpace parameters
           , mkObservation = \a b -> Scenario.Obs (a, b)
           , keepOnlyNLinesReward = 10000
           , runName = name
