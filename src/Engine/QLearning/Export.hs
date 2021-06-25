@@ -45,6 +45,7 @@ import           Engine.TLL
 import           FastCsv
 import           GHC.TypeNats
 import           Path
+import           Path.IO
 import           Prelude hiding (putStrLn)
 import qualified RIO
 import           RIO (MonadUnliftIO, RIO, GLogFunc)
@@ -198,6 +199,7 @@ runQLearningExportingDiagnostics ::
 runQLearningExportingDiagnostics exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
   dirResultIteration <- parseRelDir $ (runName exportConfig)
+  liftIO (ensureDir dirResultIteration)
   withCsvFile
     (toFilePath (dirResultIteration </> rewardsFile))
       (\writeRewardRow ->
