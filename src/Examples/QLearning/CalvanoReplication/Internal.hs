@@ -33,6 +33,7 @@ import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Csv
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
+import           Data.Hashable
 import qualified Data.Ix as I
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
@@ -59,7 +60,7 @@ type Player2N = 1
 -- Mutual observation, fixes the number of players in the game
 newtype Observation a = Obs
   { unObs :: (a, a)
-  } deriving (Show,Generic,I.Ix,Ord, Eq, Functor, NFData, Aeson.ToJSON)
+  } deriving (Show,Generic,I.Ix,Ord, Eq, Functor, NFData, Aeson.ToJSON, Hashable)
 
 -- Action space
 -- Type is constructed as a product of actual price, _Double_, and an associated index, _Int_
