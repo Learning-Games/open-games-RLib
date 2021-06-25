@@ -50,7 +50,13 @@ data QLearningMsg n o a
   = RewardMsg !(Reward n o a)
   | QTableDirtied !(Dirtied n o a)
   | RewardDiagnosticsMsg !(RewardDiagnostics n o a)
-  | GotMaximalActionForState !a !(Memory.Vector n (o (Idx a)))
+  | GotMaximalActionForState !(MaximalAction n o a)
+
+data MaximalAction n o a = MaximalAction
+  { maximalAction :: !a
+  , maximalState :: !(Memory.Vector n (o (Idx a)))
+  , maximalPlayer :: !Int
+  }
 
 data RewardExportType =
     RewardExport
@@ -200,17 +206,22 @@ maxScore ::
   => Memory.Vector n (o (Idx a))
   -> QTable n o a
   -> CTable a
+  -> Int
   -> m (Double, a)
-maxScore obs table0 support = do
+maxScore obs table0 support player = do
   valuesAndActions <-
-    liftIO (V.mapM
-       (\action -> do
-          let index = (obs, toIdx action)
-          value <- A.readArray table0 index
-          pure (value, action))
-       (population support))
+    liftIO
+      (V.mapM
+         (\action -> do
+            let index = (obs, toIdx action)
+            value <- A.readArray table0 index
+            pure (value, action))
+         (population support))
   let !maximum' = V.maximum valuesAndActions
-  glog (GotMaximalActionForState (snd maximum') obs)
+  glog
+    (GotMaximalActionForState
+       MaximalAction
+         {maximalAction = (snd maximum'), maximalState = obs, maximalPlayer = player})
   pure maximum'
 
 -- better prepare output to be used
@@ -287,7 +298,7 @@ updateDiag info decreaseFactor i obs s r  = updateActionChoice info $ updateRand
 chooseActionNoExplore :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> ST.StateT (State n o a) m a
 chooseActionNoExplore support s = do
-  maxed <- maxScore obsVec (_qTable $ _env s) support
+  maxed <- maxScore obsVec (_qTable $ _env s) support (_player (_env s))
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
       optimalAction = snd $  maxed
   return optimalAction
@@ -305,7 +316,7 @@ chooseExploreAction support s = do
       let !action' = samplePopulation_ support gen'
       return (action',"Randomization")
     else do
-      maxed <- maxScore obsVec (_qTable $ _env s) support
+      maxed <- maxScore obsVec (_qTable $ _env s) support (_player (_env s))
       let optimalAction = snd $  maxed
       return (optimalAction,"Exploitation")
   where  obsVec = _obsAgent (_env s)
@@ -321,7 +332,7 @@ chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMs
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 (action,info) reward  = do
        let table0             = _qTable $ _env s
        prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
-       maxed <- maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support
+       maxed <- maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 support (_player (_env s))
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue

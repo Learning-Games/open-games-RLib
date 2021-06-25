@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs, OverloadedStrings, MonadComprehensions #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -21,7 +22,6 @@ module Engine.QLearning.Export
 
 import           Control.Monad
 import           Control.Monad.IO.Class
-import qualified Control.Conditional as CC
 import           Data.Aeson
 import           Data.Array.Base as A
 import           Data.Array.IO as A
@@ -30,13 +30,16 @@ import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
+import           Data.HashMap.Strict (HashMap)
+import           Data.Hashable
+import           Data.IORef
 import qualified Data.Ix as Ix
 import           Data.String
 import           Data.Time
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
 import qualified Engine.Memory as Memory
-import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTable(..),ActionChoice(..))
+import           Engine.QLearning (ToIdx, toIdx, Idx, QLearningMsg(..), Env, CTable(..),ActionChoice)
 import qualified Engine.QLearning as QLearning
 import           Engine.TLL
 import           FastCsv
@@ -158,10 +161,15 @@ data ExportConfig n o a m = ExportConfig
 -----------------------
 -- File paths
 
+rewardsFile :: Path b t
 rewardsFile                  = [relfile|rewards.csv|]
+rewardsExtendedFile :: Path b t
 rewardsExtendedFile          = [relfile|rewardsExtended.csv|]
+rewardsExtendedEndNLinesFile :: Path b t
 rewardsExtendedEndNLinesFile = [relfile|rewardsExtendedEndNLines.csv|]
+qValuesFile :: Path b t
 qValuesFile                  = [relfile|qvalues.csv|]
+stateActionIndexFile :: Path b t
 stateActionIndexFile         = [relfile|state_action_index.csv|]
 
 
@@ -173,6 +181,8 @@ runQLearningExportingDiagnostics ::
      ( ToJSON a
      , Show (o (Idx a))
      , Ix (Memory.Vector n (o (Idx a)))
+     , Hashable (Memory.Vector n (o (Idx a)))
+     , Hashable (o (Idx a))
      , Functor (Memory.Vector n)
      , Functor o
      , Memory.Memory n
@@ -180,6 +190,7 @@ runQLearningExportingDiagnostics ::
      , ToIdx a
      , BuildCsvField a
      , BuildCsvField (a, a)
+     , Eq a
      , n ~ 1
      )
   => ExportConfig n o a (RIO (GLogFunc (QLearningMsg n o a)))
@@ -198,11 +209,14 @@ runQLearningExportingDiagnostics exportConfig = do
                       (\writeRewardExtendedEndNLinesRow ->
                             withCsvFile
                             (toFilePath (dirResultIteration </> qValuesFile))
-                              (\writeQValueRow ->
+                              (\writeQValueRow -> do
+                                  maximalState <- newMaximalState
                                   RIO.runRIO
                                     (RIO.mkGLogFunc
                                       (\_backtrace msg ->
                                           case msg of
+                                            GotMaximalActionForState maximal ->
+                                              updateMaximalTables maximalState maximal
                                             RewardMsg QLearning.Reward {..} ->  do
                                               writeRewardRow
                                                 Reward
@@ -244,7 +258,7 @@ runQLearningExportingDiagnostics exportConfig = do
                                                     })))
                                     (do initial' <- initial exportConfig
                                         writeStateActionIndex exportConfig initial'
-                                        writeQValues exportConfig initial' writeQValueRow)))))
+                                        writeQValues exportConfig maximalState initial' writeQValueRow)))))
 
 
 
@@ -259,7 +273,7 @@ writeStateActionIndex ::
      ( BuildCsvField action
      , BuildCsvField (action, action)
      , MonadUnliftIO m1
-     , RIO.MonadThrow m1 
+     , RIO.MonadThrow m1
      , Ix (Memory.Vector n (o (Idx action)))
      , Memory.Memory n
      , KnownNat n
@@ -305,10 +319,11 @@ data State n o a = State
 writeQValues ::
      (MonadUnliftIO m, Ix (Memory.Vector n (o (Idx a))))
   => ExportConfig n o a m
+  -> MaximalState n o a
   -> List '[ ( a , Env n o a), ( a , Env n o a)]
   -> (QValueRow -> IO ())
   -> m ()
-writeQValues ExportConfig {..} initial'@(p1_0 ::- p2_0 ::- Nil) writeRow = do
+writeQValues ExportConfig {..} maximalTable initial'@(p1_0 ::- p2_0 ::- Nil) writeRow = do
   putStrLn "Writing initial tables"
   writePlayerQTable 0 1 p1_0
   writePlayerQTable 0 2 p2_0
@@ -372,3 +387,31 @@ putStrLn s =
   liftIO
     (do now' <- getCurrentTime
         S8.putStrLn (S8.pack (show now') <> ": " <> s))
+
+--------------------------------------------------------------------------------
+-- Maximal action tracking
+
+-- | A counter for how many times we've seen this action before.
+newtype Count = Count Int deriving (Num, Eq, Ord)
+
+data MaximalState n o a = MaximalState
+  { table :: IORef (HashMap (Memory.Vector n (o (Idx a))) (a, Count))
+  , flaggedPlayers :: IORef Int
+  }
+
+newMaximalState ::
+     ( Hashable (o (Idx a))
+     , MonadIO m
+     , Memory.Memory n
+     , Eq a
+     , Eq (Memory.Vector n (o (Idx a)))
+     )
+  => m (MaximalState n o a)
+newMaximalState = do
+  table <- liftIO $ newIORef mempty
+  flaggedPlayers <- liftIO $ newIORef 0
+  pure MaximalState {table, flaggedPlayers}
+
+updateMaximalTables ::
+     MaximalState n o a -> QLearning.MaximalAction n o a -> IO ()
+updateMaximalTables = undefined
