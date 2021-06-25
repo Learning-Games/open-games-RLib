@@ -46,6 +46,10 @@ import           System.Random.Stateful
 --------------------------------------------------------------------------------
 -- Logging
 
+-- | When evaluating stages with evalStageM*, we can decide to
+-- stop. This is the type used to model that.
+data Decision a = Continue a | Stop
+
 data QLearningMsg n o a
   = RewardMsg !(Reward n o a)
   | QTableDirtied !(Dirtied n o a)

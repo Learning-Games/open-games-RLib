@@ -347,7 +347,7 @@ evalStageM par startValue n = do
 mapStagesM_ ::
   Parameters
   -> (s ->  List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                        , Env Player2N Observation PriceSpace)] -> M s)
+                                                                        , Env Player2N Observation PriceSpace)] -> M (Decision s))
   -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
                                                                 , Env Player2N Observation PriceSpace)]
   -> Int
@@ -359,8 +359,10 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
     go s value !n = do
       newStrat <-
         sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
-      s' <- f s newStrat
-      go s' newStrat (pred n)
+      decision <- f s newStrat
+      case decision of
+        Continue s' -> go s' newStrat (pred n)
+        Stop -> pure ()
 
 hoist ::
      Applicative f
