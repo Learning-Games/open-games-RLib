@@ -41,7 +41,7 @@ specification name = do
           }
       exportConfig =
         QLearning.ExportConfig
-          { iterations = 1000000
+          { iterations = 1000
           , players = 2
           , threshold = 1
           , outputEveryN = 1000

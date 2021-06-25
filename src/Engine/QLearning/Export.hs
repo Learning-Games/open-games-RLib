@@ -464,6 +464,7 @@ updateMaximalTables threshold MaximalState {..} QLearning.MaximalAction {..} pla
          key
          (maximalAction, 1))
       (readIORef table)
+  writeIORef table tbl
   case HM.lookup key tbl of
     Just (_action, Count count)
       | count > threshold -> do
