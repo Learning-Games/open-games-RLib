@@ -31,9 +31,12 @@ import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
 import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HM
 import           Data.Hashable
 import           Data.IORef
 import qualified Data.Ix as Ix
+import           Data.Set (Set)
+import qualified Data.Set as Set
 import           Data.String
 import           Data.Time
 import qualified Data.Vector as V
@@ -139,6 +142,11 @@ data ExportConfig n o a m = ExportConfig
     -- is outputted.
   , iterations :: Int
     -- ^ How many iterations to run.
+  , threshold :: Int
+    -- ^ How many iterations before we consider a player's consecutive
+    -- runs of any same (state,maximal-action) pair before flagging
+    -- that player as converged. After all players are converged, the
+    -- iterations will terminate.
   , initial :: m (List '[ ( a , Env n o a), ( a , Env n o a)])
     -- ^ Initial strategy.
   , ctable :: CTable a
@@ -147,7 +155,7 @@ data ExportConfig n o a m = ExportConfig
     -- ^ How to make an observation of two player actions.
   , mapStagesM_ ::
     forall s.
-       (s -> List '[ (a, Env n o a), (a, Env n o a)] -> m s)
+       (s -> List '[ (a, Env n o a), (a, Env n o a)] -> m (QLearning.Decision s))
     -> List '[ ( a , Env n o a), ( a , Env n o a)]
     -> Int -- ^ Count.
     -> s -- ^ State.
@@ -157,6 +165,7 @@ data ExportConfig n o a m = ExportConfig
     -- ^ Determines which lines, i.e. number of observations, are saved for simpler export
   , runName :: String
     -- ^ Description of file name; main purpose is to run several estimations of the same kind
+  , players :: Int
   }
 
 -----------------------
@@ -202,70 +211,80 @@ runQLearningExportingDiagnostics exportConfig = do
   liftIO (ensureDir dirResultIteration)
   withCsvFile
     (toFilePath (dirResultIteration </> rewardsFile))
-      (\writeRewardRow ->
-          withCsvFile
-            (toFilePath (dirResultIteration </> rewardsExtendedFile))
-              (\writeRewardExtendedRow ->
-                withCsvFile
-                  (toFilePath (dirResultIteration </> rewardsExtendedEndNLinesFile))
-                      (\writeRewardExtendedEndNLinesRow ->
-                            withCsvFile
-                            (toFilePath (dirResultIteration </> qValuesFile))
-                              (\writeQValueRow -> do
-                                  maximalState <- newMaximalState
-                                  RIO.runRIO
-                                    (RIO.mkGLogFunc
-                                      (\_backtrace msg ->
-                                          case msg of
-                                            GotMaximalActionForState maximal ->
-                                              updateMaximalTables maximalState maximal
-                                            RewardMsg QLearning.Reward {..} ->  do
-                                              writeRewardRow
-                                                Reward
-                                                  { iteration = rewardIteration
-                                                  , player = rewardPlayer
-                                                  , state_action_index = rewardStateActionIndex
-                                                  , reward = rewardReward
-                                                  }
-                                            RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} -> do
-                                              writeRewardExtendedRow
-                                                RewardDiagnostics
-                                                  { iteration = rewardDiagIteration
-                                                  , player = rewardDiagPlayer
-                                                  , state_action_index = rewardDiagStateActionIndex
-                                                  , action_choice = rewardDiagActionChoice
-                                                  , explore_rate  = rewardDiagExploreRate
-                                                  , reward = rewardDiagReward
-                                                  }
-                                              when
-                                                (rewardDiagIteration > (iterations exportConfig) - (keepOnlyNLinesReward exportConfig))
-                                                (writeRewardExtendedEndNLinesRow
-                                                  RewardDiagnostics
-                                                    { iteration = rewardDiagIteration
-                                                    , player = rewardDiagPlayer
-                                                    , state_action_index = rewardDiagStateActionIndex
-                                                    , action_choice = rewardDiagActionChoice
-                                                    , explore_rate  = rewardDiagExploreRate
-                                                    , reward = rewardDiagReward
-                                                    })
-                                            QTableDirtied QLearning.Dirtied {..} ->
-                                              when
-                                                (incrementalMode exportConfig)
-                                                (writeQValueRow
-                                                  QValueRow
-                                                    { iteration = dirtiedIteration + 1
-                                                    , player = dirtiedPlayer
-                                                    , state_action_index = dirtiedStateActionIndex
-                                                    , qvalue = dirtiedQValue
-                                                    })))
-                                    (do initial' <- initial exportConfig
-                                        writeStateActionIndex exportConfig initial'
-                                        writeQValues exportConfig maximalState initial' writeQValueRow)))))
-
-
-
-
-
+    (\writeRewardRow ->
+       withCsvFile
+         (toFilePath (dirResultIteration </> rewardsExtendedFile))
+         (\writeRewardExtendedRow ->
+            withCsvFile
+              (toFilePath (dirResultIteration </> rewardsExtendedEndNLinesFile))
+              (\writeRewardExtendedEndNLinesRow ->
+                 withCsvFile
+                   (toFilePath (dirResultIteration </> qValuesFile))
+                   (\writeQValueRow -> do
+                      maximalState <- newMaximalState
+                      RIO.runRIO
+                        (RIO.mkGLogFunc
+                           (\_backtrace msg ->
+                              case msg of
+                                GotMaximalActionForState maximal ->
+                                  updateMaximalTables
+                                    (threshold exportConfig)
+                                    maximalState
+                                    maximal
+                                    (players exportConfig)
+                                RewardMsg QLearning.Reward {..} -> do
+                                  writeRewardRow
+                                    Reward
+                                      { iteration = rewardIteration
+                                      , player = rewardPlayer
+                                      , state_action_index =
+                                          rewardStateActionIndex
+                                      , reward = rewardReward
+                                      }
+                                RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} -> do
+                                  writeRewardExtendedRow
+                                    RewardDiagnostics
+                                      { iteration = rewardDiagIteration
+                                      , player = rewardDiagPlayer
+                                      , state_action_index =
+                                          rewardDiagStateActionIndex
+                                      , action_choice = rewardDiagActionChoice
+                                      , explore_rate = rewardDiagExploreRate
+                                      , reward = rewardDiagReward
+                                      }
+                                  when
+                                    (rewardDiagIteration >
+                                     (iterations exportConfig) -
+                                     (keepOnlyNLinesReward exportConfig))
+                                    (writeRewardExtendedEndNLinesRow
+                                       RewardDiagnostics
+                                         { iteration = rewardDiagIteration
+                                         , player = rewardDiagPlayer
+                                         , state_action_index =
+                                             rewardDiagStateActionIndex
+                                         , action_choice =
+                                             rewardDiagActionChoice
+                                         , explore_rate = rewardDiagExploreRate
+                                         , reward = rewardDiagReward
+                                         })
+                                QTableDirtied QLearning.Dirtied {..} ->
+                                  when
+                                    (incrementalMode exportConfig)
+                                    (writeQValueRow
+                                       QValueRow
+                                         { iteration = dirtiedIteration + 1
+                                         , player = dirtiedPlayer
+                                         , state_action_index =
+                                             dirtiedStateActionIndex
+                                         , qvalue = dirtiedQValue
+                                         })))
+                        (do initial' <- initial exportConfig
+                            writeStateActionIndex exportConfig initial'
+                            writeQValues
+                              exportConfig
+                              maximalState
+                              initial'
+                              writeQValueRow)))))
 
 --------------------------------------------------------------------------------
 -- Write state_action_index
@@ -325,7 +344,7 @@ writeQValues ::
   -> List '[ ( a , Env n o a), ( a , Env n o a)]
   -> (QValueRow -> IO ())
   -> m ()
-writeQValues ExportConfig {..} maximalTable initial'@(p1_0 ::- p2_0 ::- Nil) writeRow = do
+writeQValues ExportConfig {..} maximalState initial'@(p1_0 ::- p2_0 ::- Nil) writeRow = do
   putStrLn "Writing initial tables"
   writePlayerQTable 0 1 p1_0
   writePlayerQTable 0 2 p2_0
@@ -350,12 +369,17 @@ writeQValues ExportConfig {..} maximalTable initial'@(p1_0 ::- p2_0 ::- Nil) wri
                        fromString (show iteration)))
                  writePlayerQTable iteration 1 p1
                  writePlayerQTable iteration 2 p2)
+       terminate <- allPlayersTerminated maximalState
+       when terminate (putStrLn "Terminating early because all players converged.")
        pure
-         State
-           { prev = save
-           , iteration = iteration + 1
-           , skipping = Prelude.mod (skipping + 1) outputEveryN
-           })
+         (if terminate
+            then QLearning.Stop
+            else QLearning.Continue
+                   (State
+                      { prev = save
+                      , iteration = iteration + 1
+                      , skipping = Prelude.mod (skipping + 1) outputEveryN
+                      })))
     initial'
     iterations
     State {prev = 0, iteration = 1, skipping = 1}
@@ -395,10 +419,12 @@ putStrLn s =
 
 -- | A counter for how many times we've seen this action before.
 newtype Count = Count Int deriving (Num, Eq, Ord)
+newtype Player = Player Int deriving (Num, Eq, Ord, Hashable)
 
 data MaximalState n o a = MaximalState
-  { table :: IORef (HashMap (Memory.Vector n (o (Idx a))) (a, Count))
-  , flaggedPlayers :: IORef Int
+  { table :: IORef (HashMap (Player, Memory.Vector n (o (Idx a))) (a, Count))
+  , flaggedPlayers :: IORef (Set Player)
+  , terminate :: IORef Bool
   }
 
 newMaximalState ::
@@ -411,9 +437,42 @@ newMaximalState ::
   => m (MaximalState n o a)
 newMaximalState = do
   table <- liftIO $ newIORef mempty
-  flaggedPlayers <- liftIO $ newIORef 0
-  pure MaximalState {table, flaggedPlayers}
+  flaggedPlayers <- liftIO $ newIORef mempty
+  terminate <- liftIO $ newIORef False
+  pure MaximalState {table, flaggedPlayers, terminate}
 
 updateMaximalTables ::
-     MaximalState n o a -> QLearning.MaximalAction n o a -> IO ()
-updateMaximalTables = undefined
+     ( Hashable (o (Idx a))
+     , Memory.Memory n
+     , Eq a
+     , Eq (Memory.Vector n (o (Idx a)))
+     )
+  => Int
+  -> MaximalState n o a
+  -> QLearning.MaximalAction n o a
+  -> Int
+  -> IO ()
+updateMaximalTables threshold MaximalState {..} QLearning.MaximalAction {..} playerCount = do
+  !tbl <-
+    fmap
+      (HM.insertWith
+         (\(actionNew, countNew) (actionOld, countOld) ->
+            ( actionNew
+            , if actionNew == actionOld
+                then countOld + 1
+                else countNew))
+         key
+         (maximalAction, 1))
+      (readIORef table)
+  case HM.lookup key tbl of
+    Just (_action, Count count)
+      | count > threshold -> do
+        !set' <- fmap (Set.insert (Player maximalPlayer)) (readIORef flaggedPlayers)
+        writeIORef flaggedPlayers set'
+        when (Set.size set' == playerCount) (writeIORef terminate True)
+    _ -> pure ()
+  where
+    key = (Player maximalPlayer, maximalState)
+
+allPlayersTerminated :: MonadIO m => MaximalState n o a -> m Bool
+allPlayersTerminated MaximalState {..} = liftIO (readIORef terminate)

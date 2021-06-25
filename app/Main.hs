@@ -41,8 +41,10 @@ specification name = do
           }
       exportConfig =
         QLearning.ExportConfig
-          { iterations = 100
-          , outputEveryN = 1
+          { iterations = 1000000
+          , players = 2
+          , threshold = 1
+          , outputEveryN = 1000
           , incrementalMode = True
           , mapStagesM_ = Scenario.mapStagesM_ parameters
           , initial = Scenario.initialStrat parameters >>= Scenario.sequenceL
