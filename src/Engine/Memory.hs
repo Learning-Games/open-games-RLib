@@ -19,9 +19,11 @@ module Engine.Memory
 
 import           Control.DeepSeq
 import           Data.Aeson
+import           Data.Hashable
 import           Data.Ix
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic.Sized.Internal as SVI
+import           Data.Vector.Instances ()
 import qualified Data.Vector.Sized as SV
 import           GHC.TypeLits
 
@@ -43,6 +45,9 @@ instance (Memory n, ToJSON a) => ToJSON (Vector n a) where
 instance (Memory n, Show a) => Show (Vector n a) where
   show = showMemory
 
+instance (Memory n, Hashable a) => Hashable (Vector n a) where
+  hashWithSalt = hashMemory
+
 --------------------------------------------------------------------------------
 -- Memory
 
@@ -52,6 +57,7 @@ class Memory size where
   fromSV :: SV.Vector size a -> Vector size a
   toJsonArray :: ToJSON a => Vector size a -> Array
   showMemory :: Show a => Vector size a -> String
+  hashMemory :: Hashable a => Int -> Vector size a -> Int
 
 --------------------------------------------------------------------------------
 -- Memory instances
@@ -62,6 +68,7 @@ instance Memory 1 where
   fromSV s = V1 (SV.head s)
   toJsonArray (V1 a) = V.singleton (toJSON a)
   showMemory (V1 a) = show (V.singleton a)
+  hashMemory s (V1 a) = hashWithSalt s a
 
 instance Memory 2 where
   pushEnd (V2 (_, prev)) next = V2 (prev, next)
@@ -69,6 +76,7 @@ instance Memory 2 where
   fromSV s = V2 (SV.head s, SV.head (SV.tail s))
   toJsonArray (V2 (x, y)) = fmap toJSON (V.fromList [x, y])
   showMemory (V2 (x, y)) = show (V.fromList [x, y])
+  hashMemory s (V2 v) = hashWithSalt s v
 
 instance Memory 3 where
   pushEnd (VN vec) a =
@@ -85,3 +93,4 @@ instance Memory 3 where
   fromSV = VN
   toJsonArray (VN (SVI.Vector vec)) = fmap toJSON vec
   showMemory (VN (SVI.Vector vec)) = show vec
+  hashMemory s (VN (SVI.Vector v)) = hashWithSalt s v

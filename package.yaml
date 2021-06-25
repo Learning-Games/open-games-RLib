@@ -59,6 +59,7 @@ dependencies:
     - hashtables
     - random
     - vector
+    - vector-instances
     - unordered-containers
     - mwc-random >= 0.15.0.1
     - vector-sized
