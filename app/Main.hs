@@ -43,7 +43,7 @@ specification name = do
         QLearning.ExportConfig
           { iterations = 1000
           , players = 2
-          , threshold = 1
+          , threshold = 100
           , outputEveryN = 1000
           , incrementalMode = True
           , mapStagesM_ = Scenario.mapStagesM_ parameters
