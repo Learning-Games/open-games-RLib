@@ -431,6 +431,7 @@ data ExportParameters = ExportParameters
   , expA2 :: !Double
   , expA0 :: !Double
   , expC1 :: !Double
+  , expC2 :: !Double
   , expM1  :: !Double
   , expM2  :: !Double
   , expLowerBound1 :: !Double
@@ -469,6 +470,7 @@ exportParameters par = ExportParameters
   (pA2 par)
   (pA0 par)
   (pC1 par)
+  (pC2 par)
   (pM1 par)
   (pM2 par)
   (lowerBound1 par)
