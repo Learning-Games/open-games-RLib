@@ -32,6 +32,7 @@ module Examples.QLearning.SandholmCritesReplication
 
 import           Control.Comonad
 import           Control.Monad.IO.Class
+import           Control.Monad.Reader as Lift
 import qualified Control.Monad.Trans.State as ST
 import qualified Data.Array.IO as A
 import           Data.Coerce
@@ -43,7 +44,7 @@ import qualified Engine.Memory as Memory
 import           GHC.Generics
 import           Language.Haskell.TH
 import qualified RIO
-import           RIO (RIO, glog, GLogFunc, HasGLogFunc(..))
+import           RIO (runRIO, RIO, glog, GLogFunc, HasGLogFunc(..))
 import qualified System.Random as Rand
 
 import           Engine.QLearning
@@ -81,12 +82,15 @@ configQL = ConfigQLearning
 
 -- Choose the optimal action given the current state
 chooseBoltzQTable ::
-     MonadIO m
+     ( MonadIO m
+      , MonadReader r m
+      , HasGLogFunc r
+      , GMsg r ~ QLearningMsg N Observation Action)
   => CTable Action
   -> State N Observation Action
   -> ST.StateT (State N Observation Action) m (Action,ActionChoice)
 chooseBoltzQTable ls s = do
-    theMaxScore <- liftIO $ maxScore obsVec (_qTable $ _env s) ls
+    theMaxScore <- maxScore obsVec (_qTable $ _env s) ls (_player (_env s))
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
         q         = _qTable $ _env s
@@ -113,11 +117,15 @@ chooseBoltzQTable ls s = do
 
 -- choose optimally or explore according to the Boltzmann rule
 chooseUpdateBoltzQTable ::
-     MonadIO m
+     ( MonadIO m
+     , MonadReader r m
+     , HasGLogFunc r
+     , GMsg r ~ QLearningMsg N Observation Action
+     )
   => CTable Action
   -> State N Observation Action
   -> Observation Action
-  -> (Action,ActionChoice)
+  -> (Action, ActionChoice)
   -> Double
   -> ST.StateT (State N Observation Action) m Action
 chooseUpdateBoltzQTable ls s obs2 (action,_) reward  = do
@@ -125,7 +133,7 @@ chooseUpdateBoltzQTable ls s obs2 (action,_) reward  = do
     prediction    <- liftIO $ A.readArray q (obsVec, toIdx action)
     let temp      = _temperature $ _env s
         (_, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-    maxed <- liftIO $ maxScore (Memory.pushEnd obsVec (fmap toIdx (_obs s))) q ls
+    maxed :: (Double, Action) <- Lift.lift $ maxScore (Memory.pushEnd obsVec (fmap toIdx (_obs s))) q ls (_player (_env s))
     let updatedValue = reward + gamma * (fst $ maxed)
         newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
         -- newQ         = q A.// [((_obs s, action), newValue)]
@@ -153,8 +161,10 @@ actionSpace = uniformCTable (fmap coerce (V.fromList [False,True]))
 -------------
 -- Parameters
 
+gamma :: Double
 gamma = 0.8
 
+learningRate :: Double
 learningRate = 0.40
 
 
@@ -334,4 +344,3 @@ mapStagesM_ f startValue n0 s0 = go s0 startValue n0
         sequenceL (evalStage  (hoist value) (fromEvalToContext (hoist value)))
       s' <- f s newStrat
       go s' newStrat (pred n)
-
