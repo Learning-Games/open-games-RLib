@@ -5,6 +5,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Spec where
 
@@ -66,7 +67,9 @@ main = do
              spec2 parametersTest
              spec3 parametersTest
              --(spec4 parametersTest gObs1 gObs2)
-
+             sequence_ (lsProfitEqual parametersTest (population $ actionSpace parametersTest))
+             sequence_ (lsProfitEqual2 parametersTest (pricePairs parametersTest))
+             sequence_ (lsProfitEqual3 parametersTest (pricePairs parametersTest))
 
 
 spec1 par = describe
@@ -117,3 +120,50 @@ spec4 par gen1 gen2 = describe
 
 
 -}
+
+
+profitEqual par p1 p2 = describe
+  ("profitEqual " ++ show (idx p1) ++ show (idx p2)  )$ do
+    it "checks that the profits are equal for symmetric actions" $ do
+       shouldBe
+          (profitTest1 par p1 p2)
+          (profitTest2 par p1 p2)
+    where
+      profitTest1, profitTest2 :: Parameters -> PriceSpace -> PriceSpace -> Double
+      profitTest1 Parameters {..} p1 p2 = profit pA0 pA1 pA2 p1 p2 pMu pC1
+      profitTest2 Parameters {..} p1 p2 = profit pA0 pA1 pA2 p2 p1 pMu pC1
+
+
+lsProfitEqual par = fmap (profitEqualP par)
+  where profitEqualP par p = profitEqual par p p
+
+
+profitEqual2 par p1 p2 = describe
+  ("profitEqual2 " ++ show (idx p1) ++ show (idx p2)  )$ do
+    it "checks that the profits are equal for symmetric actions" $ do
+       shouldBe
+          (profit1 par p1 p2)
+          (profitTest1 par p1 p2)
+    where
+      profitTest1 :: Parameters -> PriceSpace -> PriceSpace -> Double
+      profitTest1 Parameters {..} p1 p2 = profit pA0 pA1 pA2 p1 p2 pMu pC1
+
+
+lsProfitEqual2 par = fmap (profitEqualP par)
+  where profitEqualP par (p1,p2) = profitEqual2 par p1 p2
+
+
+
+profitEqual3 par p1 p2 = describe
+  ("profitEqual3 " ++ show (idx p1) ++ show (idx p2)  )$ do
+    it "checks that the profits are equal for symmetric actions" $ do
+       shouldBe
+          (profit2 par p1 p2)
+          (profitTest2 par p1 p2)
+    where
+      profitTest2 :: Parameters -> PriceSpace -> PriceSpace -> Double
+      profitTest2 Parameters {..} p1 p2 = profit pA0 pA1 pA2 p2 p1 pMu pC1
+
+
+lsProfitEqual3 par = fmap (profitEqualP par)
+  where profitEqualP par (p1,p2) = profitEqual3 par p1 p2

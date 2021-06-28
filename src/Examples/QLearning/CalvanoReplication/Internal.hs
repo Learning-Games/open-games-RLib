@@ -138,6 +138,27 @@ demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
 profit :: Double -> Double -> Double -> PriceSpace -> PriceSpace -> Double -> Double -> Double
 profit a0 a1 a2 (PriceSpace p1 _) (PriceSpace p2 _) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
+
+demand1 :: Parameters -> Double -> Double -> Double
+demand1 Parameters {..} p1 p2 = (exp 1.0)**((pA1-p1)/pMu) / agg
+  where agg = (exp 1.0)**((pA1-p1)/pMu) + (exp 1.0)**((pA2-p2)/pMu) + (exp 1.0)**(pA0/pMu)
+
+demand2 :: Parameters -> Double -> Double -> Double
+demand2 Parameters {..} p1 p2 = (exp 1.0)**((pA2-p2)/pMu) / agg
+  where agg = (exp 1.0)**((pA1-p1)/pMu) + (exp 1.0)**((pA2-p2)/pMu) + (exp 1.0)**(pA0/pMu)
+
+
+
+-- Profit function
+profit1 :: Parameters -> PriceSpace -> PriceSpace -> Double
+profit1 par@Parameters {..} (PriceSpace p1 _) (PriceSpace p2 _) = (p1 - pC1)* (demand1 par p1 p2)
+
+profit2 :: Parameters -> PriceSpace -> PriceSpace -> Double
+profit2 par@Parameters {..} (PriceSpace p1 _) (PriceSpace p2 _) = (p2 - pC1)* (demand2 par p1 p2)
+  
+
+
+
 ------------------------------------------------------
 -- Create index on the basis of the actual prices used
 -- Also allows for different price types
@@ -288,13 +309,13 @@ stageSimple par@Parameters {..} = [opengame|
    feedback  :      ;
    operation : pureDecisionQStage (configQL par) (actionSpace par) "Player1" ;
    outputs   :  p1 ;
-   returns   :  (profit pA0 pA1 pA2 p1 p2 pMu pC1, Obs (p1,p2)) ;
+   returns   :  (profit1 par p1 p2, Obs (p1,p2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
    operation : pureDecisionQStage (configQL par) (actionSpace par) "Player2"  ;
    outputs   :  p2 ;
-   returns   :  (profit pA0 pA1 pA2 p2 p1 pMu pC1, Obs (p1,p2))    ;
+   returns   :  (profit2 par p2 p2, Obs (p1,p2))    ;
    :-----------------:
 
    outputs   :  (p1, p2)    ;
