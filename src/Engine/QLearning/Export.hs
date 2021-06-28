@@ -18,6 +18,7 @@
 module Engine.QLearning.Export
   ( runQLearningExportingDiagnostics
   , ExportConfig(..)
+  , RewardDiagnostics(..)
   ) where
 
 import           Control.Monad
@@ -161,8 +162,6 @@ data ExportConfig n o a m = ExportConfig
     -> s -- ^ State.
     -> m ()
     -- ^ How to map over stages step by step.
-  , keepOnlyNLinesReward :: Int
-    -- ^ Determines which lines, i.e. number of observations, are saved for simpler export
   , runName :: String
     -- ^ Description of file name; main purpose is to run several estimations of the same kind
   , players :: Int
@@ -175,8 +174,6 @@ rewardsFile :: Path b t
 rewardsFile                  = [relfile|rewards.csv|]
 rewardsExtendedFile :: Path b t
 rewardsExtendedFile          = [relfile|rewardsExtended.csv|]
-rewardsExtendedEndNLinesFile :: Path b t
-rewardsExtendedEndNLinesFile = [relfile|rewardsExtendedEndNLines.csv|]
 qValuesFile :: Path b t
 qValuesFile                  = [relfile|qvalues.csv|]
 stateActionIndexFile :: Path b t
@@ -216,75 +213,58 @@ runQLearningExportingDiagnostics exportConfig = do
          (toFilePath (dirResultIteration </> rewardsExtendedFile))
          (\writeRewardExtendedRow ->
             withCsvFile
-              (toFilePath (dirResultIteration </> rewardsExtendedEndNLinesFile))
-              (\writeRewardExtendedEndNLinesRow ->
-                 withCsvFile
-                   (toFilePath (dirResultIteration </> qValuesFile))
-                   (\writeQValueRow -> do
-                      maximalState <- newMaximalState
-                      RIO.runRIO
-                        (RIO.mkGLogFunc
-                           (\_backtrace msg ->
-                              case msg of
-                                GotMaximalActionForState maximal ->
-                                  updateMaximalTables
-                                    (threshold exportConfig)
-                                    maximalState
-                                    maximal
-                                    (players exportConfig)
-                                RewardMsg QLearning.Reward {..} -> do
-                                  writeRewardRow
-                                    Reward
-                                      { iteration = rewardIteration
-                                      , player = rewardPlayer
+                (toFilePath (dirResultIteration </> qValuesFile))
+                (\writeQValueRow -> do
+                  maximalState <- newMaximalState
+                  RIO.runRIO
+                    (RIO.mkGLogFunc
+                        (\_backtrace msg ->
+                          case msg of
+                            GotMaximalActionForState maximal ->
+                              updateMaximalTables
+                                (threshold exportConfig)
+                                maximalState
+                                maximal
+                                (players exportConfig)
+                            RewardMsg QLearning.Reward {..} -> do
+                              writeRewardRow
+                                Reward
+                                  { iteration = rewardIteration
+                                  , player = rewardPlayer
+                                  , state_action_index =
+                                      rewardStateActionIndex
+                                  , reward = rewardReward
+                                  }
+                            RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} -> do
+                              writeRewardExtendedRow
+                                RewardDiagnostics
+                                  { iteration = rewardDiagIteration
+                                  , player = rewardDiagPlayer
+                                  , state_action_index =
+                                      rewardDiagStateActionIndex
+                                  , action_choice = rewardDiagActionChoice
+                                  , explore_rate = rewardDiagExploreRate
+                                  , reward = rewardDiagReward
+                                  }
+                            QTableDirtied QLearning.Dirtied {..} ->
+                              when
+                                (incrementalMode exportConfig)
+                                (writeQValueRow
+                                    QValueRow
+                                      { iteration = dirtiedIteration + 1
+                                      , player = dirtiedPlayer
                                       , state_action_index =
-                                          rewardStateActionIndex
-                                      , reward = rewardReward
-                                      }
-                                RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} -> do
-                                  writeRewardExtendedRow
-                                    RewardDiagnostics
-                                      { iteration = rewardDiagIteration
-                                      , player = rewardDiagPlayer
-                                      , state_action_index =
-                                          rewardDiagStateActionIndex
-                                      , action_choice = rewardDiagActionChoice
-                                      , explore_rate = rewardDiagExploreRate
-                                      , reward = rewardDiagReward
-                                      }
-                                  when
-                                    (rewardDiagIteration >
-                                     (iterations exportConfig) -
-                                     (keepOnlyNLinesReward exportConfig))
-                                    (writeRewardExtendedEndNLinesRow
-                                       RewardDiagnostics
-                                         { iteration = rewardDiagIteration
-                                         , player = rewardDiagPlayer
-                                         , state_action_index =
-                                             rewardDiagStateActionIndex
-                                         , action_choice =
-                                             rewardDiagActionChoice
-                                         , explore_rate = rewardDiagExploreRate
-                                         , reward = rewardDiagReward
-                                         })
-                                QTableDirtied QLearning.Dirtied {..} ->
-                                  when
-                                    (incrementalMode exportConfig)
-                                    (writeQValueRow
-                                       QValueRow
-                                         { iteration = dirtiedIteration + 1
-                                         , player = dirtiedPlayer
-                                         , state_action_index =
-                                             dirtiedStateActionIndex
-                                         , qvalue = dirtiedQValue
-                                         })))
-                        (do initial' <- initial exportConfig
-                            writeStateActionIndex exportConfig initial'
-                            writeQValues
-                              exportConfig
-                              maximalState
-                              initial'
-                              writeQValueRow)))))
+                                          dirtiedStateActionIndex
+                                      , qvalue = dirtiedQValue
+                                      })))
+                    (do initial' <- initial exportConfig
+                        writeStateActionIndex exportConfig initial'
+                        writeQValues
+                          exportConfig
+                          maximalState
+                          initial'
+                          writeQValueRow
+                    ))))
 
 --------------------------------------------------------------------------------
 -- Write state_action_index

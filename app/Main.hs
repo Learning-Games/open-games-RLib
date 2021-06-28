@@ -50,7 +50,6 @@ specification name = do
           , initial = Scenario.initialStrat parameters >>= Scenario.sequenceL
           , ctable = Scenario.actionSpace parameters
           , mkObservation = \a b -> Scenario.Obs (a, b)
-          , keepOnlyNLinesReward = 10000
           , runName = name
           }
   BS.writeFile ("parameters_" <> name <>".csv") $ Scenario.csvParameters parameters
