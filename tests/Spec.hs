@@ -63,6 +63,8 @@ main = do
           , pGeneratorObs1 = gObs1
           , pGeneratorObs2 = gObs2
           }
+      pMon = PriceSpace (pMonopolyPrice parametersTest) 1
+      pBet = PriceSpace (pBertrandPrice parametersTest) 2
   hspec $ do spec1 parametersTest
              spec2 parametersTest
              spec3 parametersTest
@@ -70,7 +72,11 @@ main = do
              sequence_ (lsProfitEqual parametersTest (population $ actionSpace parametersTest))
              sequence_ (lsProfitEqual2 parametersTest (pricePairs parametersTest))
              sequence_ (lsProfitEqual3 parametersTest (pricePairs parametersTest))
-
+             
+  print $ profit (pA0 parametersTest) (pA1 parametersTest) (pA2 parametersTest) pBet pBet (pMu parametersTest) (pC1 parametersTest)
+  print $ profit (pA0 parametersTest) (pA1 parametersTest) (pA2 parametersTest) pMon pMon (pMu parametersTest) (pC1 parametersTest)
+  print $ lowerBound parametersTest
+  print $ upperBound parametersTest
 
 spec1 par = describe
   "actionSpace" $ do

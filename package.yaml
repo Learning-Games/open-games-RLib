@@ -39,8 +39,10 @@ library:
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.CalvanoReplication
+    - Examples.QLearning.CalvanoReplicationFlippedPlayers
     - Examples.QLearning.BestReply
     - Examples.QLearning.CalvanoReplication.Internal
+    - Examples.QLearning.CalvanoReplication.InternalFlipped
 
 dependencies:
     - base >=4.7 && <5

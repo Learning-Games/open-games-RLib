@@ -6,22 +6,22 @@
 
 Build an image with the source in it:
 
-    docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-06-22v3 .
+    docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-06-29v2 .
 
 Build a base image with stack and haskell dependencies in it:
 
-    docker image build -f pzahn/learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-06-22v3 pzahn/
+    docker image build -f pzahn/learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-06-29v2 pzahn/
 
 Building the final image for running:
 
-    docker image build -f pzahn/learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-06-22v3
+    docker image build -f pzahn/learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-06-29v2
 
    
 OK, now you can upload everything:
 
-    docker push ghcr.io/philipp-zahn/learning/src:2021-06-22v3
-    docker push ghcr.io/philipp-zahn/learning/base:2021-06-22v3
-    docker push ghcr.io/philipp-zahn/learning/final:2021-06-22v3
+    docker push ghcr.io/philipp-zahn/learning/src:2021-06-29v2
+    docker push ghcr.io/philipp-zahn/learning/base:2021-06-29v2
+    docker push ghcr.io/philipp-zahn/learning/final:2021-06-29v2
 
 Ideally, you'll change the date tag when you change an image.
 
@@ -54,8 +54,8 @@ Login Succeeded
 Run:
 
 ```
-root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-06-22v3  stack run watch
-Unable to find image 'ghcr.io/philipp-zahn/learning/final:2021-05-29' locally
+root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-06-29v4  stack run watch
+Unable to find image 'ghcr.io/philipp-zahn/learning/final:2021-05-29v2' locally
 2021-05-25: Pulling from philipp-zahn/learning/final
 48839397421a: Pull complete
 3dbc469ccfbf: Pull complete
@@ -64,7 +64,7 @@ dc3251236bd7: Pull complete
 ff117b414b3d: Pull complete
 f001aadd0134: Pull complete
 1c6111b186da: Pull complete
-eec295e71cd2: Pull complete
+eec29v25e71cd2: Pull complete
 84b40f20ff36: Pull complete
 fa4259ee3ff1: Pull complete
 0c01acb95cae: Pull complete
