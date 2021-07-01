@@ -304,7 +304,7 @@ updateDiag info decreaseFactor i obs s r  = updateActionChoice info $ updateRand
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
 {-# INLINE chooseActionNoExplore  #-}
 chooseActionNoExplore :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
-  CTable a -> State n o a -> ST.StateT (State n o a) m a
+  CTable a -> State n o a -> m a
 chooseActionNoExplore support s = do
   maxed <- maxScore obsVec (_qTable $ _env s) support (_player (_env s))
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
@@ -315,9 +315,9 @@ chooseActionNoExplore support s = do
 -- | Choose the optimal action given the current state or explore; indicate whether exploration tool place (False) or randomization tool place (True)
 {-# INLINE chooseExploreAction #-}
 chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
-  CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice)
+  CTable a -> State n o a -> m (a,ActionChoice)
 chooseExploreAction support s = do
-  -- NOTE: gen'' is not updated anywhere...!!!
+  -- NOTE: gen'' is not updated anywhere...!!! -- Check this out
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
     then do
@@ -415,7 +415,7 @@ exportRewards exportType player iteration stateAction stateActionIndex actionCho
 ----------------------------
 -- Define a Qlearning Config
 data ConfigQLearning n o a m = ConfigQLearning
-  { chooseActionFunction :: (CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice))
+  { chooseActionFunction :: (CTable a -> State n o a -> m (a,ActionChoice))
   , updateFunction :: (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m (a,(Double,a),Double))
   , exportType :: RewardExportType}
 
@@ -440,7 +440,7 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
                                            let s obs = State env' obs
-                                           (action,_)   <- ST.evalStateT  (chooseActionFunction actionSpace (s obs)) (s obs)
+                                           (action,_)   <- chooseActionFunction actionSpace (s obs) 
                                            pure ((),action)
                                         in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
@@ -450,12 +450,12 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                    (_,pdenv') <- strat
                    (z,obs) <- h
                    -- ^ Take the (old observation) from the context
-                   (action,actionChoiceType) <- ST.evalStateT  (chooseActionFunction actionSpace (State pdenv' obs)) (State pdenv' obs)
+                   (action,actionChoiceType) <- chooseActionFunction actionSpace (State pdenv' obs)
                    (reward,obsNew) <- k z action
-                   let st = (_obsAgent pdenv')
-                       newStateT = (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
-                   (action',(maxed),prediction) <- ST.evalStateT newStateT (State pdenv' obs)
+                   let newStateT = (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
                    bounds <- liftIO (A.getBounds (_qTable pdenv'))
+                   (State env' _) <- ST.execStateT newStateT (State pdenv' obs)
+                   let st = (_obsAgent env')
                    RIO.glog (exportRewards
                                 exportType
                                 (_player pdenv')
@@ -464,11 +464,10 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                 (Ix.index bounds (st, toIdx action))
                                 actionChoiceType
                                 action
-                                maxed
-                                prediction
+                                (1.5, action) -- TODO change back
+                                2.5           -- TODO change back
                                 (_exploreRate pdenv')
                                 reward)
-                   (State env' _) <- ST.execStateT newStateT (State pdenv' obs)
                    return (action,env')
                 in (output ::- Nil)}
 
