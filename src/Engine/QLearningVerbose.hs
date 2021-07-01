@@ -88,6 +88,7 @@ data RewardDiagnostics n o a = RewardDiagnostics
   , rewardDiagStateAction :: (Memory.Vector n (o (Idx a)), a)
   , rewardDiagStateActionIndex :: !Int
   , rewardDiagActionChoice :: !ActionChoice
+  , rewardDiagActionActual :: a
   , rewardDiagMax          :: !Double
   , rewardDiagArgMax       ::  a
   , rewardDiagPrediction   ::  !Double
@@ -380,12 +381,13 @@ exportRewards ::
   -> (Memory.Vector n (o (Idx a)), a)
   -> Int
   -> ActionChoice
+  -> a
   -> (Double,a)
   -> Double
   -> ExploreRate
   -> Double
   -> QLearningMsg n o a
-exportRewards exportType player iteration stateAction stateActionIndex actionChoice (max,argMax) prediction exploreRate reward
+exportRewards exportType player iteration stateAction stateActionIndex actionChoice actionActual (max,argMax) prediction exploreRate reward
   | exportType ==  RewardExtendedExport =
          (RewardDiagnosticsMsg
              RewardDiagnostics
@@ -394,6 +396,7 @@ exportRewards exportType player iteration stateAction stateActionIndex actionCho
                 , rewardDiagStateAction      = stateAction
                 , rewardDiagStateActionIndex = stateActionIndex
                 , rewardDiagActionChoice     = actionChoice
+                , rewardDiagActionActual     = actionActual
                 , rewardDiagMax              = max
                 , rewardDiagArgMax           = argMax
                 , rewardDiagPrediction       = prediction
@@ -460,6 +463,7 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                 (st, action)
                                 (Ix.index bounds (st, toIdx action))
                                 actionChoiceType
+                                action
                                 maxed
                                 prediction
                                 (_exploreRate pdenv')

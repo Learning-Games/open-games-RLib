@@ -48,6 +48,7 @@ library:
     - Examples.QLearning.CalvanoReplication.InternalFlipped
     - Examples.QLearning.CalvanoReplication.InternalFlippedVerbose
     - Examples.QLearning.CalvanoReplication.InternalFixedParameters
+    - Examples.QLearning.CalvanoReplication.InternalVerbose
 
 dependencies:
     - base >=4.7 && <5
