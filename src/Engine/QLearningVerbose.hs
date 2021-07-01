@@ -88,6 +88,9 @@ data RewardDiagnostics n o a = RewardDiagnostics
   , rewardDiagStateAction :: (Memory.Vector n (o (Idx a)), a)
   , rewardDiagStateActionIndex :: !Int
   , rewardDiagActionChoice :: !ActionChoice
+  , rewardDiagMax          :: !Double
+  , rewardDiagArgMax       ::  a
+  , rewardDiagPrediction   ::  !Double
   , rewardDiagExploreRate :: !ExploreRate
   , rewardDiagReward :: !Double
   }
@@ -130,7 +133,7 @@ samplePopulation_ population gen = fst $ samplePopulation population gen
 --------------------------------------------------------------------------------
 -- | Indexable values
 -- We use this type for constructing indices out of specific action spaces (for each application)
-newtype Idx a = Idx Int deriving (A.Ix, Eq, Ord, Show, NFData, ToJSON, Hashable, ToField)
+newtype Idx a = Idx {unInt :: Int} deriving (A.Ix, Eq, Ord, Show, NFData, ToJSON, Hashable, ToField)
 class ToIdx a where
   toIdx :: a -> Idx a
 
@@ -377,10 +380,12 @@ exportRewards ::
   -> (Memory.Vector n (o (Idx a)), a)
   -> Int
   -> ActionChoice
+  -> (Double,a)
+  -> Double
   -> ExploreRate
   -> Double
   -> QLearningMsg n o a
-exportRewards exportType player iteration stateAction stateActionIndex actionChoice exploreRate reward
+exportRewards exportType player iteration stateAction stateActionIndex actionChoice (max,argMax) prediction exploreRate reward
   | exportType ==  RewardExtendedExport =
          (RewardDiagnosticsMsg
              RewardDiagnostics
@@ -389,6 +394,9 @@ exportRewards exportType player iteration stateAction stateActionIndex actionCho
                 , rewardDiagStateAction      = stateAction
                 , rewardDiagStateActionIndex = stateActionIndex
                 , rewardDiagActionChoice     = actionChoice
+                , rewardDiagMax              = max
+                , rewardDiagArgMax           = argMax
+                , rewardDiagPrediction       = prediction
                 , rewardDiagExploreRate      = exploreRate
                 , rewardDiagReward           = reward
                 })
@@ -405,7 +413,7 @@ exportRewards exportType player iteration stateAction stateActionIndex actionCho
 -- Define a Qlearning Config
 data ConfigQLearning n o a m = ConfigQLearning
   { chooseActionFunction :: (CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice))
-  , updateFunction :: (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m a)
+  , updateFunction :: (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m (a,(Double,a),Double))
   , exportType :: RewardExportType}
 
 -----------------
@@ -442,6 +450,8 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                    (action,actionChoiceType) <- ST.evalStateT  (chooseActionFunction actionSpace (State pdenv' obs)) (State pdenv' obs)
                    (reward,obsNew) <- k z action
                    let st = (_obsAgent pdenv')
+                       newStateT = (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
+                   (action',(maxed),prediction) <- ST.evalStateT newStateT (State pdenv' obs)
                    bounds <- liftIO (A.getBounds (_qTable pdenv'))
                    RIO.glog (exportRewards
                                 exportType
@@ -450,10 +460,11 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                 (st, action)
                                 (Ix.index bounds (st, toIdx action))
                                 actionChoiceType
+                                maxed
+                                prediction
                                 (_exploreRate pdenv')
                                 reward)
-                   (State env' _) <- ST.execStateT (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
-                                                   (State pdenv' obs)
+                   (State env' _) <- ST.execStateT newStateT (State pdenv' obs)
                    return (action,env')
                 in (output ::- Nil)}
 
