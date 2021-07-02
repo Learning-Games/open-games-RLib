@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE EmptyCase, DuplicateRecordFields #-}
 
-import System.Random
+import qualified RIO
+import           System.Random
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Engine.QLearning.Export as QLearning
@@ -53,5 +54,15 @@ specification name = do
           , runName = name
           }
   BS.writeFile ("parameters_" <> name <>".csv") $ Scenario.csvParameters parameters
-  QLearning.runQLearningExportingDiagnostics exportConfig
+  if False
+    then QLearning.runQLearningExportingDiagnostics exportConfig
+    else RIO.runRIO
+           mempty
+           (do strat <- QLearning.initial exportConfig
+               list <-
+                 Scenario.evalStageM
+                   parameters
+                   strat
+                   (QLearning.iterations exportConfig)
+               RIO.liftIO (writeFile "evalStageList.txt" (show list)))
   putStrLn "completed task"
