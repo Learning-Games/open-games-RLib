@@ -89,6 +89,7 @@ data RewardDiagnostics n o a = RewardDiagnostics
   , rewardDiagStateActionIndex :: !Int
   , rewardDiagActionChoice :: !ActionChoice
   , rewardDiagActionActual :: a
+  , rewardDiagObservation  :: o a
   , rewardDiagMax          :: !Double
   , rewardDiagArgMax       ::  a
   , rewardDiagPrediction   ::  !Double
@@ -308,6 +309,16 @@ chooseActionNoExplore support s = do
 chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
   CTable a -> State n o a -> m (a,ActionChoice)
 chooseExploreAction support s = do
+      maxed <- maxScore obsVec (_qTable $ _env s) support (_player (_env s))
+      let optimalAction = snd $  maxed
+      return (optimalAction,"Exploitation")
+  where  obsVec = _obsAgent (_env s)
+
+
+-- TODO change back to get randomization working again
+chooseExploreAction' :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+  CTable a -> State n o a -> m (a,ActionChoice)
+chooseExploreAction' support s = do
   -- NOTE: gen'' is not updated anywhere...!!! -- Check this out
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
@@ -323,11 +334,12 @@ chooseExploreAction support s = do
 
 
 
+
 -- 2.2. Different updates of the qmatrix depending on learning form
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseLearnDecrExploreQTable #-}
 chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m (a,(Double,a),Double)
+                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m (a,(Double,a),Double, o a)
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 (action,info) reward  = do
        let table0             = _qTable $ _env s
        prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
@@ -335,9 +347,9 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
+       recordingWriteArray (_iteration (_env s)) (_player (_env s)) table0 (obsVec, toIdx action) newValue
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
-       recordingWriteArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
-       return (action,maxed,prediction)
+       return (action,maxed,prediction, obs2)
   where obsVec = _obsAgent (_env s)
 
 
@@ -373,12 +385,13 @@ exportRewards ::
   -> Int
   -> ActionChoice
   -> a
+  -> o a
   -> (Double,a)
   -> Double
   -> ExploreRate
   -> Double
   -> QLearningMsg n o a
-exportRewards exportType player iteration stateAction stateActionIndex actionChoice actionActual (max,argMax) prediction exploreRate reward
+exportRewards exportType player iteration stateAction stateActionIndex actionChoice actionActual observation (max,argMax) prediction exploreRate reward
   | exportType ==  RewardExtendedExport =
          (RewardDiagnosticsMsg
              RewardDiagnostics
@@ -388,6 +401,7 @@ exportRewards exportType player iteration stateAction stateActionIndex actionCho
                 , rewardDiagStateActionIndex = stateActionIndex
                 , rewardDiagActionChoice     = actionChoice
                 , rewardDiagActionActual     = actionActual
+                , rewardDiagObservation      = observation
                 , rewardDiagMax              = max
                 , rewardDiagArgMax           = argMax
                 , rewardDiagPrediction       = prediction
@@ -407,7 +421,7 @@ exportRewards exportType player iteration stateAction stateActionIndex actionCho
 -- Define a Qlearning Config
 data ConfigQLearning n o a m = ConfigQLearning
   { chooseActionFunction :: (CTable a -> State n o a -> m (a,ActionChoice))
-  , updateFunction :: (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m (a,(Double,a),Double))
+  , updateFunction :: (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m (a,(Double,a),Double, o a))
   , exportType :: RewardExportType}
 
 -----------------
@@ -455,6 +469,7 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                 (Ix.index bounds (st, toIdx action))
                                 actionChoiceType
                                 action
+                                obsNew
                                 (1.5, action) -- TODO change back
                                 2.5           -- TODO change back
                                 (_exploreRate pdenv')
