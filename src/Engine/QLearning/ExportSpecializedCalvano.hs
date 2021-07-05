@@ -120,7 +120,7 @@ data RewardDiagnostics = RewardDiagnostics
   }
 
 instance BuildCsvRow RewardDiagnostics where
-  buildCsvRow RewardDiagnostics{iteration,player,state_action_index,action_choice,max,actionNew, observation1,obs,prediction,explore_rate,reward} =
+  buildCsvRow RewardDiagnostics{iteration,player,state_action_index,action_choice,max,actionNew, observation1,observation2,prediction,explore_rate,reward} =
     SB.intDec iteration <> "," <>
     SB.intDec player <> "," <>
     SB.intDec state_action_index <> "," <>
@@ -142,7 +142,7 @@ instance BuildHeaders RewardDiagnostics where
 
 
 
-data ExportConfig n o a m = ExportConfig
+data ExportConfig n a m = ExportConfig
   { outputEveryN :: Int
     -- ^ How often to write iteration outputs. Default=1, 5 would mean
     -- "output every 5 iterations".
@@ -157,20 +157,20 @@ data ExportConfig n o a m = ExportConfig
     -- runs of any same (state,maximal-action) pair before flagging
     -- that player as converged. After all players are converged, the
     -- iterations will terminate.
-  , initial :: m (List '[ ( a , Env n o a), ( a , Env n o a)])
+  , initial :: m (List '[ ( a , Env n Observation a), ( a , Env n Observation a)])
     -- ^ Initial strategy.
   , ctable :: CTable a
     -- ^ Acion space.
-  , mkObservation :: forall x. x -> x -> o x
-    -- ^ How to make an observation of two player actions.
+  , mkObservation :: forall x. x -> x -> Observation x
+    -- ^ How tObservation make an observation of twObservation player actions.
   , mapStagesM_ ::
     forall s.
-       (s -> List '[ (a, Env n o a), (a, Env n o a)] -> m (QLearning.Decision s))
-    -> List '[ ( a , Env n o a), ( a , Env n o a)]
+       (s -> List '[ (a, Env n Observation a), (a, Env n Observation a)] -> m (QLearning.Decision s))
+    -> List '[ ( a , Env n Observation a), ( a , Env n Observation a)]
     -> Int -- ^ Count.
     -> s -- ^ State.
     -> m ()
-    -- ^ How to map over stages step by step.
+    -- ^ How tObservation map over stages step by step.
   , runName :: String
     -- ^ Description of file name; main purpose is to run several estimations of the same kind
   , players :: Int
@@ -179,7 +179,7 @@ data ExportConfig n o a m = ExportConfig
 
 
 helperObs :: Observation a -> (a,a)
-helperObs  Obs (x1,y1) = (x1,y1)
+helperObs  (Obs (x1,y1)) = (x1,y1)
 
 -----------------------
 -- File paths
@@ -200,24 +200,24 @@ stateActionIndexFile         = [relfile|state_action_index.csv|]
 {-# INLINE runQLearningExportingDiagnostics #-}
 runQLearningExportingDiagnostics ::
      ( ToJSON a
-     , Show (o (Idx a))
-     , Ix (Memory.Vector n (o (Idx a)))
-     , Hashable (Memory.Vector n (o (Idx a)))
-     , Hashable (o (Idx a))
+     , Show (Observation (Idx a))
+     , Ix (Memory.Vector n (Observation (Idx a)))
+     , Hashable (Memory.Vector n (Observation (Idx a)))
+     , Hashable (Observation (Idx a))
      , Functor (Memory.Vector n)
-     , Functor o
+     , Functor Observation
      , Memory.Memory n
-     , ToJSON (o a)
+     , ToJSON (Observation a)
      , ToIdx a
      , BuildCsvField a
      , BuildCsvField (a, a)
      , Eq a
      , n ~ 1
      , Show a
-     , Show (o a)
-     , (Show (o (Idx action)))
+     , Show (Observation a)
+     , (Show (Observation (Idx action)))
      )
-  => ExportConfig n o a (RIO (GLogFunc (QLearningMsg n o a)))
+  => ExportConfig n a (RIO (GLogFunc (QLearningMsg n Observation a)))
   -> IO ()
 runQLearningExportingDiagnostics exportConfig = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
@@ -297,16 +297,16 @@ writeStateActionIndex ::
      , BuildCsvField (action, action)
      , MonadUnliftIO m1
      , RIO.MonadThrow m1
-     , Ix (Memory.Vector n (o (Idx action)))
+     , Ix (Memory.Vector n (Observation (Idx action)))
      , Memory.Memory n
      , KnownNat n
      , ToIdx action
      , Show action
-     , Show (o action)
-     , (Show (o (Idx action)))
+     , Show (Observation action)
+     , (Show (Observation (Idx action)))
      )
-  => ExportConfig n o action m2
-  -> List '[ ( action , Env n o action), ( action , Env n o action)]
+  => ExportConfig n action m2
+  -> List '[ ( action , Env n Observation action), ( action , Env n Observation action)]
   -> m1 ()
 writeStateActionIndex ExportConfig {..} initial' = do
   dirResultIteration <- parseRelDir runName
@@ -337,17 +337,17 @@ writeStateActionIndex ExportConfig {..} initial' = do
 -- Write QValues
 
 -- | State for the writeQValueRow function's loop.
-data State n o a = State
+data State n a = State
   { prev :: Double -- ^ Previous percentage complete.
   , iteration :: Int -- ^ Iteration number.
   , skipping :: Int -- ^ Skip every N dumps.
   }
 
 writeQValues ::
-     (MonadUnliftIO m, Ix (Memory.Vector n (o (Idx a))), Show a, Show (o a), Show (o (Idx a)), Show ( a , Env n o a))
-  => ExportConfig n o a m
-  -> MaximalState n o a
-  -> List '[ ( a , Env n o a), ( a , Env n o a)]
+     (MonadUnliftIO m, Ix (Memory.Vector n (Observation (Idx a))), Show a, Show (Observation a), Show (Observation (Idx a)), Show ( a , Env n Observation a))
+  => ExportConfig n a m
+  -> MaximalState n Observation a
+  -> List '[ ( a , Env n Observation a), ( a , Env n Observation a)]
   -> (QValueRow -> IO ())
   -> m ()
 writeQValues ExportConfig {..} maximalState initial'@(p1_0 ::- p2_0 ::- Nil) writeRow = do

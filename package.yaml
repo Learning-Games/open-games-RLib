@@ -22,6 +22,7 @@ library:
     - Engine.QLearning
     - Engine.QLearning.Export
     - Engine.QLearning.ExportVerbose
+    - Engine.QLearning.ExportSpecializedCalvano
     - Engine.QLearningSimple
     - Engine.TLL
     - Preprocessor.AbstractSyntax
