@@ -40,7 +40,7 @@ import qualified Data.Vector.Sized as SV
 import qualified Engine.Memory as Memory
 import           Engine.OpenGames
 import           Engine.OpticClass
-import           Engine.QLearning
+import           Engine.QLearningVerbose
 import           Engine.TLL
 import           FastCsv
 import           GHC.Generics
@@ -197,9 +197,9 @@ pricePairs par =
 
 -- initiate a first fixed list of values at average
 lsValues :: Parameters -> [(((PriceSpace, PriceSpace), PriceSpace), Double)]
-lsValues par@Parameters{pGamma,pA0,pA1,pA2,pMu,pC1} = [(((x,y),z),v' z)| (x,y) <- xs, (z,_) <- xs]
+lsValues par@Parameters{pGamma,pA0,pA1,pA2,pMu,pC1} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
   where  xs = pricePairs par
-         v' p1 = 1.0
+         value p1 = (sum  $ fmap (\p2 -> profit pA0 pA1 pA2 p1 p2 pMu pC1) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
          priceLs = V.toList (population $ actionSpace par)
 
 
@@ -215,11 +215,10 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          1
          arr
          0
-         ((exp 1) ** 0)
+         ((exp 1) ** pBeta)
          pGeneratorEnv1
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999)
-         "NothingHappenedYet"
   where
     initialArray :: IO (QTable Player1N Observation PriceSpace)
     initialArray = do
@@ -240,11 +239,10 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       "Player2" 2
       (arr)
       0
-      ((exp 1) ** 0)
+      ((exp 1) ** pBeta)
       pGeneratorEnv2
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
-      "NothingHappenedYet"
   where
     initialArray :: IO (QTable Player2N Observation PriceSpace)
     initialArray = do
@@ -263,7 +261,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 -- First observation, randomly determined
 initialObservation :: Parameters -> Observation PriceSpace
 initialObservation par@Parameters{pGeneratorPrice1,pGeneratorPrice2} =
-  Obs (samplePopulation_ (actionSpace par) pGeneratorPrice1, samplePopulation_ (actionSpace par) pGeneratorPrice2)
+  Obs $ head $ pricePairs par
 
 -- Initiate strategy: start with random price
 initialStrat :: Parameters -> M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
@@ -271,8 +269,8 @@ initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2}= do
   e1 <- initialEnv1 par
   e2 <- initialEnv2 par
   pure
-    (pure (samplePopulation_ (actionSpace par) pGeneratorObs1, e1) ::-
-     pure (samplePopulation_ (actionSpace par) pGeneratorObs2, e2) ::-
+    (pure (fst $ head $ pricePairs par, e1) ::-   -- fix first price
+     pure (snd $ head $ tail $ pricePairs par, e2) ::- -- fix second price
      Nil)
 
 

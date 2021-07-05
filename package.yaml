@@ -93,6 +93,7 @@ dependencies:
     - cond
     - QuickCheck
     - splitmix
+    - utf8-string
 
 executables:
   learning-exe:

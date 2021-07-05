@@ -179,7 +179,6 @@ data Env n o a = Env
   , _randomGen :: Rand.StdGen
   , _obsAgent :: Memory.Vector n (o (Idx a))
   , _temperature :: Temperature
-  , _actionChoice :: ActionChoice
   }  deriving (Generic)
 deriving instance (Show a, Show (o a), Show (o (Idx a)), Memory n) => Show (Env n o a)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
@@ -270,10 +269,6 @@ updateRandomGAndQTable :: State n o a -> Rand.StdGen -> State n o a
 updateRandomGAndQTable s r = updateRandomG s r
 
 
--- Update action choice info
-updateActionChoice ::  ActionChoice -> State n o a -> State n o a
-updateActionChoice info s = env % actionChoice .~ info $ s
-
 -- Update gen, qtable, temp
 updateRandomGQTableTemp :: Temperature -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableTemp decreaseFactor s r = (updateTemperature decreaseFactor) $ updateRandomGAndQTable s r
@@ -289,10 +284,6 @@ updateRandomGQTableExploreObs decreaseFactor i obs s r  = (updateObservationAgen
 -- Update gen, qtable,exploreRate,agentObs, iteration
 updateRandomGQTableExploreObsIteration :: ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObsIteration decreaseFactor i obs s r  = updateIteration $ updateRandomGQTableExploreObs decreaseFactor i obs s r
-
--- -- Update gen, qtable,exploreRate,agentObs, iteration
-updateDiag :: ActionChoice -> ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
-updateDiag info decreaseFactor i obs s r  = updateActionChoice info $ updateRandomGQTableExploreObsIteration decreaseFactor i obs s r
 
 
 
@@ -344,8 +335,8 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-       recordingWriteArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
        ST.put $  updateRandomGQTableExploreObsIteration decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
+       recordingWriteArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
        return (action,maxed,prediction)
   where obsVec = _obsAgent (_env s)
 

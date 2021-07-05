@@ -219,7 +219,6 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          pGeneratorEnv1
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999)
-         "NothingHappenedYet"
   where
     initialArray :: IO (QTable Player1N Observation PriceSpace)
     initialArray = do
@@ -244,7 +243,6 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       pGeneratorEnv2
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
-      "NothingHappenedYet"
   where
     initialArray :: IO (QTable Player2N Observation PriceSpace)
     initialArray = do

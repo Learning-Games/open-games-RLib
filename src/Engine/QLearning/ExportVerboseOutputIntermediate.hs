@@ -15,7 +15,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 -- |
 
-module Engine.QLearning.ExportVerboseIntermediate
+module Engine.QLearning.ExportVerboseOutputIntermediate
   ( runQLearningExportingDiagnostics
   , ExportConfig(..)
   , RewardDiagnostics(..)
