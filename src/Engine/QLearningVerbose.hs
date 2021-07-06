@@ -363,7 +363,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 {-# INLINE recordingWriteArray #-}
 recordingWriteArray :: (MonadIO m, A.MArray a1 Double IO, Ix i, HasGLogFunc env, MonadReader env m, GMsg env ~ QLearningMsg n o a2) => Int -> Int -> a1 i Double -> i -> Double -> m ()
 recordingWriteArray dirtiedIteration dirtiedPlayer table0 index' value = do
-  liftIO $ A.writeArray table0 index' value
+  liftIO $ A.writeArray table0 index' 0 -- TODO testing out what happens here value
   bounds <- liftIO (A.getBounds table0)
   RIO.glog
     (QTableDirtied
@@ -371,7 +371,7 @@ recordingWriteArray dirtiedIteration dirtiedPlayer table0 index' value = do
          { dirtiedIteration
          , dirtiedPlayer
          , dirtiedStateActionIndex = Ix.index bounds index'
-         , dirtiedQValue = value
+         , dirtiedQValue = 1
          })
 
 --------------------------------
@@ -459,7 +459,8 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                    (reward,obsNew) <- k z action
                    let newStateT = (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
                    bounds <- liftIO (A.getBounds (_qTable pdenv'))
-                   (State env' _) <- ST.execStateT newStateT (State pdenv' obs)
+                   _ <- ST.runStateT newStateT (State pdenv' obs)
+                   ((action', _ , _, _),State env' _) <- ST.runStateT newStateT (State pdenv' obs)
                    let st = (_obsAgent env')
                    RIO.glog (exportRewards
                                 exportType
