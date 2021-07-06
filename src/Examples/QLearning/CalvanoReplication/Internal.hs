@@ -237,7 +237,8 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
   liftIO initialArray >>= \arr ->
     pure $
     Env
-      "Player2" 2
+      "Player2"
+      2
       (arr)
       0
       ((exp 1) ** 0)
