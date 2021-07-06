@@ -263,7 +263,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 -- First observation, randomly determined
 initialObservation :: Parameters -> Observation PriceSpace
 initialObservation par@Parameters{pGeneratorPrice1,pGeneratorPrice2} =
-  Obs (samplePopulation_ (actionSpace par) pGeneratorPrice1, samplePopulation_ (actionSpace par) pGeneratorPrice2)
+  Obs ((PriceSpace (lowerBound par) 0), (PriceSpace (lowerBound par) 0))
 
 -- Initiate strategy: start with random price
 initialStrat :: Parameters -> M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
