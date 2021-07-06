@@ -271,8 +271,8 @@ initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2}= do
   e1 <- initialEnv1 par
   e2 <- initialEnv2 par
   pure
-    (pure (samplePopulation_ (actionSpace par) pGeneratorObs1, e1) ::-
-     pure (samplePopulation_ (actionSpace par) pGeneratorObs2, e2) ::-
+    (pure (PriceSpace (lowerBound par) 0, e1) ::-   -- fix lowest price
+     pure (PriceSpace (upperBound par) 7, e2) ::- -- fix highest price
      Nil)
 
 
