@@ -366,7 +366,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 {-# INLINE recordingWriteArray #-}
 recordingWriteArray :: (MonadIO m, A.MArray a1 Double IO, Ix i, HasGLogFunc env, MonadReader env m, GMsg env ~ QLearningMsg n o a2) => Int -> Int -> a1 i Double -> i -> Double -> m ()
 recordingWriteArray dirtiedIteration dirtiedPlayer table0 index' value = do
-  liftIO $ A.writeArray table0 index' value
+  liftIO $ A.writeArray table0 index' 0
   bounds <- liftIO (A.getBounds table0)
   RIO.glog
     (QTableDirtied
