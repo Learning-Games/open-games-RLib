@@ -314,6 +314,16 @@ chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLea
   CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice)
 chooseExploreAction support s = do
   -- NOTE: gen'' is not updated anywhere...!!!
+      maxed <- maxScore obsVec (_qTable $ _env s) support (_player (_env s))
+      let optimalAction = snd $  maxed
+      return (optimalAction,"Exploitation")
+  where  obsVec = _obsAgent (_env s)
+
+-- TODO Warning change back, no randomization taking place here
+chooseExploreAction' :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+  CTable a -> State n o a -> ST.StateT (State n o a) m (a,ActionChoice)
+chooseExploreAction' support s = do
+  -- NOTE: gen'' is not updated anywhere...!!!
   let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
     then do
