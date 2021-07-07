@@ -109,27 +109,24 @@ instance BuildHeaders Reward where
   {-# INLINE buildHeaders #-}
 
 data RewardDiagnostics = RewardDiagnostics
-  { iteration, player, state_action_index, actionNew  :: !Int
+  { iteration, player, state_action_index :: !Int
   , action_choice :: !ActionChoice
   , explore_rate :: !QLearning.ExploreRate
-  , reward, prediction, max :: !Double
+  , reward :: !Double
   }
 
 instance BuildCsvRow RewardDiagnostics where
-  buildCsvRow RewardDiagnostics{iteration,player,state_action_index,action_choice,max,actionNew,prediction,explore_rate,reward} =
+  buildCsvRow RewardDiagnostics{iteration,player,state_action_index,action_choice,explore_rate,reward} =
     SB.intDec iteration <> "," <>
     SB.intDec player <> "," <>
     SB.intDec state_action_index <> "," <>
     SB.stringUtf8 action_choice <> "," <>
-    SB.byteString (toShortest max) <> "," <>
-    SB.intDec actionNew <> "," <>
-    SB.byteString (toShortest prediction) <> "," <>
     SB.byteString (toShortest explore_rate) <> "," <>
     SB.byteString (toShortest reward)
   {-# INLINE buildCsvRow #-}
 
 instance BuildHeaders RewardDiagnostics where
-  buildHeaders _ = "iteration,player,state_action_index,action_choice,max,actionNew,prediction,explore_rate,reward"
+  buildHeaders _ = "iteration,player,state_action_index,action_choice,explore_rate,reward"
   {-# INLINE buildHeaders #-}
 
 
@@ -246,9 +243,6 @@ runQLearningExportingDiagnostics exportConfig = do
                                   , state_action_index =
                                       rewardDiagStateActionIndex
                                   , action_choice = rewardDiagActionChoice
-                                  , max           = rewardDiagMax
-                                  , actionNew     = QLearning.unInt $ QLearning.toIdx rewardDiagArgMax 
-                                  , prediction    = rewardDiagPrediction
                                   , explore_rate = rewardDiagExploreRate
                                   , reward = rewardDiagReward
                                   }

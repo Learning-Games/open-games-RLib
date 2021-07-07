@@ -21,9 +21,7 @@ library:
     - Engine.OpticClass
     - Engine.QLearning
     - Engine.QLearning.Export
-    - Engine.QLearning.ExportDiffPlay
     - Engine.QLearning.ExportVerbose
-    - Engine.QLearning.ExportSpecializedCalvano
     - Engine.QLearningSimple
     - Engine.TLL
     - Preprocessor.AbstractSyntax
@@ -42,17 +40,9 @@ library:
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
     - Examples.QLearning.CalvanoReplication
-    - Examples.QLearning.CalvanoReplicationDiffPlay
-    - Examples.QLearning.CalvanoReplicationFixedParameters
-    - Examples.QLearning.CalvanoReplicationFlippedPlayers
-    - Examples.QLearning.CalvanoReplicationFlippedPlayersVerbose
     - Examples.QLearning.CalvanoReplicationVerbose
     - Examples.QLearning.BestReply
     - Examples.QLearning.CalvanoReplication.Internal
-    - Examples.QLearning.CalvanoReplication.InternalDiffPlay
-    - Examples.QLearning.CalvanoReplication.InternalFlipped
-    - Examples.QLearning.CalvanoReplication.InternalFlippedVerbose
-    - Examples.QLearning.CalvanoReplication.InternalFixedParameters
     - Examples.QLearning.CalvanoReplication.InternalVerbose
 
 dependencies:

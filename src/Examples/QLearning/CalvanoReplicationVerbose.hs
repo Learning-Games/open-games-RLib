@@ -7,7 +7,7 @@ module Examples.QLearning.CalvanoReplicationVerbose
   , evalStageM
   , mapStagesM_
   , PriceSpace(..)
-  , Observation(..) 
+  , Observation(..)
   , Parameters(..)
   ) where
 
