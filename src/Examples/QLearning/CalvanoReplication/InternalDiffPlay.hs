@@ -220,6 +220,7 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999)
          "NothingHappenedYet"
+         0
   where
     initialArray :: IO (QTable Player1N Observation PriceSpace)
     initialArray = do
@@ -246,6 +247,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
       "NothingHappenedYet"
+      0
   where
     initialArray :: IO (QTable Player2N Observation PriceSpace)
     initialArray = do
@@ -362,6 +364,17 @@ evalStageM par startValue n = do
   newStrat <-
     sequenceL
       (evalStage par (hoist startValue) (fromEvalToContext (hoist startValue)))
+  let ((p1,env1) ::- (p2,env2) ::- Nil) = newStrat
+      mem1      = (_obsAgent env1)
+      index1    = (mem1, toIdx p1)
+      table1    = _qTable env1
+      newValue1 = _stageNewValue env1
+      mem2      = (_obsAgent env2)
+      index2    = (mem2, toIdx p2)
+      table2    = _qTable env2
+      newValue2 = _stageNewValue env2
+  liftIO $ A.writeArray table1 index1 newValue1
+  liftIO $ A.writeArray table2 index2 newValue2
   rest <- evalStageM par newStrat (pred n)
   pure (newStrat : rest)
 
