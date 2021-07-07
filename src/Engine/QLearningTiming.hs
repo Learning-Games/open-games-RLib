@@ -15,7 +15,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Engine.QLearning where
+module Engine.QLearningTiming where
 
 import           Control.DeepSeq
 import           Control.Monad.Reader
@@ -436,11 +436,11 @@ pureDecisionQStage ::
   => ConfigQLearning n o a m
   -> CTable a
   -> Agent
-  -> QLearningStageGame m '[ m (a, Env n o a)] '[ m (a, Env n o a)] (o a) () a ( Double
+  -> QLearningStageGame m '[ m (a, ActionChoice, Double, o a,  Env n o a)] '[ m (a, ActionChoice, Double, o a, Env n o a)] (o a) () a ( Double
                                                                                , (o a))
 pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
-                                           (_,env') <- strat
+                                           (_,_,_,_,env') <- strat
                                            let s obs = State env' obs
                                            (action,_)   <- ST.evalStateT  (chooseActionFunction actionSpace (s obs)) (s obs)
                                            pure ((),action)
@@ -449,25 +449,13 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
   evaluate = \(strat ::- Nil) (MonadContext h k) ->
               let
                 output = do
-                   (_,pdenv') <- strat
-                   liftIO $ print "===================="
-                   liftIO $ print "(iteration,playerNo)"
-                   liftIO $ print (_iteration pdenv', _player pdenv')
-                   (z,obs) <- h
-                   liftIO $ print "Old Context"
-                   liftIO $ print obs
-                   -- ^ Take the (old observation) from the context
-                   (action,actionChoiceType) <- ST.evalStateT  (chooseActionFunction actionSpace (State pdenv' obs)) (State pdenv' obs)
-                   (reward,obsNew) <- k z action
-                   liftIO $ print "Action taken"
-                   liftIO $ print action
-                   liftIO $ print "Reward"
-                   liftIO $ print reward
-                   liftIO $ print "New obs"
-                   liftIO $ print obsNew
-                   let st = (_obsAgent pdenv')
-                   liftIO $ print "Memory from last round"
-                   liftIO $ print st
+                   (action, actionChoiceType, reward, obs, pdenv') <- strat
+                   (z,obsNew) <- h
+                   (State env' _) <- ST.execStateT (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
+                                                   (State pdenv' obs)
+                   (actionNext,actionChoiceTypeNext) <- ST.evalStateT  (chooseActionFunction actionSpace (State env' obsNew)) (State env' obsNew)
+                   (rewardNext,obsNext) <- k z action
+                   let st = (_obsAgent env')
                    bounds <- liftIO (A.getBounds (_qTable pdenv'))
                    RIO.glog (exportRewards
                                 exportType
@@ -478,9 +466,8 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                 actionChoiceType
                                 (_exploreRate pdenv')
                                 reward)
-                   (State env' _) <- ST.execStateT (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
-                                                   (State pdenv' obs)
-                   return (action,env')
+
+                   return (actionNext,actionChoiceTypeNext,rewardNext, obsNext,env')
                 in (output ::- Nil)}
 
 

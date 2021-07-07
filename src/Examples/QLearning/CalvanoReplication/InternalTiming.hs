@@ -21,7 +21,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.CalvanoReplication.Internal
+module Examples.QLearning.CalvanoReplication.InternalTiming
   where
 
 import           Control.DeepSeq
@@ -40,7 +40,7 @@ import qualified Data.Vector.Sized as SV
 import qualified Engine.Memory as Memory
 import           Engine.OpenGames
 import           Engine.OpticClass
-import           Engine.QLearning
+import           Engine.QLearningTiming
 import           Engine.TLL
 import           FastCsv
 import           GHC.Generics
@@ -280,19 +280,19 @@ initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2}= do
 ------------------------------
 -- Updating state
 
-toObs :: Monad m => m (a,Env Player1N Observation a) -> m (a, Env Player2N Observation a) -> m ((), (Observation a, Observation a))
+toObs :: Monad m => m (a, ActionChoice, Double, Observation a,  Env Player1N Observation a) -> m (a, ActionChoice, Double, Observation a,  Env Player2N Observation a) -> m ((), (Observation a, Observation a))
 toObs a1 a2 = do
-             (act1,_env1) <- a1
-             (act2,_env2) <- a2
+             (act1,_actionChoice1,_reward1,_obs1,_env1) <- a1
+             (act2,_actionChoice2,_reward2,_obs2,_env2) <- a2
              let obs = Obs (act1,act2)
                  in return ((),(obs,obs))
 
-toObsFromLS :: Monad m => List '[m (a,Env Player1N Observation a), m (a,Env Player2N Observation a)] -> m ((),(Observation a,Observation a))
+toObsFromLS :: Monad m => List '[m (a, ActionChoice, Double, Observation a,  Env Player1N Observation a), m (a, ActionChoice, Double, Observation a,  Env Player2N Observation a)] -> m ((),(Observation a,Observation a))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
 
 -- From the outputted list of strategies, derive the context
-fromEvalToContext :: Monad m =>  List '[m (a,Env Player1N Observation a), m (a,Env Player2N Observation a)] ->
+fromEvalToContext :: Monad m =>  List '[m (a, ActionChoice, Double, Observation a,  Env Player1N Observation a), m (a, ActionChoice, Double, Observation a,  Env Player2N Observation a)] ->
                      MonadContext m (Observation a, Observation a) () (a,a) ()
 fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
@@ -300,7 +300,7 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 ------------------------------
 -- Game stage
-stageSimple :: Parameters -> OpenGame (MonadOptic M) (MonadContext M) ('[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player1N Observation PriceSpace)] +:+ '[]) ('[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player1N Observation PriceSpace)] +:+ '[]) (Observation PriceSpace, Observation PriceSpace) () (PriceSpace, PriceSpace) ()
+stageSimple :: Parameters -> OpenGame (MonadOptic M) (MonadContext M) ('[M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)] +:+ '[]) ('[M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)] +:+ '[]) (Observation PriceSpace, Observation PriceSpace) () (PriceSpace, PriceSpace) ()
 stageSimple par@Parameters {..} = [opengame|
    inputs    : (state1,state2) ;
    feedback  :      ;
@@ -329,21 +329,23 @@ stageSimple par@Parameters {..} = [opengame|
 -- Defining the iterator structure
 evalStage ::
   Parameters
-  -> List '[ M (PriceSpace, Env Player1N Observation PriceSpace), M ( PriceSpace
-                                                                      , Env Player2N Observation PriceSpace)]
+  -> List '[ M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]
   -> MonadContext M (Observation PriceSpace, Observation PriceSpace) () ( PriceSpace
                                                                          , PriceSpace) ()
-  -> List '[ M (PriceSpace, Env Player1N Observation PriceSpace), M ( PriceSpace
-                                                                      , Env Player2N Observation PriceSpace)]
+  -> List '[ M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]
 evalStage par = evaluate (stageSimple par)
 
 
 -- Explicit list constructor much better
 evalStageLS :: (Ord t, Num t) =>
   Parameters
-  -> List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)]
+  -> List '[ M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]
   -> t
-  -> [List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)]]
+  -> [List '[M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , M (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]]
 evalStageLS par startValue n =
           let context  = fromEvalToContext startValue
               newStrat = evalStage par startValue context
@@ -352,11 +354,11 @@ evalStageLS par startValue n =
 
 evalStageM ::
   Parameters
-  -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                , Env Player2N Observation PriceSpace)]
+  -> List '[ (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]
   -> Int
-  -> M [List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                    , Env Player2N Observation PriceSpace)]]
+  -> M [List '[ (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+              , (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]]
 evalStageM par _ 0 = pure []
 evalStageM par startValue n = do
   newStrat <-
@@ -368,10 +370,10 @@ evalStageM par startValue n = do
 {-# INLINE mapStagesM_ #-}
 mapStagesM_ ::
   Parameters
-  -> (s ->  List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                        , Env Player2N Observation PriceSpace)] -> M (Decision s))
-  -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                , Env Player2N Observation PriceSpace)]
+  -> (s ->  List '[ (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)] -> M (Decision s))
+  -> List '[ (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]
   -> Int
   -> s
   -> M ()
@@ -388,16 +390,17 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
 
 hoist ::
      Applicative f
-  => List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                , Env Player2N Observation PriceSpace)]
-  -> List '[ f (PriceSpace, Env Player1N Observation PriceSpace), f ( PriceSpace
-                                                                    , Env Player2N Observation PriceSpace)]
+  => List '[ (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]
+  -> List '[ f (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]
 hoist (x ::- y ::- Nil) = pure x ::- pure y ::- Nil
 
 sequenceL ::
      Monad m
-  => List '[ m (PriceSpace, Env Player1N Observation PriceSpace), m (PriceSpace, Env Player2N Observation PriceSpace)]
-  -> m (List '[ (PriceSpace, Env Player1N Observation PriceSpace), (PriceSpace, Env Player2N Observation PriceSpace)])
+  => List '[ m (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace), m (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)]
+  -> m (List '[ (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player1N Observation PriceSpace)
+           , (PriceSpace, ActionChoice, Double, Observation PriceSpace, Env Player2N Observation PriceSpace)])
 sequenceL (x ::- y ::- Nil) = do
   v <- x
   v' <- y
