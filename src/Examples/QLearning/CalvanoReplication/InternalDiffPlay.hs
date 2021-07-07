@@ -364,17 +364,6 @@ evalStageM par startValue n = do
   newStrat <-
     sequenceL
       (evalStage par (hoist startValue) (fromEvalToContext (hoist startValue)))
-  let ((p1,env1) ::- (p2,env2) ::- Nil) = newStrat
-      mem1      = (_obsAgent env1)
-      index1    = (mem1, toIdx p1)
-      table1    = _qTable env1
-      newValue1 = _stageNewValue env1
-      mem2      = (_obsAgent env2)
-      index2    = (mem2, toIdx p2)
-      table2    = _qTable env2
-      newValue2 = _stageNewValue env2
-  liftIO $ A.writeArray table1 index1 newValue1
-  liftIO $ A.writeArray table2 index2 newValue2
   rest <- evalStageM par newStrat (pred n)
   pure (newStrat : rest)
 
@@ -394,6 +383,17 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
     go s value !n = do
       newStrat <-
         sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+      let ((p1,env1) ::- (p2,env2) ::- Nil) = newStrat
+          mem1      = (_obsAgent env1)
+          index1    = (mem1, toIdx p1)
+          table1    = _qTable env1
+          newValue1 = _stageNewValue env1
+          mem2      = (_obsAgent env2)
+          index2    = (mem2, toIdx p2)
+          table2    = _qTable env2
+          newValue2 = _stageNewValue env2
+      liftIO $ A.writeArray table1 index1 newValue1
+      liftIO $ A.writeArray table2 index2 newValue2
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n)
