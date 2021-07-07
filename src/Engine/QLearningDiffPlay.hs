@@ -356,7 +356,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-       recordingArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx (_obs s)), toIdx action) newValue
+       recordingArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx obs2), toIdx action) newValue
        ST.put $  updateAll newValue decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
   where obsVec = _obsAgent (_env s)
