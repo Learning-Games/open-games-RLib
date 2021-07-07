@@ -15,7 +15,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Engine.QLearning where
+module Engine.QLearningDiffPlay where
 
 import           Control.DeepSeq
 import           Control.Monad.Reader
@@ -446,6 +446,10 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                            liftIO $ print "^^^^^^^^^^^"
                                            liftIO $ print "playerNo"
                                            liftIO $ print $ (_player env')
+                                           liftIO $ print "iteration"
+                                           liftIO $ print $ (_iteration env')
+                                           liftIO $ print "qTable"
+                                           liftIO $ print $ (_qTable env')
                                            liftIO $ print "obs"
                                            liftIO $ print obs
                                            liftIO $ print "action"
