@@ -366,7 +366,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 {-# INLINE recordingWriteArray #-}
 recordingWriteArray :: (MonadIO m, A.MArray a1 Double IO, Ix i, HasGLogFunc env, MonadReader env m, GMsg env ~ QLearningMsg n o a2) => Int -> Int -> a1 i Double -> i -> Double -> m ()
 recordingWriteArray dirtiedIteration dirtiedPlayer table0 index' value = do
-  liftIO $ A.writeArray table0 index' value
+  liftIO $ A.writeArray table0 index' 0 -- TODO CHange back after problem is cleared
   bounds <- liftIO (A.getBounds table0)
   RIO.glog
     (QTableDirtied
@@ -443,6 +443,14 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                            (_,env') <- strat
                                            let s obs = State env' obs
                                            (action,_)   <- ST.evalStateT  (chooseActionFunction actionSpace (s obs)) (s obs)
+                                           liftIO $ print "^^^^^^^^^^^"
+                                           liftIO $ print "playerNo"
+                                           liftIO $ print $ (_player env')
+                                           liftIO $ print "obs"
+                                           liftIO $ print obs
+                                           liftIO $ print "action"
+                                           liftIO $ print action
+                                           liftIO $ print "^^^^^^^^^^^"
                                            pure ((),action)
                                         in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This evaluates the statemonad with the monadic input of the external state and delivers a monadic action
@@ -472,7 +480,7 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                    RIO.glog (exportRewards
                                 exportType
                                 (_player pdenv')
-                                (1 + _iteration pdenv')
+                                (_iteration pdenv')
                                 (st, action)
                                 (Ix.index bounds (st, toIdx action))
                                 actionChoiceType
