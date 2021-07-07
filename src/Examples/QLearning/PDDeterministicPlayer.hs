@@ -141,9 +141,9 @@ initialArray = liftIO (do
 
 -- initialEnv N Observation and parameters
 initialEnv1 :: M (Env N Observation Action)
-initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" 1 arr  0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx)(Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999) "NothingHappendYet"
+initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" 1 arr  0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx)(Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999) "NothingHappendYet" 0
 initialEnv2 :: M (Env N Observation Action)
-initialEnv2 = initialArray >>= \arr ->  pure $ Env "Player2" 2 arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx)(Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999) "NothingHappenedYet"
+initialEnv2 = initialArray >>= \arr ->  pure $ Env "Player2" 2 arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx)(Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999) "NothingHappenedYet" 0
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 ---------------------------------------

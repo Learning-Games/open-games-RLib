@@ -88,7 +88,7 @@ chooseBoltzQTable ::
       , GMsg r ~ QLearningMsg N Observation Action)
   => CTable Action
   -> State N Observation Action
-  -> ST.StateT (State N Observation Action) m (Action,ActionChoice)
+  -> m (Action,ActionChoice)
 chooseBoltzQTable ls s = do
     theMaxScore <- maxScore obsVec (_qTable $ _env s) ls (_player (_env s))
     let temp      = _temperature $ _env s
@@ -209,9 +209,9 @@ initialArray = liftIO (do
 
 -- initialEnv and parameters
 initialEnv1 :: M (Env N Observation Action)
-initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" 1 arr 0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx) (Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999) "NothingHappendYet"
+initialEnv1 = initialArray >>= \arr -> pure $ Env "Player1" 1 arr 0  0.2  (Rand.mkStdGen 3) (fmap (fmap toIdx) (Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999) "NothingHappendYet" 0
 initialEnv2 :: M (Env N Observation Action)
-initialEnv2 = initialArray >>= \arr ->  pure $ Env "PLayer2" 2 arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx) (Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999) "NothingHappendYet"
+initialEnv2 = initialArray >>= \arr ->  pure $ Env "PLayer2" 2 arr 0  0.2  (Rand.mkStdGen 100) (fmap (fmap toIdx) (Memory.fromSV(SV.replicate initialObservation))) (5 * 0.999) "NothingHappendYet" 0
 -- ^ Value is taking from the benchmark paper Sandholm and Crites
 
 
