@@ -266,7 +266,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 -- First observation, randomly determined
 initialObservation :: Parameters -> Observation PriceSpace
 initialObservation par@Parameters{pGeneratorPrice1,pGeneratorPrice2} =
-  Obs ((PriceSpace (lowerBound par) 0), (PriceSpace (lowerBound par) 0))
+  Obs (samplePopulation_ (actionSpace par) pGeneratorPrice1, samplePopulation_ (actionSpace par) pGeneratorPrice2)
 
 -- Initiate strategy: start with random price
 initialStrat :: Parameters -> M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
@@ -274,8 +274,8 @@ initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2}= do
   e1 <- initialEnv1 par
   e2 <- initialEnv2 par
   pure
-    (pure (PriceSpace (lowerBound par) 0, e1) ::-   -- fix lowest price
-     pure (PriceSpace (upperBound par) 7, e2) ::- -- fix highest price
+    (pure (samplePopulation_ (actionSpace par) pGeneratorObs1, e1) ::-
+     pure (samplePopulation_ (actionSpace par) pGeneratorObs2, e2) ::-
      Nil)
 
 
