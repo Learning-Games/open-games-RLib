@@ -177,6 +177,7 @@ data Env n o a = Env
   , _temperature :: Temperature
   , _actionChoice :: ActionChoice
   , _stageNewValue :: Double
+  , _obsAgentPrevious :: Memory.Vector n (o (Idx a))
   }  deriving (Generic)
 deriving instance (Show a, Show (o a), Show (o (Idx a)), Memory n) => Show (Env n o a)
 -- ^ Added here the agent observation the idea is that global and local information might diverge
@@ -250,6 +251,10 @@ updateQTable s q = env % qTable .~ q  $  s
 updateObservationAgent ::  Memory.Vector n (o (Idx a)) -> State n o a -> State n o a
 updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
+-- Update Observation for each agent
+updatePreviousObservationAgent ::  Memory.Vector n (o (Idx a)) -> State n o a -> State n o a
+updatePreviousObservationAgent obs s = env % obsAgentPrevious .~ obs $  s
+
 -- Update iterator
 updateIteration :: State n o a -> State n o a
 updateIteration = env % iteration %~ (+ 1)
@@ -291,9 +296,13 @@ updateRandomGQTableExploreObs decreaseFactor i obs s r  = (updateObservationAgen
 updateRandomGQTableExploreObsIteration :: ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObsIteration decreaseFactor i obs s r  = updateIteration $ updateRandomGQTableExploreObs decreaseFactor i obs s r
 
--- Update gen, qtable,exploreRate,agentObs, iteration, stage reward
-updateAll :: Double ->  ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
-updateAll value decreaseFactor i obs s r  = updateNewValue  value  $ updateRandomGQTableExploreObsIteration decreaseFactor i obs s r
+-- Update gen, qtable,exploreRate,agentObs, iteration, stage reward,
+updateRandomGQTableExploreObsIterationReward :: Double ->  ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExploreObsIterationReward value decreaseFactor i obs s r  = updateNewValue  value  $ updateRandomGQTableExploreObsIteration decreaseFactor i obs s r
+
+-- Update gen, qtable,exploreRate,agentObs, iteration, stage reward,
+updateAll :: Memory.Vector n (o (Idx a)) -> Double ->  ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
+updateAll previousMemory value decreaseFactor i obs s r  = updatePreviousObservationAgent previousMemory $ updateRandomGQTableExploreObsIterationReward value decreaseFactor i obs s r
 
 
 
@@ -362,8 +371,8 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
        liftIO $ print updatedValue
        liftIO $ print "newValue"
        liftIO $ print newValue
-       recordingArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx obs2), toIdx action) newValue
-       ST.put $  updateAll newValue decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
+       recordingArray (_iteration (_env s)) (_player (_env s)) table0 (obsVec, toIdx action) newValue
+       ST.put $  updateAll obsVec newValue decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
   where obsVec = _obsAgent (_env s)
 
