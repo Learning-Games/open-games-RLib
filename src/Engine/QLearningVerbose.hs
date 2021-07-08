@@ -251,7 +251,7 @@ updateQTable s q = env % qTable .~ q  $  s
 updateObservationAgent ::  Memory.Vector n (o (Idx a)) -> State n o a -> State n o a
 updateObservationAgent obs s = env % obsAgent .~ obs $  s
 
--- Update Observation for each agent
+-- Update Previous Observation for each agent
 updatePreviousObservationAgent ::  Memory.Vector n (o (Idx a)) -> State n o a -> State n o a
 updatePreviousObservationAgent obs s = env % obsAgentPrevious .~ obs $  s
 
