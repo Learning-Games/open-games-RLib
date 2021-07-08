@@ -384,10 +384,20 @@ mapStagesM_ ::
   -> Int
   -> s
   -> M ()
-mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
+mapStagesM_ par f startValue n0 s0 = goInitial s0 startValue n0
   where
-    go _ _ 0 = pure ()
-    go s value !n = do
+     goInitial s value n0 = do
+      liftIO $ print "~~~~~~~~~~~~~~~~~~~~~~"
+      liftIO $ print "No update in that round"
+      liftIO $ print "~~~~~~~~~~~~~~~~~~~~~~"
+      newStrat <-
+        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+      decision <- f s newStrat
+      case decision of
+        Continue s' -> go s' newStrat (pred n0)
+        Stop -> pure ()
+     go _ _ 0 = pure ()
+     go s value !n = do
       let ((p1,env1) ::- (p2,env2) ::- Nil) = value
           mem1      = (_obsAgent env1)
           index1    = (mem1, toIdx p1)
