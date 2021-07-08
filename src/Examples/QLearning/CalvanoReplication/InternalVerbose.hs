@@ -273,6 +273,8 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 -- 4. Constructing initial state
 
 -- First observation, randomly determined
+-- NOTE: Dependency between initial strategy and initialobservation
+-- TODO: Get rid of extra parameters
 initialObservation :: Parameters -> Observation PriceSpace
 initialObservation par@Parameters{pGeneratorObs1,pGeneratorObs2} =
   Obs (samplePopulation_ (actionSpace par) pGeneratorObs1, samplePopulation_ (actionSpace par) pGeneratorObs2)
