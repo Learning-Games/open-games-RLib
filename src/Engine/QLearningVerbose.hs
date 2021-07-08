@@ -356,6 +356,12 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
+       liftIO $ print "prediction"
+       liftIO $ print prediction
+       liftIO $ print "updatedValue"
+       liftIO $ print updatedValue
+       liftIO $ print "newValue"
+       liftIO $ print newValue
        recordingArray (_iteration (_env s)) (_player (_env s)) table0 (Memory.pushEnd obsVec (fmap toIdx obs2), toIdx action) newValue
        ST.put $  updateAll newValue decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
@@ -453,7 +459,6 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                                index  = (mem, toIdx action)
                                                table0 = _qTable env'
                                                playerNo = _player env'
-                                               index' = (mem, Idx 2 ) -- fixing the strategy to observe a difference
                                            liftIO $ print "^^^^^^^^^^^"
                                            liftIO $ print "playerNo"
                                            liftIO $ print $ playerNo
@@ -468,9 +473,6 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                            liftIO $ print "qValue"
                                            value <- liftIO $ A.readArray table0 index
                                            liftIO $ print value
-                                           liftIO $ print "qValueFixed"
-                                           value' <- liftIO $ A.readArray table0 index'
-                                           liftIO $ print value'
                                            liftIO $ print "maxed action"
                                            valuesAndActions <- liftIO
                                                                   (V.mapM

@@ -227,7 +227,7 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999)
          "NothingHappenedYet"
-         0
+         50
   where
     initialArray :: IO (QTable Player1N Observation PriceSpace)
     initialArray = do
@@ -254,7 +254,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
       "NothingHappenedYet"
-      0
+      50
   where
     initialArray :: IO (QTable Player2N Observation PriceSpace)
     initialArray = do
@@ -272,8 +272,8 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 
 -- First observation, randomly determined
 initialObservation :: Parameters -> Observation PriceSpace
-initialObservation par@Parameters{pGeneratorPrice1,pGeneratorPrice2} =
-  Obs ((PriceSpace (lowerBound par) 0), (PriceSpace (lowerBound par) 0))
+initialObservation par@Parameters{pGeneratorObs1,pGeneratorObs2} =
+  Obs (samplePopulation_ (actionSpace par) pGeneratorObs1, samplePopulation_ (actionSpace par) pGeneratorObs2)
 
 -- Initiate strategy: start with random price
 initialStrat :: Parameters -> M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
@@ -281,8 +281,8 @@ initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2}= do
   e1 <- initialEnv1 par
   e2 <- initialEnv2 par
   pure
-    (pure (PriceSpace (lowerBound par) 0, e1) ::-   -- fix lowest price
-     pure (PriceSpace (upperBound par) 7, e2) ::- -- fix highest price
+    (pure (samplePopulation_ (actionSpace par) pGeneratorObs1, e1) ::-
+     pure (samplePopulation_ (actionSpace par) pGeneratorObs2, e2) ::-
      Nil)
 
 
@@ -388,9 +388,7 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
   where
     go _ _ 0 = pure ()
     go s value !n = do
-      newStrat <-
-        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
-      let ((p1,env1) ::- (p2,env2) ::- Nil) = newStrat
+      let ((p1,env1) ::- (p2,env2) ::- Nil) = value
           mem1      = (_obsAgent env1)
           index1    = (mem1, toIdx p1)
           table1    = _qTable env1
@@ -399,8 +397,22 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
           index2    = (mem2, toIdx p2)
           table2    = _qTable env2
           newValue2 = _stageNewValue env2
+      liftIO $ print "~~~~~~~~~~~~~~~~~~~~~~"
+      liftIO $ print ">>>>>>Write to array for player 1"
       liftIO $ A.writeArray table1 index1 newValue1
+      liftIO $ print "memory 1"
+      liftIO $ print mem1
+      liftIO $ print "index1"
+      liftIO $ print index1
+      liftIO $ print "<<<<<<Write to array for player 2"
       liftIO $ A.writeArray table2 index2 newValue2
+      liftIO $ print "memory 2"
+      liftIO $ print mem2
+      liftIO $ print "index2"
+      liftIO $ print index2
+      liftIO $ print "~~~~~~~~~~~~~~~~~~~~~~"
+      newStrat <-
+        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n)
