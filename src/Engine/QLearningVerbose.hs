@@ -296,11 +296,11 @@ updateRandomGQTableExploreObs decreaseFactor i obs s r  = (updateObservationAgen
 updateRandomGQTableExploreObsIteration :: ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObsIteration decreaseFactor i obs s r  = updateIteration $ updateRandomGQTableExploreObs decreaseFactor i obs s r
 
--- Update gen, qtable,exploreRate,agentObs, iteration, stage reward,
+-- Update gen, qtable,exploreRate,agentObs, iteration, stage reward
 updateRandomGQTableExploreObsIterationReward :: Double ->  ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateRandomGQTableExploreObsIterationReward value decreaseFactor i obs s r  = updateNewValue  value  $ updateRandomGQTableExploreObsIteration decreaseFactor i obs s r
 
--- Update gen, qtable,exploreRate,agentObs, iteration, stage reward,
+-- Update gen, qtable,exploreRate,agentObs, iteration, stage reward, previous memory
 updateAll :: Memory.Vector n (o (Idx a)) -> Double ->  ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateAll previousMemory value decreaseFactor i obs s r  = updatePreviousObservationAgent previousMemory $ updateRandomGQTableExploreObsIterationReward value decreaseFactor i obs s r
 
@@ -326,7 +326,7 @@ chooseActionNoExplore support s = do
 -- | Choose the optimal action given the current state or explore; indicate whether exploration tool place (False) or randomization tool place (True)
 {-# INLINE chooseExploreAction #-}
 chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
-  CTable a -> State n o a ->  m (a,ActionChoice)
+  CTable a -> State n o a -> m (a,ActionChoice)
 chooseExploreAction support s = do
   -- NOTE: gen'' is not updated anywhere...!!!
       maxed <- maxScore obsVec (_qTable $ _env s) support (_player (_env s))
