@@ -221,6 +221,7 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          (5 * 0.999)
          "NothingHappenedYet"
          0
+         (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
   where
     initialArray :: IO (QTable Player1N Observation PriceSpace)
     initialArray = do
@@ -248,6 +249,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       (5 * 0.999)
       "NothingHappenedYet"
       0
+      (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
   where
     initialArray :: IO (QTable Player2N Observation PriceSpace)
     initialArray = do
@@ -264,9 +266,10 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 -- 4. Constructing initial state
 
 -- First observation, randomly determined
+-- NOTE: Dependency between initial strategy and initialobservation
 initialObservation :: Parameters -> Observation PriceSpace
-initialObservation par@Parameters{pGeneratorPrice1,pGeneratorPrice2} =
-  Obs (samplePopulation_ (actionSpace par) pGeneratorPrice1, samplePopulation_ (actionSpace par) pGeneratorPrice2)
+initialObservation par@Parameters{pGeneratorObs1,pGeneratorObs2} =
+  Obs (samplePopulation_ (actionSpace par) pGeneratorObs1, samplePopulation_ (actionSpace par) pGeneratorObs2)
 
 -- Initiate strategy: start with random price
 initialStrat :: Parameters -> M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
@@ -361,17 +364,6 @@ evalStageM ::
                                                                     , Env Player2N Observation PriceSpace)]]
 evalStageM par _ 0 = pure []
 evalStageM par startValue n = do
-  let ((p1,env1) ::- (p2,env2) ::- Nil) = startValue
-      mem1      = (_obsAgent env1)
-      index1    = (mem1, toIdx p1)
-      table1    = _qTable env1
-      newValue1 = _stageNewValue env1
-      mem2      = (_obsAgent env2)
-      index2    = (mem2, toIdx p2)
-      table2    = _qTable env2
-      newValue2 = _stageNewValue env2
-  liftIO $ A.writeArray table1 index1 newValue1
-  liftIO $ A.writeArray table2 index2 newValue2
   newStrat <-
     sequenceL
       (evalStage par (hoist startValue) (fromEvalToContext (hoist startValue)))
@@ -388,10 +380,28 @@ mapStagesM_ ::
   -> Int
   -> s
   -> M ()
-mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
+mapStagesM_ par f startValue n0 s0 = goInitial s0 startValue n0
   where
-    go _ _ 0 = pure ()
-    go s value !n = do
+     goInitial s value n0 = do
+      newStrat <-
+        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+      decision <- f s newStrat
+      case decision of
+        Continue s' -> go s' newStrat (pred n0)
+        Stop -> pure ()
+     go _ _ 0 = pure ()
+     go s value !n = do
+      let ((p1,env1) ::- (p2,env2) ::- Nil) = value
+          mem1      = (_obsAgentPrevious env1)
+          index1    = (mem1, toIdx p1)
+          table1    = _qTable env1
+          newValue1 = _stageNewValue env1
+          mem2      = (_obsAgentPrevious env2)
+          index2    = (mem2, toIdx p2)
+          table2    = _qTable env2
+          newValue2 = _stageNewValue env2
+      liftIO $ A.writeArray table1 index1 newValue1
+      liftIO $ A.writeArray table2 index2 newValue2
       newStrat <-
         sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
       decision <- f s newStrat
