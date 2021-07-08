@@ -54,7 +54,7 @@ Login Succeeded
 Run:
 
 ```
-root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-06-29v4  stack run watch
+root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-07-07v2  stack run watch
 Unable to find image 'ghcr.io/philipp-zahn/learning/final:2021-05-29v2' locally
 2021-05-25: Pulling from philipp-zahn/learning/final
 48839397421a: Pull complete
