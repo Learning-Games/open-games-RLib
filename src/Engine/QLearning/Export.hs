@@ -150,10 +150,8 @@ data ExportConfig n o a m = ExportConfig
     -- iterations will terminate.
   , initial :: m (List '[ ( a , Env n o a), ( a , Env n o a)])
     -- ^ Initial strategy.
-  , ctable1 :: CTable a
-    -- ^ Action space player 1.
-  , ctable2 :: CTable a
-    -- ^ Action space player 2.
+  , ctable :: CTable a
+    -- ^ Action space 
   , mkObservation :: forall x. x -> x -> o x
     -- ^ How to make an observation of two player actions.
   , mapStagesM_ ::
@@ -178,8 +176,7 @@ rewardsExtendedFile :: Path b t
 rewardsExtendedFile          = [relfile|rewardsExtended.csv|]
 qValuesFile :: Path b t
 qValuesFile                  = [relfile|qvalues.csv|]
-stateActionIndexFile1         = [relfile|state_action_index_1.csv|]
-stateActionIndexFile2         = [relfile|state_action_index_2.csv|]
+stateActionIndexFile         = [relfile|state_action_index.csv|]
 
 --------------------------------------------------------------------------------
 -- Top-level functions
@@ -270,8 +267,8 @@ runQLearningExportingDiagnostics exportConfig = do
 --------------------------------------------------------------------------------
 -- Write state_action_index
 
--- | Dump the complete set of possible indices for player 1 to the QTable.
-writeStateActionIndex1 ::
+-- | Dump the complete set of possible indices to the QTable.
+writeStateActionIndex ::
      ( BuildCsvField action
      , BuildCsvField (action, action)
      , MonadUnliftIO m1
@@ -284,11 +281,11 @@ writeStateActionIndex1 ::
   => ExportConfig n o action m2
   -> List '[ ( action , Env n o action), ( action , Env n o action)]
   -> m1 ()
-writeStateActionIndex1 ExportConfig {..}  initial' = do
+writeStateActionIndex ExportConfig {..} initial' = do
   dirResultIteration <- parseRelDir runName
   putStrLn "Writing state action index ..."
   withCsvFile
-    (toFilePath (dirResultIteration </> stateActionIndexFile1))
+    (toFilePath (dirResultIteration </> stateActionIndexFile))
     (\writeRow -> do
        let (_, env) ::- _ = initial'
        bounds' <- liftIO (A.getBounds (QLearning._qTable env))
@@ -296,9 +293,9 @@ writeStateActionIndex1 ExportConfig {..}  initial' = do
          (V.sequence_
             [ writeRow
               StateActionIndex' {state = (player1, player2), action, index = i}
-            | player1 <- population ctable1
-            , player2 <- population ctable2
-            , action <- population ctable1
+            | player1 <- population ctable
+            , player2 <- population ctable
+            , action <- population ctable
             , let i =
                     Ix.index
                       bounds'
@@ -308,43 +305,7 @@ writeStateActionIndex1 ExportConfig {..}  initial' = do
                       , toIdx action)
             ]))
 
--- | Dump the complete set of possible indices for player 2 to the QTable.
-writeStateActionIndex2 ::
-     ( BuildCsvField action
-     , BuildCsvField (action, action)
-     , MonadUnliftIO m1
-     , RIO.MonadThrow m1
-     , Ix (Memory.Vector n (o (Idx action)))
-     , Memory.Memory n
-     , KnownNat n
-     , ToIdx action
-     )
-  => ExportConfig n o action m2
-  -> List '[ ( action , Env n o action), ( action , Env n o action)]
-  -> m1 ()
-writeStateActionIndex2 ExportConfig {..}  initial' = do
-  dirResultIteration <- parseRelDir runName
-  putStrLn "Writing state action index ..."
-  withCsvFile
-    (toFilePath (dirResultIteration </> stateActionIndexFile2))
-    (\writeRow -> do
-       let (_, env) ::- _ = initial'
-       bounds' <- liftIO (A.getBounds (QLearning._qTable env))
-       liftIO
-         (V.sequence_
-            [ writeRow
-              StateActionIndex' {state = (player1, player2), action, index = i}
-            | player1 <- population ctable1
-            , player2 <- population ctable2
-            , action <- population ctable2
-            , let i =
-                    Ix.index
-                      bounds'
-                      ( Memory.fromSV
-                          (SV.replicate
-                             (mkObservation (toIdx player1) (toIdx player2)))
-                      , toIdx action)
-            ]))
+
 
 --------------------------------------------------------------------------------
 -- Write QValues
