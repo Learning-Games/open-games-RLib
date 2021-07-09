@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE EmptyCase, DuplicateRecordFields #-}
 
-import System.Random
+import qualified RIO
+import           System.Random
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Engine.QLearning.Export as QLearning
@@ -41,17 +42,28 @@ specification name = do
           }
       exportConfig =
         QLearning.ExportConfig
-          { iterations = 100
-          , outputEveryN = 1
+          { iterations = 1000
+          , players = 2
+          , threshold = 100
+          , outputEveryN = 1000
           , incrementalMode = True
           , mapStagesM_ = Scenario.mapStagesM_ parameters
           , initial = Scenario.initialStrat parameters >>= Scenario.sequenceL
           , ctable1 = Scenario.actionSpace parameters
           , ctable2 = Scenario.actionSpace parameters
           , mkObservation = \a b -> Scenario.Obs (a, b)
-          , keepOnlyNLinesReward = 10000
           , runName = name
           }
   BS.writeFile ("parameters_" <> name <>".csv") $ Scenario.csvParameters parameters
-  QLearning.runQLearningExportingDiagnostics exportConfig
+  if False
+    then QLearning.runQLearningExportingDiagnostics exportConfig
+    else RIO.runRIO
+           mempty
+           (do strat <- QLearning.initial exportConfig
+               list <-
+                 Scenario.evalStageM
+                   parameters
+                   strat
+                   (QLearning.iterations exportConfig)
+               RIO.liftIO (writeFile "evalStageList.txt" (show list)))
   putStrLn "completed task"

@@ -21,6 +21,7 @@ library:
     - Engine.OpticClass
     - Engine.QLearning
     - Engine.QLearning.Export
+    - Engine.QLearning.ExportVerbose
     - Engine.QLearningSimple
     - Engine.TLL
     - Preprocessor.AbstractSyntax
@@ -43,6 +44,14 @@ library:
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
+<<<<<<< variant A
+>>>>>>> variant B
+    - Examples.QLearning.CalvanoReplication
+    - Examples.QLearning.CalvanoReplicationVerbose
+    - Examples.QLearning.BestReply
+    - Examples.QLearning.CalvanoReplication.Internal
+    - Examples.QLearning.CalvanoReplication.InternalVerbose
+======= end
 
 dependencies:
     - base >=4.7 && <5
@@ -61,6 +70,7 @@ dependencies:
     - hashtables
     - random
     - vector
+    - vector-instances
     - unordered-containers
     - mwc-random >= 0.15.0.1
     - vector-sized
@@ -84,6 +94,8 @@ dependencies:
     - hspec
     - cond
     - QuickCheck
+    - splitmix
+    - utf8-string
 
 executables:
   learning-exe:

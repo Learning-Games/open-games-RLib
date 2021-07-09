@@ -21,7 +21,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.CalvanoReplication.Internal
+module Examples.QLearning.CalvanoReplication.InternalVerbose
   where
 
 import           Control.DeepSeq
@@ -40,7 +40,7 @@ import qualified Data.Vector.Sized as SV
 import qualified Engine.Memory as Memory
 import           Engine.OpenGames
 import           Engine.OpticClass
-import           Engine.QLearning
+import           Engine.QLearningVerbose
 import           Engine.TLL
 import           FastCsv
 import           GHC.Generics
@@ -48,6 +48,13 @@ import           Preprocessor.Compile
 import           RIO (RIO, GLogFunc)
 import           System.Random
 import qualified System.Random as Rand
+
+
+-------------------------------------------------------
+-- NOTE this version contains extra display out options
+-- The purpose of this version is to be able to explore
+-- the output in more detail
+
 
 ------------------------------------
 -- Configure observations and memory
@@ -220,7 +227,7 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999)
          "NothingHappenedYet"
-         0
+         50
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
   where
     initialArray :: IO (QTable Player1N Observation PriceSpace)
@@ -248,7 +255,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
       "NothingHappenedYet"
-      0
+      50
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
   where
     initialArray :: IO (QTable Player2N Observation PriceSpace)
@@ -267,6 +274,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 
 -- First observation, randomly determined
 -- NOTE: Dependency between initial strategy and initialobservation
+-- TODO: Get rid of extra parameters
 initialObservation :: Parameters -> Observation PriceSpace
 initialObservation par@Parameters{pGeneratorObs1,pGeneratorObs2} =
   Obs (samplePopulation_ (actionSpace par) pGeneratorObs1, samplePopulation_ (actionSpace par) pGeneratorObs2)
@@ -383,6 +391,9 @@ mapStagesM_ ::
 mapStagesM_ par f startValue n0 s0 = goInitial s0 startValue n0
   where
      goInitial s value n0 = do
+      liftIO $ print "~~~~~~~~~~~~~~~~~~~~~~"
+      liftIO $ print "No update in that round"
+      liftIO $ print "~~~~~~~~~~~~~~~~~~~~~~"
       newStrat <-
         sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
       decision <- f s newStrat
@@ -400,8 +411,20 @@ mapStagesM_ par f startValue n0 s0 = goInitial s0 startValue n0
           index2    = (mem2, toIdx p2)
           table2    = _qTable env2
           newValue2 = _stageNewValue env2
+      liftIO $ print "~~~~~~~~~~~~~~~~~~~~~~"
+      liftIO $ print ">>>>>>Write to array for player 1"
       liftIO $ A.writeArray table1 index1 newValue1
+      liftIO $ print "memory 1"
+      liftIO $ print mem1
+      liftIO $ print "index1"
+      liftIO $ print index1
+      liftIO $ print "<<<<<<Write to array for player 2"
       liftIO $ A.writeArray table2 index2 newValue2
+      liftIO $ print "memory 2"
+      liftIO $ print mem2
+      liftIO $ print "index2"
+      liftIO $ print index2
+      liftIO $ print "~~~~~~~~~~~~~~~~~~~~~~"
       newStrat <-
         sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
       decision <- f s newStrat

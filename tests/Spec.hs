@@ -4,6 +4,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Spec where
 
@@ -61,44 +62,20 @@ main = do
           , pGeneratorObs1 = gObs1
           , pGeneratorObs2 = gObs2
           }
-      parametersTestAsymmetricPrices =
-         AP.Parameters
-          { pKsi = 0.1
-          , pBeta = (- 0.00001)
-          , pBertrandPrice1 = 1.47
-          , pBertrandPrice2 = 1.47
-          , pMonopolyPrice1 = 1.92
-          , pMonopolyPrice2 = 1.92
-          , pGamma = 0.95
-          , pLearningRate = 0.15
-          , pMu = 0.25
-          , pA1 = 2
-          , pA2 = 2
-          , pA0 = 0
-          , pC1 = 1
-          , pC2 = 1
-          , pM1 = 1 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
-          , pM2 = 1 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
-          , pGeneratorEnv1 = gEnv1
-          , pGeneratorEnv2 = gEnv2
-          , pGeneratorPrice1 = gPrice1
-          , pGeneratorPrice2 = gPrice2
-          , pGeneratorObs1 = gObs1
-          , pGeneratorObs2 = gObs2
-          }
-
-  hspec $ do spec1 parametersTestCalvano
-             spec2 parametersTestCalvano
-             spec3 parametersTestCalvano
-             (spec4 parametersTestCalvano gObs1 gObs2)
-             spec5 parametersTestAsymmetricPrices
-             spec6 parametersTestAsymmetricPrices
-             spec7 parametersTestAsymmetricPrices
-             spec8 parametersTestAsymmetricPrices
-             spec9 parametersTestAsymmetricPrices
-             spec10 parametersTestAsymmetricPrices
-             (spec11 parametersTestAsymmetricPrices gObs1 gObs2)
-             (spec12 parametersTestAsymmetricPrices gObs1 gObs2)
+      pMon = PriceSpace (pMonopolyPrice parametersTest) 1
+      pBet = PriceSpace (pBertrandPrice parametersTest) 2
+  hspec $ do spec1 parametersTest
+             spec2 parametersTest
+             spec3 parametersTest
+             --(spec4 parametersTest gObs1 gObs2)
+             sequence_ (lsProfitEqual parametersTest (population $ actionSpace parametersTest))
+             sequence_ (lsProfitEqual2 parametersTest (pricePairs parametersTest))
+             sequence_ (lsProfitEqual3 parametersTest (pricePairs parametersTest))
+             
+  print $ profit (pA0 parametersTest) (pA1 parametersTest) (pA2 parametersTest) pBet pBet (pMu parametersTest) (pC1 parametersTest)
+  print $ profit (pA0 parametersTest) (pA1 parametersTest) (pA2 parametersTest) pMon pMon (pMu parametersTest) (pC1 parametersTest)
+  print $ lowerBound parametersTest
+  print $ upperBound parametersTest
 
 spec1 par = describe
   "actionSpace" $ do
@@ -120,80 +97,13 @@ spec3 par = describe
       shouldBe
           (maximum $ fmap C.idx $ population $ C.actionSpace par)
           1
-spec4 :: C.Parameters -> StdGen -> StdGen -> SpecWith ()
+{-
+spec4 :: Parameters -> StdGen -> StdGen -> SpecWith ()
 spec4 par gen1 gen2 = describe
    "maxScore" $ do
      it "checks that the highest score is generated" $ do
-       arr <- initialArray par 
-       maxed <- maxScore (Memory.fromSV (SV.replicate (fmap toIdx initialObs))) arr (C.actionSpace par)
-       shouldBe
-          maxed
-          maxLs
-   where
-    initialObs =
-       C.Obs (samplePopulation_ (C.actionSpace par) gen1, samplePopulation_ (C.actionSpace par) gen2)
-    filteredLs = [(w,z) |(((x,y),z),w) <- C.lsValues par, (x,y) == C.unObs initialObs]
-    maxLs = maximumBy (comparing fst) filteredLs
-    initialArray :: C.Parameters -> IO (QTable C.Player1N C.Observation C.PriceSpace)
-    initialArray par = do
-              arr <- newArray_ (asIdx l, asIdx u)
-              traverse_ (\(k, v) -> writeArray arr ( (asIdx k)) v) lsValues'
-              pure arr
-              where
-                lsValues' = C.lsValues par
-                l = minimum $ fmap fst lsValues'
-                u = maximum $ fmap fst lsValues'
-                asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (C.Obs (toIdx x, toIdx y))), toIdx z)
-
-spec5 par = describe
-  "actionSpace1" $ do
-    it "computes the correct action values for player 1?" $ do
-        shouldBe
-            (fmap AP.value $ population $ AP.actionSpace1 par)
-            (V.fromList [AP.lowerBound1 par,AP.lowerBound1 par + AP.dist1 par .. AP.upperBound1 par])
-
-
-spec6 par = describe
-  "actionSpace2" $ do
-    it "computes the correct action values for player 2?" $ do
-        shouldBe
-            (fmap AP.value $ population $ AP.actionSpace2 par)
-            (V.fromList [AP.lowerBound2 par,AP.lowerBound2 par + AP.dist2 par .. AP.upperBound2 par])
-
-spec7 par = describe
-  "lowestIndex1" $ do
-    it "checks the lowest index is correct for player 1" $ do
-      shouldBe
-          (minimum $ fmap AP.idx $ population $ AP.actionSpace1 par)
-          0
-
-spec8 par = describe
-  "lowestIndex2" $ do
-    it "checks the lowest index is correct for player 2" $ do
-      shouldBe
-          (minimum $ fmap AP.idx $ population $ AP.actionSpace2 par)
-          0
-
-spec9 par = describe
-  "highestIndex 1" $ do
-    it "checks the lowest index is correct for player 1" $ do
-      shouldBe
-          (maximum $ fmap AP.idx $ population $ AP.actionSpace1 par)
-          1
-
-spec10 par = describe
-  "highestIndex 2" $ do
-    it "checks the lowest index is correct for player 2" $ do
-      shouldBe
-          (maximum $ fmap AP.idx $ population $ AP.actionSpace2 par)
-         1 
-
-spec11 :: AP.Parameters -> StdGen -> StdGen -> SpecWith ()
-spec11 par gen1 gen2 = describe
-   "maxScore1" $ do
-     it "checks that the highest score is generated for player 1" $ do
-       arr <- initialArray par 
-       maxed <- maxScore (Memory.fromSV (SV.replicate (fmap toIdx initialObs))) arr (AP.actionSpace1 par)
+       arr <- initialArray par
+       maxed <- maxScore (Memory.fromSV (SV.replicate (fmap toIdx initialObs))) arr (actionSpace par) 1
        shouldBe
           maxed
           maxLs
@@ -240,3 +150,51 @@ spec12 par gen1 gen2 = describe
 
 
 
+-}
+
+
+profitEqual par p1 p2 = describe
+  ("profitEqual " ++ show (idx p1) ++ show (idx p2)  )$ do
+    it "checks that the profits are equal for symmetric actions" $ do
+       shouldBe
+          (profitTest1 par p1 p2)
+          (profitTest2 par p1 p2)
+    where
+      profitTest1, profitTest2 :: Parameters -> PriceSpace -> PriceSpace -> Double
+      profitTest1 Parameters {..} p1 p2 = profit pA0 pA1 pA2 p1 p2 pMu pC1
+      profitTest2 Parameters {..} p1 p2 = profit pA0 pA1 pA2 p2 p1 pMu pC1
+
+
+lsProfitEqual par = fmap (profitEqualP par)
+  where profitEqualP par p = profitEqual par p p
+
+
+profitEqual2 par p1 p2 = describe
+  ("profitEqual2 " ++ show (idx p1) ++ show (idx p2)  )$ do
+    it "checks that the profits are equal for symmetric actions" $ do
+       shouldBe
+          (profit1 par p1 p2)
+          (profitTest1 par p1 p2)
+    where
+      profitTest1 :: Parameters -> PriceSpace -> PriceSpace -> Double
+      profitTest1 Parameters {..} p1 p2 = profit pA0 pA1 pA2 p1 p2 pMu pC1
+
+
+lsProfitEqual2 par = fmap (profitEqualP par)
+  where profitEqualP par (p1,p2) = profitEqual2 par p1 p2
+
+
+
+profitEqual3 par p1 p2 = describe
+  ("profitEqual3 " ++ show (idx p1) ++ show (idx p2)  )$ do
+    it "checks that the profits are equal for symmetric actions" $ do
+       shouldBe
+          (profit2 par p1 p2)
+          (profitTest2 par p1 p2)
+    where
+      profitTest2 :: Parameters -> PriceSpace -> PriceSpace -> Double
+      profitTest2 Parameters {..} p1 p2 = profit pA0 pA1 pA2 p2 p1 pMu pC1
+
+
+lsProfitEqual3 par = fmap (profitEqualP par)
+  where profitEqualP par (p1,p2) = profitEqual3 par p1 p2
