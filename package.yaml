@@ -21,6 +21,7 @@ library:
     - Engine.OpticClass
     - Engine.QLearning
     - Engine.QLearning.Export
+    - Engine.QLearning.ExportAsymmetric
     - Engine.QLearning.ExportVerbose
     - Engine.QLearningSimple
     - Engine.TLL
@@ -41,14 +42,11 @@ library:
     - Examples.QLearning.BestReply
     - Examples.QLearning.CalvanoReplication
     - Examples.QLearning.CalvanoReplication.Internal
+    - Examples.QLearning.CalvanoReplicationVerbose
+    - Examples.QLearning.CalvanoReplication.InternalVerbose
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
-    - Examples.QLearning.CalvanoReplication
-    - Examples.QLearning.CalvanoReplicationVerbose
-    - Examples.QLearning.BestReply
-    - Examples.QLearning.CalvanoReplication.Internal
-    - Examples.QLearning.CalvanoReplication.InternalVerbose
 
 dependencies:
     - base >=4.7 && <5
