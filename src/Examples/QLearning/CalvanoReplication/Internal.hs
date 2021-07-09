@@ -84,6 +84,7 @@ instance ToIdx PriceSpace where
 
 ----------------------
 -- Define parameters needed to specify the game
+-- TODO Get rid of not needed parameters (seeds due to consistency conditions)
 data Parameters = Parameters
   { pKsi :: Double
   , pBeta :: ExploreRate
@@ -130,11 +131,13 @@ instance FastCsv.BuildCsvField PriceSpace where
 -----------------------
 -- Game characteristics
 -- Demand follows eq 5 in Calvano et al.
+-- TODO Get rid of this instance, replace it with the asymmetric version
 demand :: Floating a => a -> a -> a -> a -> a -> a -> a
 demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
   where agg = (exp 1.0)**((a1-p1)/mu) + (exp 1.0)**((a2-p2)/mu) + (exp 1.0)**(a0/mu)
 
 -- Profit function
+-- TODO Get rid of this instance, replace it with the asymmetric version
 profit :: Double -> Double -> Double -> PriceSpace -> PriceSpace -> Double -> Double -> Double
 profit a0 a1 a2 (PriceSpace p1 _) (PriceSpace p2 _) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
@@ -146,7 +149,6 @@ demand1 Parameters {..} p1 p2 = (exp 1.0)**((pA1-p1)/pMu) / agg
 demand2 :: Parameters -> Double -> Double -> Double
 demand2 Parameters {..} p1 p2 = (exp 1.0)**((pA2-p2)/pMu) / agg
   where agg = (exp 1.0)**((pA1-p1)/pMu) + (exp 1.0)**((pA2-p2)/pMu) + (exp 1.0)**(pA0/pMu)
-
 
 
 -- Profit function

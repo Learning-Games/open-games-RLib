@@ -44,14 +44,11 @@ library:
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
-<<<<<<< variant A
->>>>>>> variant B
     - Examples.QLearning.CalvanoReplication
     - Examples.QLearning.CalvanoReplicationVerbose
     - Examples.QLearning.BestReply
     - Examples.QLearning.CalvanoReplication.Internal
     - Examples.QLearning.CalvanoReplication.InternalVerbose
-======= end
 
 dependencies:
     - base >=4.7 && <5
