@@ -33,6 +33,7 @@ import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Csv
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
+import           Data.Hashable
 import qualified Data.Ix as I
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
@@ -59,7 +60,7 @@ type Player2N = 1
 -- Mutual observation, fixes the number of players in the game
 newtype Observation a = Obs
   { unObs :: (a, a)
-  } deriving (Show,Generic,I.Ix,Ord, Eq, Functor, NFData, Aeson.ToJSON)
+  } deriving (Show,Generic,I.Ix,Ord, Eq, Functor, NFData, Aeson.ToJSON, Hashable)
 
 -- Action space
 -- Type is constructed as a product of actual price, _Double_, and an associated index, _Int_
@@ -102,8 +103,6 @@ data Parameters = Parameters
   , pM2  :: Double
   , pGeneratorEnv1 :: StdGen
   , pGeneratorEnv2 :: StdGen
-  , pGeneratorPrice1 :: StdGen
-  , pGeneratorPrice2 :: StdGen
   , pGeneratorObs1 :: StdGen
   , pGeneratorObs2 :: StdGen
   } deriving (Generic,Show)
@@ -141,6 +140,25 @@ demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
 profit :: Double -> Double -> Double -> PriceSpace -> PriceSpace -> Double -> Double -> Double
 profit a0 a1 a2 (PriceSpace p1 _) (PriceSpace p2 _) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
 
+-- demand player 1
+demand1 :: Parameters -> Double -> Double -> Double
+demand1 Parameters {..} p1 p2 = (exp 1.0)**((pA1-p1)/pMu) / agg
+  where agg = (exp 1.0)**((pA1-p1)/pMu) + (exp 1.0)**((pA2-p2)/pMu) + (exp 1.0)**(pA0/pMu)
+
+-- demand player 2
+demand2 :: Parameters -> Double -> Double -> Double
+demand2 Parameters {..} p1 p2 = (exp 1.0)**((pA2-p2)/pMu) / agg
+  where agg = (exp 1.0)**((pA1-p1)/pMu) + (exp 1.0)**((pA2-p2)/pMu) + (exp 1.0)**(pA0/pMu)
+
+-- profit player 1
+profit1 :: Parameters -> PriceSpace -> PriceSpace -> Double
+profit1 par@Parameters {..} (PriceSpace p1 _) (PriceSpace p2 _) = (p1 - pC1)* (demand1 par p1 p2)
+
+-- profit player 2
+profit2 :: Parameters -> PriceSpace -> PriceSpace -> Double
+profit2 par@Parameters {..} (PriceSpace p1 _) (PriceSpace p2 _) = (p2 - pC2)* (demand2 par p1 p2)
+
+
 ------------------------------------------------------
 -- Create index on the basis of the actual prices used
 -- Also allows for different price types
@@ -151,8 +169,7 @@ dist1 :: Parameters -> Double
 dist1 par =  (upperBound1 par - lowerBound1 par) / pM1 par
 
 dist2 :: Parameters -> Double
-dist2 par =  (upperBound2 par - lowerBound2 par) / pM1 par
-
+dist2 par =  (upperBound2 par - lowerBound2 par) / pM2 par
 
 
 -- determine the bounds within which to search
@@ -215,7 +232,6 @@ lsValues2 par@Parameters{pGamma,pA0,pA1,pA2,pMu,pC2} = [(((x,y),z),value z)| (x,
 
 
 
-
 -- initiate the environment
 initialEnv1 :: Parameters -> M (Env Player1N Observation PriceSpace)
 initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
@@ -231,6 +247,8 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999)
          "NothingHappenedYet"
+         0
+         (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
   where
     initialArray :: IO (QTable Player1N Observation PriceSpace)
     initialArray = do
@@ -248,7 +266,8 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
   liftIO initialArray >>= \arr ->
     pure $
     Env
-      "Player2" 2
+      "Player2"
+      2
       (arr)
       0
       ((exp 1) ** 0)
@@ -256,6 +275,9 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
       "NothingHappenedYet"
+      0
+      (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
+
   where
     initialArray :: IO (QTable Player2N Observation PriceSpace)
     initialArray = do
@@ -272,9 +294,10 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
 -- 4. Constructing initial state
 
 -- First observation, randomly determined
+-- NOTE: Dependency between initial strategy and initialobservation
 initialObservation :: Parameters -> Observation PriceSpace
-initialObservation par@Parameters{pGeneratorPrice1,pGeneratorPrice2} =
-  Obs (samplePopulation_ (actionSpace1 par) pGeneratorPrice1, samplePopulation_ (actionSpace2 par) pGeneratorPrice2)
+initialObservation par@Parameters{pGeneratorObs1,pGeneratorObs2} =
+  Obs (samplePopulation_ (actionSpace1 par) pGeneratorObs1, samplePopulation_ (actionSpace2 par) pGeneratorObs2)
 
 -- Initiate strategy: start with random price
 initialStrat :: Parameters -> M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
@@ -320,18 +343,17 @@ stageSimple par@Parameters {..} = [opengame|
    feedback  :      ;
    operation : pureDecisionQStage (configQL par) (actionSpace1 par) "Player1" ;
    outputs   :  p1 ;
-   returns   :  (profit pA0 pA1 pA2 p1 p2 pMu pC1, Obs (p1,p2)) ;
+   returns   :  (profit1 par p1 p2, Obs (p1,p2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
    operation : pureDecisionQStage (configQL par) (actionSpace2 par) "Player2"  ;
    outputs   :  p2 ;
-   returns   :  (profit pA0 pA1 pA2 p2 p1 pMu pC1, Obs (p1,p2))    ;
+   returns   :  (profit2 par p1 p2, Obs (p1,p2))    ;
    :-----------------:
 
    outputs   :  (p1, p2)    ;
    returns   :      ;
-
 
 |]
 
@@ -379,7 +401,7 @@ evalStageM par startValue n = do
 mapStagesM_ ::
   Parameters
   -> (s ->  List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                        , Env Player2N Observation PriceSpace)] -> M s)
+                                                                        , Env Player2N Observation PriceSpace)] -> M (Decision s))
   -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
                                                                 , Env Player2N Observation PriceSpace)]
   -> Int
@@ -387,12 +409,32 @@ mapStagesM_ ::
   -> M ()
 mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
   where
-    go _ _ 0 = pure ()
-    go s value !n = do
+     goInitial s value n0 = do
       newStrat <-
         sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
-      s' <- f s newStrat
-      go s' newStrat (pred n)
+      decision <- f s newStrat
+      case decision of
+        Continue s' -> go s' newStrat (pred n0)
+        Stop -> pure ()
+     go _ _ 0 = pure ()
+     go s value !n = do
+      let ((p1,env1) ::- (p2,env2) ::- Nil) = value
+          mem1      = (_obsAgentPrevious env1)
+          index1    = (mem1, toIdx p1)
+          table1    = _qTable env1
+          newValue1 = _stageNewValue env1
+          mem2      = (_obsAgentPrevious env2)
+          index2    = (mem2, toIdx p2)
+          table2    = _qTable env2
+          newValue2 = _stageNewValue env2
+      liftIO $ A.writeArray table1 index1 newValue1
+      liftIO $ A.writeArray table2 index2 newValue2
+      newStrat <-
+        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+      decision <- f s newStrat
+      case decision of
+        Continue s' -> go s' newStrat (pred n)
+        Stop -> pure ()
 
 hoist ::
      Applicative f
@@ -440,8 +482,6 @@ data ExportParameters = ExportParameters
   , expUpperBound2 :: !Double
   , expGeneratorEnv1 :: !String
   , expGeneratorEnv2 :: !String
-  , expGeneratorPrice1 :: !String
-  , expGeneratorPrice2 :: !String
   , expGeneratorObs1 :: !String
   , expGeneratorObs2 :: !String
   , expInitialObservation1 :: !PriceSpace
@@ -479,14 +519,12 @@ exportParameters par = ExportParameters
   (upperBound2 par)
   (show $ pGeneratorEnv1 par)
   (show $ pGeneratorEnv2 par)
-  (show $ pGeneratorPrice1 par)
-  (show $ pGeneratorPrice2 par)
   (show $ pGeneratorObs1 par)
   (show $ pGeneratorObs2 par)
   (samplePopulation_ (actionSpace1 par) (pGeneratorObs1 par))
   (samplePopulation_ (actionSpace2 par) (pGeneratorObs2 par))
-  (samplePopulation_ (actionSpace1 par) (pGeneratorPrice1 par))
-  (samplePopulation_ (actionSpace2 par) (pGeneratorPrice2 par))
+  (samplePopulation_ (actionSpace1 par) (pGeneratorObs1 par))
+  (samplePopulation_ (actionSpace2 par) (pGeneratorObs2 par))
 
 -- | export to CSV
 csvParameters :: Parameters -> L.ByteString
