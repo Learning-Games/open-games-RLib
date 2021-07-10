@@ -21,14 +21,13 @@ import qualified Examples.QLearning.AsymmetricPrices.Internal as AP
 import qualified Examples.QLearning.CalvanoReplication.Internal as C
 import qualified Engine.Memory as Memory
 
--- TODO Start with fixed values and then extend to more general, arbitrary values
--- TODO Start with Calvano example and the test functionality more generally
+-- TODO REDO PROPER TESTING
 
 -------------
 -- 0. Types
 
 
-
+{--
 
 ---------------------
 -- 1. Top-level file
@@ -198,3 +197,4 @@ profitEqual3 par p1 p2 = describe
 
 lsProfitEqual3 par = fmap (profitEqualP par)
   where profitEqualP par (p1,p2) = profitEqual3 par p1 p2
+-}
