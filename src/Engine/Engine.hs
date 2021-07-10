@@ -47,6 +47,7 @@ module Engine.Engine
   , type (+:+)
   , (+:+)
   , Kleisli(..)
+  , lastL
   ) where
 
 -- | File organizes the imports of the engine to streamline the import of relevant functionality

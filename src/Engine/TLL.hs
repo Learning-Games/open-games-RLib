@@ -27,6 +27,7 @@ module Engine.TLL
   , type (+:+)
   , (+:+)
   , toPair
+  , lastL
   ) where
 
 import Control.Applicative
