@@ -31,6 +31,7 @@ module Engine.TLL
 
 import Control.Applicative
 import Control.DeepSeq
+import Data.Kind
 
 infixr 6 ::-
 data List ts where
@@ -153,5 +154,23 @@ instance IndexList Z (x ': xs) x where
 
 instance IndexList n xs a => IndexList (S n) (x ': xs) a where
    fromIndex (Succ n) (_ ::- xs) = fromIndex n xs
+
+
+--------------------------------------
+-- List functionality
+
+headL :: List (a ': as) -> a
+headL (x ::- _) = x
+
+tailL :: List (a ': as) -> List as
+tailL (_ ::- xs) = xs
+
+type family LastL xs where
+  LastL '[x] = x
+  LastL (x ': xs) = LastL xs
+
+lastL :: List a -> LastL a
+lastL (x ::- Nil)          = x
+lastL (x ::- xs@(_ ::- _)) = lastL xs
 
 
