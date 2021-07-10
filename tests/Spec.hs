@@ -27,6 +27,8 @@ import qualified Engine.Memory as Memory
 -- 0. Types
 
 
+main = print "test to be implemented"
+
 {--
 
 ---------------------
