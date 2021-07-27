@@ -1,6 +1,8 @@
 module Examples.QLearning.AsymmetricPrices
   ( evalStageLS
   , initialStrat
+  , initialArray1
+  , initialArray2
   , actionSpace1
   , actionSpace2
   , csvParameters

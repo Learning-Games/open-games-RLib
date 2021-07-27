@@ -87,6 +87,8 @@ instance ToIdx PriceSpace where
 data Parameters = Parameters
   { pKsi :: Double
   , pBeta :: ExploreRate
+  , pInitialExploreRate1 :: ExploreRate
+  , pInitialExploreRate2 :: ExploreRate
   , pBertrandPrice1 :: Double
   , pMonopolyPrice1 :: Double
   , pBertrandPrice2 :: Double
@@ -232,9 +234,9 @@ lsValues2 par@Parameters{pGamma,pA0,pA1,pA2,pMu,pC2} = [(((x,y),z),value z)| (x,
 
 
 
--- initiate the environment
-initialEnv1 :: Parameters -> M (Env Player1N Observation PriceSpace)
-initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
+-- Initiate the environment given the parameters and an initial qmatrix for player 1
+initialEnv1 :: Parameters -> IO (QTable Player1N Observation PriceSpace) -> M (Env Player1N Observation PriceSpace)
+initialEnv1 par@Parameters{pInitialExploreRate1,pGeneratorEnv1} initialArray =
   liftIO initialArray >>= \arr ->
     pure $
       Env
@@ -242,27 +244,17 @@ initialEnv1 par@Parameters{pBeta,pGeneratorEnv1} =
          1
          arr
          0
-         ((exp 1) ** 0)
+         pInitialExploreRate1
          pGeneratorEnv1
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
          (5 * 0.999)
          "NothingHappenedYet"
          0
          (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
-  where
-    initialArray :: IO (QTable Player1N Observation PriceSpace)
-    initialArray = do
-      arr <- newArray_ (asIdx l, asIdx u)
-      traverse_ (\(k, v) -> writeArray arr ( (asIdx k)) v) lsValues'
-      pure arr
-      where
-        lsValues' = lsValues1 par
-        l = minimum $ fmap fst lsValues'
-        u = maximum $ fmap fst lsValues'
-        asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
 
-initialEnv2 :: Parameters -> M (Env Player2N Observation PriceSpace)
-initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
+-- Initiate the environment given the parameters and an initial qmatrix for player 2
+initialEnv2 :: Parameters -> IO (QTable Player2N Observation PriceSpace) -> M (Env Player2N Observation PriceSpace)
+initialEnv2 par@Parameters{pInitialExploreRate2,pGeneratorEnv2} initialArray =
   liftIO initialArray >>= \arr ->
     pure $
     Env
@@ -270,7 +262,7 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       2
       (arr)
       0
-      ((exp 1) ** 0)
+      pInitialExploreRate2
       pGeneratorEnv2
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
       (5 * 0.999)
@@ -278,9 +270,23 @@ initialEnv2 par@Parameters{pBeta,pGeneratorEnv2} =
       0
       (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
 
+-- Create an initial qTable from the default values and parameters for player 1
+-- Typical usage is when the env is created from scratch (and not reinitiated)
+initialArray1 :: Parameters -> IO (QTable Player1N Observation PriceSpace)
+initialArray1 par = do
+  arr <- newArray_ (asIdx l, asIdx u)
+  traverse_ (\(k, v) -> writeArray arr ( (asIdx k)) v) lsValues'
+  pure arr
   where
-    initialArray :: IO (QTable Player2N Observation PriceSpace)
-    initialArray = do
+    lsValues' = lsValues1 par
+    l = minimum $ fmap fst lsValues'
+    u = maximum $ fmap fst lsValues'
+    asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
+
+-- Create an initial qTable from the default values and parameters for player 2
+-- Typical usage is when the env is created from scratch (and not reinitiated)
+initialArray2 :: Parameters -> IO (QTable Player2N Observation PriceSpace)
+initialArray2 par = do
       arr <- newArray_ (asIdx l, asIdx u)
       traverse_ (\(k, v) -> writeArray arr (asIdx k) v) lsValues'
       pure arr
@@ -300,10 +306,13 @@ initialObservation par@Parameters{pGeneratorObs1,pGeneratorObs2} =
   Obs (samplePopulation_ (actionSpace1 par) pGeneratorObs1, samplePopulation_ (actionSpace2 par) pGeneratorObs2)
 
 -- Initiate strategy: start with random price
-initialStrat :: Parameters -> M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
-initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2}= do
-  e1 <- initialEnv1 par
-  e2 <- initialEnv2 par
+initialStrat :: Parameters
+             -> IO (QTable Player1N Observation PriceSpace)
+             -> IO (QTable Player2N Observation PriceSpace)
+             ->  M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
+initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2} initialArr1 initialArr2= do
+  e1 <- initialEnv1 par initialArr1
+  e2 <- initialEnv2 par initialArr2
   pure
     (pure (samplePopulation_ (actionSpace1 par) pGeneratorObs1, e1) ::-
      pure (samplePopulation_ (actionSpace2 par) pGeneratorObs2, e2) ::-
@@ -461,6 +470,8 @@ sequenceL (x ::- y ::- Nil) = do
 data ExportParameters = ExportParameters
   { expKsi :: !Double
   , expBeta :: !ExploreRate
+  , expInitialExploreRate1 :: !ExploreRate
+  , expInitialExploreRate2 :: !ExploreRate
   , expDecreaseFactor :: !ExploreRate
   , expBertrandPrice1 :: !Double
   , expBertrandPrice2 :: !Double
@@ -498,6 +509,8 @@ exportParameters :: Parameters -> ExportParameters
 exportParameters par = ExportParameters
   (pKsi par)
   (pBeta par)
+  (pInitialExploreRate1 par)
+  (pInitialExploreRate2 par)
   (pBeta par)
   (pBertrandPrice1 par)
   (pBertrandPrice2 par)
