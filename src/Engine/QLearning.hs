@@ -264,8 +264,8 @@ updateTemperature :: Temperature -> State n o a ->  State n o a
 updateTemperature decreaseFactor = env % temperature %~ (* decreaseFactor)
 
 -- Update explorRate
-updateExploreRate :: ExploreRate -> Int -> State n o a -> State n o a
-updateExploreRate decreaseFactor i = env % exploreRate %~ (* ((exp 1) ** (-decreaseFactor)))
+updateExploreRate :: ExploreRate -> State n o a -> State n o a
+updateExploreRate decreaseFactor = env % exploreRate %~ (* ((exp 1) ** (-decreaseFactor)))
 
 -- Update reward
 updateNewValue :: Double -> State n o a -> State n o a
@@ -285,24 +285,24 @@ updateRandomGQTableTemp :: Temperature -> State n o a -> Rand.StdGen -> State n 
 updateRandomGQTableTemp decreaseFactor s r = (updateTemperature decreaseFactor) $ updateRandomGAndQTable s r
 
 -- Update gen, qtable,exploreRate
-updateRandomGQTableExplore :: ExploreRate -> Int -> State n o a -> Rand.StdGen -> State n o a
-updateRandomGQTableExplore decreaseFactor i s r = (updateExploreRate decreaseFactor i) $ updateRandomGAndQTable s r
+updateRandomGQTableExplore :: ExploreRate -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExplore decreaseFactor s r = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r
 
 -- Update gen, qtable,exploreRate,agentObs
-updateRandomGQTableExploreObs :: ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
-updateRandomGQTableExploreObs decreaseFactor i obs s r  = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor i s r
+updateRandomGQTableExploreObs :: ExploreRate -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExploreObs decreaseFactor obs s r  = (updateObservationAgent obs) $ updateRandomGQTableExplore decreaseFactor s r
 
 -- Update gen, qtable,exploreRate,agentObs, iteration
-updateRandomGQTableExploreObsIteration :: ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
-updateRandomGQTableExploreObsIteration decreaseFactor i obs s r  = updateIteration $ updateRandomGQTableExploreObs decreaseFactor i obs s r
+updateRandomGQTableExploreObsIteration :: ExploreRate -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExploreObsIteration decreaseFactor obs s r  = updateIteration $ updateRandomGQTableExploreObs decreaseFactor obs s r
 
 -- Update gen, qtable,exploreRate,agentObs, iteration, stage reward
-updateRandomGQTableExploreObsIterationReward :: Double ->  ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
-updateRandomGQTableExploreObsIterationReward value decreaseFactor i obs s r  = updateNewValue  value  $ updateRandomGQTableExploreObsIteration decreaseFactor i obs s r
+updateRandomGQTableExploreObsIterationReward :: Double ->  ExploreRate -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
+updateRandomGQTableExploreObsIterationReward value decreaseFactor obs s r  = updateNewValue  value  $ updateRandomGQTableExploreObsIteration decreaseFactor obs s r
 
 -- Update gen, qtable,exploreRate,agentObs, iteration, stage reward, previous memory
-updateAll :: Memory.Vector n (o (Idx a)) -> Double ->  ExploreRate -> Int -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
-updateAll previousMemory value decreaseFactor i obs s r  = updatePreviousObservationAgent previousMemory $ updateRandomGQTableExploreObsIterationReward value decreaseFactor i obs s r
+updateAll :: Memory.Vector n (o (Idx a)) -> Double ->  ExploreRate -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
+updateAll previousMemory value decreaseFactor obs s r  = updatePreviousObservationAgent previousMemory $ updateRandomGQTableExploreObsIterationReward value decreaseFactor obs s r
 
 
 
@@ -357,7 +357,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
        recordingArray (_iteration (_env s)) (_player (_env s)) table0 (obsVec, toIdx action) newValue
-       ST.put $  updateAll obsVec newValue decreaseFactorExplore (_iteration $ _env s) (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
+       ST.put $  updateAll obsVec newValue decreaseFactorExplore (Memory.pushEnd obsVec (fmap toIdx obs2)) s gen'
        return action
   where obsVec = _obsAgent (_env s)
 
