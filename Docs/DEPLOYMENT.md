@@ -6,11 +6,7 @@
 
 Build an image with the source in it:
 
-<<<<<<< variant A
-    docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-06-24 .
->>>>>>> variant B
     docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-06-29v2 .
-======= end
 
 Build a base image with stack and haskell dependencies in it:
 
@@ -58,7 +54,7 @@ Login Succeeded
 Run:
 
 ```
-root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-07-07v2  stack run watch
+root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-07-28v2  stack run watch
 Unable to find image 'ghcr.io/philipp-zahn/learning/final:2021-05-29v2' locally
 2021-05-25: Pulling from philipp-zahn/learning/final
 48839397421a: Pull complete
@@ -211,3 +207,11 @@ All runs are recorded:
 * Remotely, they're also committed and pushed to the
   learning-run-scenarios project, but on a different branch
   (`learning-service`).
+
+# Benchmarking
+
+Note the relevant folder and the `Main.hs` it contains
+
+Command to benchmark a specific game inside that folder:
+
+    stack bench --file-watch --ba PDDeterministicPlayer --profile
