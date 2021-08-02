@@ -37,6 +37,8 @@ library:
     - Examples.Bayesian
     - Examples.Decision
     - Examples.SequentialMoves
+    - Examples.QLearning.AsymmetricLearners.Internal
+    - Examples.QLearning.AsymmetricLearners
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply
