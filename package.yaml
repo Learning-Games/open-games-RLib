@@ -22,6 +22,7 @@ library:
     - Engine.QLearning
     - Engine.QLearning.Export
     - Engine.QLearning.ExportAsymmetric
+    - Engine.QLearning.ExportAsymmetricLearners
     - Engine.QLearning.ExportVerbose
     - Engine.QLearningSimple
     - Engine.TLL
@@ -38,7 +39,11 @@ library:
     - Examples.Decision
     - Examples.SequentialMoves
     - Examples.QLearning.AsymmetricLearners.Internal
+    - Examples.QLearning.AsymmetricLearners.Internal2
+    - Examples.QLearning.AsymmetricLearners.Internal3
     - Examples.QLearning.AsymmetricLearners
+    - Examples.QLearning.AsymmetricLearners2
+    - Examples.QLearning.AsymmetricLearners3
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply
