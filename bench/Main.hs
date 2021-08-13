@@ -48,6 +48,10 @@ import qualified RIO as RIO
 import qualified Engine.QLearning.ExportAsymmetric as ExportAsymmetric
 import qualified Examples.QLearning.AsymmetricLearners as AsymmetricLearners
 
+import qualified Engine.QLearning.ExportAsymmetricLearners as ExportAsymmetricLearners
+import qualified Examples.QLearning.AsymmetricLearners3 as AsymmetricLearners3
+
+
 
 -- Parameters for Calvano 
 parametersCalvanoReplication :: StdGen -> StdGen -> StdGen -> StdGen -> CalvanoReplication.Parameters
@@ -1292,8 +1296,191 @@ main = do
               -- Main run file
               ----------------
               in
-              
+
               sequence_ $ fmap (\name -> AsymmetricLearners.executeAndRematchSingleRun name parametersGameLowC parametersGameHighC exportConfigGameLearning keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching)  $ fmap show [1..numberOfRuns]))
+        | i <- iters
+        ]
+    , bgroup
+       "AsymmetricLearnersReducedStopping"
+        [bench
+          ("iters/" ++ show i)
+          (nfIO
+             ( let 
+               -------------------------
+              -- Fix variables for Game
+              -------------------------
+              -- Player parameters for learning phase
+              -- Game with low costs
+              parametersGameLowC :: StdGen -> StdGen -> StdGen -> StdGen -> AsymmetricLearners3.Parameters
+              parametersGameLowC gEnv1 gEnv2 gObs1 gObs2 = AsymmetricLearners3.Parameters
+                { pKsi = 0.1
+                , pBeta =  0.000004
+                , pInitialExploreRate1 = ((exp 1) ** 0)
+                , pInitialExploreRate2 = ((exp 1) ** 0)
+                , pBertrandPrice1 = 1.47
+                , pBertrandPrice2 = 1.47
+                , pMonopolyPrice1 = 1.92
+                , pMonopolyPrice2 = 1.92
+                , pGamma = 0.95
+                , pLearningRate = 0.15
+                , pMu = 0.25
+                , pA1 = 2
+                , pA2 = 2
+                , pA0 = 0
+                , pC1 = 1
+                , pC2 = 1
+                , pM1 = 14 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+                , pM2 = 14 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+                , pGeneratorEnv1 = gEnv1
+                , pGeneratorEnv2 = gEnv2
+                , pGeneratorObs1 = gObs1
+                , pGeneratorObs2 = gObs2
+                }
+
+              -- Game with high costs
+              parametersGameHighC :: StdGen -> StdGen -> StdGen -> StdGen -> AsymmetricLearners3.Parameters
+              parametersGameHighC gEnv1 gEnv2 gObs1 gObs2 = AsymmetricLearners3.Parameters
+                { pKsi = 0.1
+                , pBeta =  0.000004
+                , pInitialExploreRate1 = ((exp 1) ** 0)
+                , pInitialExploreRate2 = ((exp 1) ** 0)
+                , pBertrandPrice1 = 1.77
+                , pBertrandPrice2 = 1.77
+                , pMonopolyPrice1 = 2.22
+                , pMonopolyPrice2 = 2.22 
+                , pGamma = 0.95
+                , pLearningRate = 0.15
+                , pMu = 0.25
+                , pA1 = 2.3
+                , pA2 = 2.3
+                , pA0 = 0
+                , pC1 = 1.3
+                , pC2 = 1.3
+                , pM1 = 14 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+                , pM2 = 14 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+                , pGeneratorEnv1 = gEnv1
+                , pGeneratorEnv2 = gEnv2
+                , pGeneratorObs1 = gObs1
+                , pGeneratorObs2 = gObs2
+                }
+
+              -- Parameters for rematching phase
+
+              -- Parameters after learning took place
+              -- player1 of experiment 1 is matched with player 2 experiment 2
+              parametersGameRematchingP1E1P2E2 :: StdGen -> StdGen -> StdGen -> StdGen -> Q.ExploreRate -> Q.ExploreRate -> AsymmetricLearners3.Parameters
+              parametersGameRematchingP1E1P2E2 gEnv1 gEnv2 gObs1 gObs2 exploreRate1 exploreRate2 = AsymmetricLearners3.Parameters
+                { pKsi = 0.1
+                , pBeta =  0.000004
+                , pInitialExploreRate1 = exploreRate1
+                , pInitialExploreRate2 = exploreRate2
+                , pBertrandPrice1 = 1.47
+                , pBertrandPrice2 = 1.77
+                , pMonopolyPrice1 = 1.92
+                , pMonopolyPrice2 = 2.22
+                , pGamma = 0.95
+                , pLearningRate = 0.15
+                , pMu = 0.25
+                , pA1 = 2
+                , pA2 = 2.3
+                , pA0 = 0
+                , pC1 = 1
+                , pC2 = 1.3
+                , pM1 = 14 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+                , pM2 = 14 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+                , pGeneratorEnv1 = gEnv1
+                , pGeneratorEnv2 = gEnv2
+                , pGeneratorObs1 = gObs1
+                , pGeneratorObs2 = gObs2
+                }
+
+
+
+              parametersGameRematching :: StdGen -> StdGen -> StdGen -> StdGen -> Q.ExploreRate -> Q.ExploreRate -> AsymmetricLearners3.Parameters
+              parametersGameRematching gEnv1 gEnv2 gObs1 gObs2 exploreRate1 exploreRate2 = AsymmetricLearners3.Parameters
+                { pKsi = 0.1
+                , pBeta =  0.000004
+                , pInitialExploreRate1 = exploreRate1
+                , pInitialExploreRate2 = exploreRate2
+                , pBertrandPrice1 = 1.47
+                , pBertrandPrice2 = 1.77
+                , pMonopolyPrice1 = 1.92
+                , pMonopolyPrice2 = 2.00
+                , pGamma = 0.95
+                , pLearningRate = 0.15
+                , pMu = 0.25
+                , pA1 = 2
+                , pA2 = 2.3
+                , pA0 = 0
+                , pC1 = 1
+                , pC2 = 1.3
+                , pM1 = 14 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+                , pM2 = 14 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+                , pGeneratorEnv1 = gEnv1
+                , pGeneratorEnv2 = gEnv2
+                , pGeneratorObs1 = gObs1
+                , pGeneratorObs2 = gObs2
+                }
+
+
+
+              -----------------------------------
+              -- Fix variables for Run and Export
+              -----------------------------------
+              -- Number of runs to be executed
+              numberOfRuns :: Int
+              numberOfRuns = 1
+
+              -- How many of the last iterations should be exported
+              keepOnlyNLastIterations :: Int
+              keepOnlyNLastIterations = 100
+
+
+              -- Configuration of run and export parameters for initial learning run
+              exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
+                  { iterations = i
+                  -- ^ how many iterations?
+                  , incrementalMode = True
+                  -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
+                  , outputEveryN = 1
+                  -- ^ For complete reporting of Q-values, how often should values be exported?
+                    , threshold = 1
+                  -- ^ Stopping criterion: After how many runs should the computation be stopped?
+                  , mapStagesM_ = AsymmetricLearners3.mapStagesMFinalResult parameters
+                  , initial = AsymmetricLearners3.initialStrat parameters (AsymmetricLearners3.initialArray1 parameters) (AsymmetricLearners3.initialArray2 parameters)  >>= AsymmetricLearners3.sequenceL
+                  , ctable1 = AsymmetricLearners3.actionSpace1 parameters
+                  , ctable2 = AsymmetricLearners3.actionSpace2 parameters
+                  , mkObservation = \a b -> AsymmetricLearners3.Obs (a, b)
+                  , runName = name
+                  , players = 2
+                  }
+
+              -- Configuration of run and export parameters for rematching phase
+              exportConfigGameRematching name parameters arr1 arr2 = ExportAsymmetric.ExportConfig
+                  { iterations = 1000
+                  -- ^ how many iterations?
+                  , incrementalMode = True
+                  -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
+                  , outputEveryN = 1
+                  -- ^ For complete reporting of Q-values, how often should values be exported?
+                    , threshold = 100000 -- NOTE this is a hack, as we avoid stopping the execution too early
+                  -- ^ Stopping criterion: After how many runs should the computation be stopped?
+                  , mapStagesM_ = AsymmetricLearners3.mapStagesM_ parameters
+                  , initial = AsymmetricLearners3.initialStrat parameters arr1 arr2 >>= AsymmetricLearners3.sequenceL
+                  , ctable1 = AsymmetricLearners3.actionSpace1 parameters
+                  , ctable2 = AsymmetricLearners3.actionSpace2 parameters
+                  , mkObservation = \a b -> AsymmetricLearners3.Obs (a, b)
+                  , runName = name
+                  , players = 2
+                  }
+
+
+              ----------------
+              -- Main run file
+              ----------------
+              in
+
+              sequence_ $ fmap (\name -> AsymmetricLearners3.executeAndRematchSingleRun name parametersGameLowC parametersGameHighC exportConfigGameLearning keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching)  $ fmap show [1..numberOfRuns]))
         | i <- iters
         ]]
 
