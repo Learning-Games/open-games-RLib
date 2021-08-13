@@ -443,10 +443,6 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
           index2    = (mem2, toIdx p2)
           table2    = _qTable env2
           newValue2 = _stageNewValue env2
-      liftIO $ putStrLn "memory1" -- FIXME
-      liftIO $ print mem1         -- FIXME
-      liftIO $ putStrLn "memory2" -- FIXME
-      liftIO $ print mem2         -- FIXME
       liftIO $ A.writeArray table1 index1 newValue1
       liftIO $ A.writeArray table2 index2 newValue2
       newStrat <-
@@ -562,10 +558,10 @@ firstStageLearning :: String
                         QTable
                            Player2N Observation PriceSpace)
 firstStageLearning name parametersFunction exportConfigFunction  = do
-  let gEnv1   = mkStdGen 1
-      gEnv2   = mkStdGen 1
-      gObs1   = mkStdGen 1
-      gObs2   = mkStdGen 1
+  gEnv1   <- newStdGen
+  gEnv2   <- newStdGen
+  gObs1   <- newStdGen
+  gObs2   <- newStdGen
   let parameters = parametersFunction gEnv1 gEnv2 gObs1 gObs2
       exportConfig = exportConfigFunction name parameters
   list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics exportConfig
@@ -662,10 +658,10 @@ pairing2 :: String
          -- ^ Relevant restarting conditions for players
          -> IO ()
 pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction (qt1,qt2) = do
-  let gEnv1   = mkStdGen 1
-      gEnv2   = mkStdGen 1
-      gObs1   = mkStdGen 1
-      gObs2   = mkStdGen 1
+  gEnv1   <- newStdGen
+  gEnv2   <- newStdGen
+  gObs1   <- newStdGen
+  gObs2   <- newStdGen
   let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2
       newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2)
   putStrLn "new parameters"
