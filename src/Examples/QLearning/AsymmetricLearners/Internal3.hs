@@ -29,6 +29,7 @@ import           Control.DeepSeq
 import           Control.Monad.IO.Class
 import qualified Data.Aeson as Aeson
 import           Data.Array.IO as A
+import qualified Data.Array.MArray as MA
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Csv
@@ -442,6 +443,10 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
           index2    = (mem2, toIdx p2)
           table2    = _qTable env2
           newValue2 = _stageNewValue env2
+      liftIO $ putStrLn "memory1" -- FIXME
+      liftIO $ print mem1         -- FIXME
+      liftIO $ putStrLn "memory2" -- FIXME
+      liftIO $ print mem2         -- FIXME
       liftIO $ A.writeArray table1 index1 newValue1
       liftIO $ A.writeArray table2 index2 newValue2
       newStrat <-
@@ -526,12 +531,12 @@ rewardsExtendedEndNFile = [relfile|rewardsExtendedEndNLines.csv|]
 
 
 -- One single run for both experiments and then rematched
-executeAndRematchSingleRun name parameters1 parameters2 exportConfigGameLearning keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching = do
+executeAndRematchSingleRun name parameters1 parameters2 exportConfigGameLearning keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 parametersGameRematchingP1E2P2E1 parametersGameRematchingP1E1P2E1 parametersGameRematchingP1E2P2E2 exportConfigGameRematching = do
   expLowC  <- firstStageLearning name parameters1 exportConfigGameLearning
   -- ^ Instantiate run with low costs
   expHighC <- firstStageLearning name parameters2 exportConfigGameLearning
   -- ^ Instantiate run with high costs
-  rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching  expLowC expHighC
+  rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 parametersGameRematchingP1E2P2E1 parametersGameRematchingP1E1P2E1 parametersGameRematchingP1E2P2E2 exportConfigGameRematching  expLowC expHighC
   -- ^ Rematching
 
 ------------------------
@@ -552,17 +557,15 @@ firstStageLearning :: String
                                     (QLearningMsg
                                       Player1N Observation PriceSpace))))
                    -- ^ The specific run configuration for that learning run
-                   -> IO ((QTable
+                   -> IO (QTable
                            Player1N Observation PriceSpace,
-                         ExploreRate),
-                        (QTable
-                           Player2N Observation PriceSpace,
-                         ExploreRate))
+                        QTable
+                           Player2N Observation PriceSpace)
 firstStageLearning name parametersFunction exportConfigFunction  = do
-  gEnv1   <- newStdGen
-  gEnv2   <- newStdGen
-  gObs1   <- newStdGen
-  gObs2   <- newStdGen
+  let gEnv1   = mkStdGen 1
+      gEnv2   = mkStdGen 1
+      gObs1   = mkStdGen 1
+      gObs2   = mkStdGen 1
   let parameters = parametersFunction gEnv1 gEnv2 gObs1 gObs2
       exportConfig = exportConfigFunction name parameters
   list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics exportConfig
@@ -571,17 +574,21 @@ firstStageLearning name parametersFunction exportConfigFunction  = do
       (_,env2) = x2
       q1       = _qTable env1
       q2       = _qTable env2
-      exploreRate1 = _exploreRate env1
-      exploreRate2 = _exploreRate env2
-  pure ((q1,exploreRate1),(q2,exploreRate2))
+  pure (q1,q2)
 ----------------------------------
 -- Single rematched Learning stage
 ----------------------------------
 -- Takes the information from the learning phase runs (here two different experiments) and computes the exploration output
 rematchedLearning :: String
                   -> Int
-                  -> (StdGen -> StdGen -> StdGen -> StdGen -> ExploreRate -> ExploreRate -> Parameters)
-         -- ^ Parameters specific for the rematching players
+                  -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                  -- ^ Parameters specific for the rematching player1 from experiment 1 and player 2 from experiment 2
+                  -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                  -- ^ Parameters specific for the rematching player1 from experiment 2 and player 2 from experiment 1
+                  -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                  -- ^ Control matching: Parameters specific for the rematching player1 from experiment 1 and player 2 from experiment 1
+                  -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                  -- ^ Control matching: Parameters specific for the rematching player1 from experiment 2 and player 2 from experiment 2
                   -> (String
                       -> Parameters
                       -> IO
@@ -599,26 +606,37 @@ rematchedLearning :: String
                                   (QLearningMsg
                                     Player1N Observation PriceSpace))))
 
-                  -> ((QTable
+                  -> (QTable
                               Player1N Observation PriceSpace,
-                            ExploreRate),
-                          (QTable
-                              Player2N Observation PriceSpace,
-                            ExploreRate))
-                  -> ((QTable
+                          QTable
+                              Player2N Observation PriceSpace)
+                  -> (QTable
                               Player1N Observation PriceSpace,
-                            ExploreRate),
-                          (QTable
-                              Player2N Observation PriceSpace,
-                            ExploreRate))
+                          QTable
+                              Player2N Observation PriceSpace)
                   -> IO ()
-rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching (x1,x2) (y1,y2)  = do
-  pairing2  ("p1e1-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching (x1,y2)
+rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 parametersGameRematchingP1E2P2E1 parametersGameRematchingP1E1P2E1 parametersGameRematchingP1E2P2E2 exportConfigGameRematching (x1,x2) (y1,y2)  = do
+  x1'      <- copyArray x1
+  y1'      <- copyArray y1
+  x2'      <- copyArray x2
+  y2'      <- copyArray y2
+  pairing2 ("p1e1-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching (x1,y2)
+  pairing2 ("p1e2-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E1 exportConfigGameRematching (y1,x2)
+  pairing2 ("p1e1-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E1 exportConfigGameRematching (x1',x2')
+  pairing2 ("p1e2-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1',y2')
+
+-- Copy original array to a new location so that we do not affect the original array when computing on the copy
+copyArray :: QTable Player1N Observation PriceSpace -> IO (QTable Player1N Observation PriceSpace)
+copyArray x = do
+  bounds <- MA.getBounds x
+  elems  <- MA.getElems  x
+  MA.newListArray bounds elems
+
 
 -- Reinitiates the exploitation phase for the starting conditions of two players
 pairing2 :: String
          -> Int
-         -> (StdGen -> StdGen -> StdGen -> StdGen -> ExploreRate -> ExploreRate -> Parameters)
+         -> (StdGen -> StdGen -> StdGen -> StdGen ->  Parameters)
          -- ^ Parameters specific for the rematching players
          -> (String
             -> Parameters
@@ -637,21 +655,21 @@ pairing2 :: String
                         (QLearningMsg
                           Player1N Observation PriceSpace))))
          -- ^ Parameters for the rematched runs
-         -> ((QTable
+         -> (QTable
                   Player1N Observation PriceSpace,
-                ExploreRate),
-              (QTable
-                  Player2N Observation PriceSpace,
-                ExploreRate))
+              QTable
+                  Player2N Observation PriceSpace)
          -- ^ Relevant restarting conditions for players
          -> IO ()
-pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction ((qt1,exploreRate1),(qt2,exploreRate2)) = do
-  gEnv1   <- newStdGen
-  gEnv2   <- newStdGen
-  gObs1   <- newStdGen
-  gObs2   <- newStdGen
-  let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2 exploreRate1 exploreRate2
+pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction (qt1,qt2) = do
+  let gEnv1   = mkStdGen 1
+      gEnv2   = mkStdGen 1
+      gObs1   = mkStdGen 1
+      gObs2   = mkStdGen 1
+  let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2
       newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2)
+  putStrLn "new parameters"
+  liftIO $ print newParameters
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
   L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters)
