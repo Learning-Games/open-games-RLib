@@ -664,8 +664,6 @@ pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportCon
   gObs2   <- newStdGen
   let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2
       newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2)
-  putStrLn "new parameters"
-  liftIO $ print newParameters
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
   L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters)
