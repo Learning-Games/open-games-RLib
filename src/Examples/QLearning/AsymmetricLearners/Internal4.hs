@@ -530,7 +530,9 @@ rewardsExtendedEndNFile = [relfile|rewardsExtendedEndNLines.csv|]
 -- One single run for both experiments and then rematched
 executeAndRematchSingleRun name  exportConfigGameLearning parametersMap keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching expIds rematchIds= do
   qTablesMap <- mapM (firstStageLearningMap name exportConfigGameLearning parametersMap) expIds
+  print qTablesMap
   let aggMap = unions qTablesMap
+  print aggMap
   rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching aggMap rematchIds
          -- ^ Rematching
 
@@ -582,10 +584,10 @@ firstStageLearning :: String
                         QTable
                            Player2N Observation PriceSpace)
 firstStageLearning name exportConfigFunction  parametersFunction= do
-  gEnv1   <- newStdGen
-  gEnv2   <- newStdGen
-  gObs1   <- newStdGen
-  gObs2   <- newStdGen
+  let gEnv1 = mkStdGen 1 --  <- newStdGen
+  let gEnv2 = mkStdGen 2
+  let gObs1 = mkStdGen 3
+  let gObs2 = mkStdGen 4
   let parameters = parametersFunction gEnv1 gEnv2 gObs1 gObs2
       exportConfig = exportConfigFunction name parameters
   list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics exportConfig
@@ -654,6 +656,15 @@ rematchedLearningId name keepOnlyNLastIterations parametersGameRematchingMap exp
       parametersGameRematching  = parametersGameRematchingMap ! identifier 
       x1                        = qTablesMap ! id1
       x2                        = qTablesMap ! id2
+  putStrLn "rematching info"
+  putStrLn "id1"
+  print id1
+  putStrLn "id2"
+  print id2
+  putStrLn "x1"
+  print x1
+  putStrLn "x2"
+  print x2
   rematchedLearningSingleRun name keepOnlyNLastIterations identifier parametersGameRematching exportConfigGameRematching x1 x2
 
 
@@ -688,7 +699,7 @@ rematchedLearningSingleRun :: String
                   -> IO ()
 rematchedLearningSingleRun name keepOnlyNLastIterations identifier parametersGameRematching exportConfigGameRematching x1 x2  = do
   x1'      <- copyArray x1
-  x2'      <- copyArray x1
+  x2'      <- copyArray x2
   pairing2 (identifier ++ "_run"++ name) keepOnlyNLastIterations parametersGameRematching exportConfigGameRematching (x1',x2')
 
 -- Copy original array to a new location so that we do not affect the original array when computing on the copy
@@ -728,10 +739,10 @@ pairing2 :: String
          -- ^ Relevant restarting conditions for players
          -> IO ()
 pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction (qt1,qt2) = do
-  gEnv1   <- newStdGen
-  gEnv2   <- newStdGen
-  gObs1   <- newStdGen
-  gObs2   <- newStdGen
+  let gEnv1 = mkStdGen 1 --  <- newStdGen
+  let gEnv2 = mkStdGen 2
+  let gObs1 = mkStdGen 3
+  let gObs2 = mkStdGen 4
   let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2
       newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2)
   dirResultIteration <- parseRelDir name
