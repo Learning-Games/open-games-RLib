@@ -529,7 +529,7 @@ rewardsExtendedEndNFile = [relfile|rewardsExtendedEndNLines.csv|]
 
 -- One single run for both experiments and then rematched
 executeAndRematchSingleRun name  exportConfigGameLearning parametersMap keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching expIds rematchIds= do
-  qTablesMap <- sequence $ fmap (firstStageLearningMap name exportConfigGameLearning parametersMap) expIds
+  qTablesMap <- mapM (firstStageLearningMap name exportConfigGameLearning parametersMap) expIds
   let aggMap = unions qTablesMap
   rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching aggMap rematchIds
          -- ^ Rematching
@@ -550,14 +550,15 @@ firstStageLearningMap :: String
                                     (QLearningMsg
                                       Player1N Observation PriceSpace))))
                    -- ^ The specific experiment configuration for that learning run
-                   -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                   -> Map String (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
                    -- ^ The specific parameter function for that experiment
                    -> String
                    -- ^ The experiment string
                    -> IO (Map String (QTable
                                       Player1N Observation PriceSpace))
 
-firstStageLearningMap name exportConfigFunction parametersFunction exp= do
+firstStageLearningMap name exportConfigFunction parametersMap exp= do
+   let parametersFunction = parametersMap ! exp
    (q1,q2) <- firstStageLearning name exportConfigFunction parametersFunction
    pure $ fromList [("p1"++exp,q1),("p2"++exp,q2)]
 
@@ -688,7 +689,7 @@ rematchedLearningSingleRun :: String
 rematchedLearningSingleRun name keepOnlyNLastIterations identifier parametersGameRematching exportConfigGameRematching x1 x2  = do
   x1'      <- copyArray x1
   x2'      <- copyArray x1
-  pairing2 (identifier ++ name) keepOnlyNLastIterations parametersGameRematching exportConfigGameRematching (x1',x2')
+  pairing2 (identifier ++ "_run"++ name) keepOnlyNLastIterations parametersGameRematching exportConfigGameRematching (x1',x2')
 
 -- Copy original array to a new location so that we do not affect the original array when computing on the copy
 copyArray :: QTable Player1N Observation PriceSpace -> IO (QTable Player1N Observation PriceSpace)
@@ -733,8 +734,6 @@ pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportCon
   gObs2   <- newStdGen
   let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2
       newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2)
-  putStrLn "new parameters"
-  liftIO $ print newParameters
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
   L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters)
