@@ -56,8 +56,18 @@ import           System.Random
 import qualified System.Random as Rand
 import           System.Process.Typed
 
+
+-----------------------
+-----------------------
+-- NOTE This is a sanity check for Internal3
+-- no randomness; probabilities with fixed seeds
+
+
+
+
 ------------------------------------
 -- Configure observations and memory
+
 
 -- WARNING: assumes players have same memory arity.
 type M = RIO (GLogFunc (QLearningMsg Player1N Observation PriceSpace))
