@@ -57,6 +57,11 @@ import           System.Random
 import qualified System.Random as Rand
 import           System.Process.Typed
 
+
+
+-- WARNING: contains a bug; wrong maps leader to false player2 behavior; wrong type indicated!
+-- Corrected in Default
+
 ------------------------------------
 -- Configure observations and memory
 
