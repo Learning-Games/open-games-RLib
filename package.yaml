@@ -42,10 +42,12 @@ library:
     - Examples.QLearning.AsymmetricLearners.Internal2
     - Examples.QLearning.AsymmetricLearners.Internal3
     - Examples.QLearning.AsymmetricLearners.Internal4
+    - Examples.QLearning.AsymmetricLearners.Internal5
     - Examples.QLearning.AsymmetricLearners
     - Examples.QLearning.AsymmetricLearners2
     - Examples.QLearning.AsymmetricLearners3
     - Examples.QLearning.AsymmetricLearners4
+    - Examples.QLearning.AsymmetricLearners5
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply

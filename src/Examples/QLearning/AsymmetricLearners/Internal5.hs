@@ -530,8 +530,9 @@ rewardsExtendedEndNFile = [relfile|rewardsExtendedEndNLines.csv|]
 -- One single run for both experiments and then rematched
 executeAndRematchSingleRun name  exportConfigGameLearning parametersMap keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching expIds rematchIds= do
   qTablesMap <- mapM (firstStageLearningMap name exportConfigGameLearning parametersMap) expIds
-  let aggMap = unions qTablesMap
-  rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching aggMap rematchIds
+  let aggMap1 = unions $ fmap fst qTablesMap
+      aggMap2 = unions $ fmap snd qTablesMap
+  rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (aggMap1,aggMap2) rematchIds
   -- ^ Rematching
 
 ------------------------
@@ -554,13 +555,14 @@ firstStageLearningMap :: String
                    -- ^ The specific parameter function for that experiment
                    -> String
                    -- ^ The experiment string
-                   -> IO (Map String (QTable
-                                      Player1N Observation PriceSpace))
-
+                   -> IO ((Map String (QTable
+                                      Player1N Observation PriceSpace)
+                          , Map String (QTable
+                                      Player2N Observation PriceSpace)))
 firstStageLearningMap name exportConfigFunction parametersMap exp= do
    let parametersFunction = parametersMap ! exp
    (q1,q2) <- firstStageLearning name exportConfigFunction parametersFunction
-   pure $ fromList [("p1"++exp,q1),("p2"++exp,q2)]
+   pure $ (fromList [("p1"++exp,q1)],fromList [("p2"++exp,q2)])
 
 
 firstStageLearning :: String
@@ -594,6 +596,12 @@ firstStageLearning name exportConfigFunction  parametersFunction= do
       (_,env2) = x2
       q1       = _qTable env1
       q2       = _qTable env2
+  putStrLn "elements 1 phase 1" -- FIXME
+  elems1 <- MA.getAssocs q1 -- FIXME
+  print elems1 -- FIXME
+  putStrLn "elements 2 phase 2" -- FIXME
+  elems2 <- MA.getAssocs q2 -- FIXME
+  print elems2 -- FIXME
   pure (q1,q2)
 ----------------------------------
 -- Single rematched Learning stage
@@ -619,7 +627,7 @@ rematchedLearning :: String
                                   (QLearningMsg
                                     Player1N Observation PriceSpace))))
 
-                  -> Map String (QTable Player1N Observation PriceSpace)
+                  -> (Map String (QTable Player1N Observation PriceSpace), Map String (QTable Player2N Observation PriceSpace))
                   -> [(String,String)]
                   -> IO ()
 rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching qTablesMap ids =
@@ -645,15 +653,20 @@ rematchedLearningId :: String
                                 (RIO.GLogFunc
                                     (QLearningMsg
                                       Player1N Observation PriceSpace))))
-
-                    -> Map String (QTable Player1N Observation PriceSpace)
+                    -> (Map String (QTable Player1N Observation PriceSpace), Map String (QTable Player2N Observation PriceSpace))
                     -> (String,String)
                     -> IO ()
-rematchedLearningId name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching qTablesMap (id1,id2) = do
+rematchedLearningId name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) (id1,id2) = do
   let identifier                = id1 ++id2 
       parametersGameRematching  = parametersGameRematchingMap ! identifier 
-      x1                        = qTablesMap ! id1
-      x2                        = qTablesMap ! id2
+      x1                        = qTablesMap1 ! id1
+      x2                        = qTablesMap2 ! id2
+  putStrLn "elements1" -- FIXME
+  elems1 <- MA.getAssocs x1 -- FIXME
+  print elems1 -- FIXME
+  putStrLn "elements2" -- FIXME
+  elems2 <- MA.getAssocs x2 -- FIXME
+  print elems2 -- FIXME
   rematchedLearningSingleRun name keepOnlyNLastIterations identifier parametersGameRematching exportConfigGameRematching x1 x2
 
 
