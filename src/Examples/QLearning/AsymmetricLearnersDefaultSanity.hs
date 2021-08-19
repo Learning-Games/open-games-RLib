@@ -1,4 +1,4 @@
-module Examples.QLearning.AsymmetricLearners5
+module Examples.QLearning.AsymmetricLearnersDefaultSanity
   ( evalStageLS
   , initialStrat
   , initialArray1
@@ -16,6 +16,6 @@ module Examples.QLearning.AsymmetricLearners5
   , Parameters(..)
   ) where
 
-import           Examples.QLearning.AsymmetricLearners.Internal5
+import           Examples.QLearning.AsymmetricLearners.InternalDefaultSanity
 
 -- Re-import of AsymmetricLearners.Internal which contains all details

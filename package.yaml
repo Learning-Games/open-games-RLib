@@ -41,13 +41,17 @@ library:
     - Examples.QLearning.AsymmetricLearners.Internal
     - Examples.QLearning.AsymmetricLearners.Internal2
     - Examples.QLearning.AsymmetricLearners.Internal3
+    - Examples.QLearning.AsymmetricLearners.Internal3Sanity
     - Examples.QLearning.AsymmetricLearners.Internal4
-    - Examples.QLearning.AsymmetricLearners.Internal5
+    - Examples.QLearning.AsymmetricLearners.InternalDefaultSanity
+    - Examples.QLearning.AsymmetricLearners.InternalDefault
     - Examples.QLearning.AsymmetricLearners
     - Examples.QLearning.AsymmetricLearners2
     - Examples.QLearning.AsymmetricLearners3
+    - Examples.QLearning.AsymmetricLearners3Sanity
     - Examples.QLearning.AsymmetricLearners4
-    - Examples.QLearning.AsymmetricLearners5
+    - Examples.QLearning.AsymmetricLearnersDefaultSanity
+    - Examples.QLearning.AsymmetricLearnersDefault
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply

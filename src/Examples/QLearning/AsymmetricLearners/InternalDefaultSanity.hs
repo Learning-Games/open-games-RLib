@@ -22,7 +22,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.AsymmetricLearners.Internal5
+module Examples.QLearning.AsymmetricLearners.InternalDefaultSanity
   where
 
 import           Control.DeepSeq
@@ -56,6 +56,11 @@ import           RIO (RIO, GLogFunc, runRIO)
 import           System.Random
 import qualified System.Random as Rand
 import           System.Process.Typed
+
+
+--------------------------------------------------------------------------------
+-- NOTE This is a sanity check with fixed probability seeds for the Default file
+
 
 ------------------------------------
 -- Configure observations and memory
