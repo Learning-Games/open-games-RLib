@@ -1,4 +1,4 @@
-module Examples.QLearning.AsymmetricLearners4
+module Examples.QLearning.AsymmetricLearners4Bug
   ( evalStageLS
   , initialStrat
   , initialArray1
@@ -16,6 +16,6 @@ module Examples.QLearning.AsymmetricLearners4
   , Parameters(..)
   ) where
 
-import           Examples.QLearning.AsymmetricLearners.Internal4
+import           Examples.QLearning.AsymmetricLearners.Internal4Bug
 
 -- Re-import of AsymmetricLearners.Internal which contains all details

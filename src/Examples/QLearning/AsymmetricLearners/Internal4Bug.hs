@@ -22,7 +22,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.AsymmetricLearners.Internal4
+module Examples.QLearning.AsymmetricLearners.Internal4Bug
   where
 
 import           Control.DeepSeq
