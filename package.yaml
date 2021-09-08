@@ -41,13 +41,23 @@ library:
     - Examples.QLearning.AsymmetricLearners.Internal
     - Examples.QLearning.AsymmetricLearners.Internal2
     - Examples.QLearning.AsymmetricLearners.Internal3
+    - Examples.QLearning.AsymmetricLearners.Internal3SymmetricMatchesOnly
+    - Examples.QLearning.AsymmetricLearners.Internal3Experiments
+    - Examples.QLearning.AsymmetricLearners.Internal3ExperimentsFixed
+    - Examples.QLearning.AsymmetricLearners.Internal3ExperimentsFixedSeeds
     - Examples.QLearning.AsymmetricLearners.Internal3Sanity
+    - Examples.QLearning.AsymmetricLearners.Internal3ThawFreeze
     - Examples.QLearning.AsymmetricLearners.Internal4Bug
     - Examples.QLearning.AsymmetricLearners.InternalDefaultSanity
     - Examples.QLearning.AsymmetricLearners.InternalDefault
     - Examples.QLearning.AsymmetricLearners
     - Examples.QLearning.AsymmetricLearners2
     - Examples.QLearning.AsymmetricLearners3
+    - Examples.QLearning.AsymmetricLearners3ExperimentsThawFreeze
+    - Examples.QLearning.AsymmetricLearners3SymmetricMatchesOnly
+    - Examples.QLearning.AsymmetricLearners3Experiments
+    - Examples.QLearning.AsymmetricLearners3ExperimentsFixed
+    - Examples.QLearning.AsymmetricLearners3ExperimentsFixedSeeds
     - Examples.QLearning.AsymmetricLearners3Sanity
     - Examples.QLearning.AsymmetricLearners4Bug
     - Examples.QLearning.AsymmetricLearnersDefaultSanity

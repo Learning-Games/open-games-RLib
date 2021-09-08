@@ -614,17 +614,18 @@ rematchedLearning :: String
                               Player2N Observation PriceSpace)
                   -> IO ()
 rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 parametersGameRematchingP1E2P2E1 parametersGameRematchingP1E1P2E1 parametersGameRematchingP1E2P2E2 exportConfigGameRematching (x1,x2) (y1,y2)  = do
---  x1'      <- copyArray x1
+  y1'      <- copyArray y1
 --  y1'      <- copyArray y1
---  x2'      <- copyArray x2
+  y2'      <- copyArray y2
 --  y2'      <- copyArray y2
 --  pairing2 ("p1e1-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching (x1,y2)
 --  pairing2 ("p1e2-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E1 exportConfigGameRematching (y1,x2)
 --  pairing2 ("p1e1-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E1 exportConfigGameRematching (x1',x2')
 --  pairing2 ("p1e2-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1',y2')
-  pairing2 ("p1e1-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E1 exportConfigGameRematching (x1,x2)
-  pairing2 ("p1e2-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1,y2)
-
+  pairing2 ("p1e1-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2   exportConfigGameRematching (y1,y2)
+  pairing2 ("p1e12-p2e12_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1,y2)
+  pairing2 ("p1e13-p2e13_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1,y2)
+  pairing2 ("p1e14-p2e14_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1',y2')
 
 -- Copy original array to a new location so that we do not affect the original array when computing on the copy
 copyArray :: QTable Player1N Observation PriceSpace -> IO (QTable Player1N Observation PriceSpace)
