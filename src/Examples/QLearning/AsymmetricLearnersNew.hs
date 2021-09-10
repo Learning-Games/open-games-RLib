@@ -1,6 +1,5 @@
 module Examples.QLearning.AsymmetricLearnersNew
-  ( evalStageLS
-  , initialStrat
+  ( initialStrat
   , initialArray1
   , initialArray2
   , actionSpace1
