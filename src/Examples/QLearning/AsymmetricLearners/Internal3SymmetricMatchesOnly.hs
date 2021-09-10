@@ -228,17 +228,17 @@ pricePairs par =
 -- initiate a first fixed list of values at average for player 1
 -- this assumes that player 2 randomizes uniformly
 lsValues1 :: Parameters -> [(((PriceSpace, PriceSpace), PriceSpace), Double)]
-lsValues1 par@Parameters{pGamma,pA0,pA1,pA2,pMu,pC1} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
+lsValues1 par@Parameters{pGamma} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
   where  xs = pricePairs par
-         value p1 = (sum  $ fmap (\p2 -> profit pA0 pA1 pA2 p1 p2 pMu pC1) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
+         value p1 = (sum  $ fmap (\p2 -> profit2 par p1 p2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
          priceLs = V.toList (population $ actionSpace2 par)
 
 -- initiate a first fixed list of values at average for player 2
 -- this assumes that player 1 randomizes uniformly
 lsValues2 :: Parameters -> [(((PriceSpace, PriceSpace), PriceSpace), Double)]
-lsValues2 par@Parameters{pGamma,pA0,pA1,pA2,pMu,pC2} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
+lsValues2 par@Parameters{pGamma} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
   where  xs = pricePairs par
-         value p2 = (sum  $ fmap (\p1 -> profit pA0 pA1 pA2 p1 p2 pMu pC2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
+         value p2 = (sum  $ fmap (\p1 -> profit1 par p1 p2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
          priceLs = V.toList (population $ actionSpace1 par)
 
 
