@@ -603,6 +603,7 @@ rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 
   pairing2 ("p1e2-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1',y2') (\_-> lastObsY)
 
 
+-- FIXME replace by proper Array functionality
 -- Copy original array to a new location so that we do not affect the original array when computing on the copy
 copyArray :: QTable Player1N Observation PriceSpace -> IO (QTable Player1N Observation PriceSpace)
 copyArray x = do
