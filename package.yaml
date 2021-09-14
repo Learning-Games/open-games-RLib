@@ -51,6 +51,8 @@ library:
     - Examples.QLearning.AsymmetricLearners.InternalDefaultSanity
     - Examples.QLearning.AsymmetricLearners.InternalDefault
     - Examples.QLearning.AsymmetricLearnersNew.Internal
+    - Examples.QLearning.AsymmetricLearnersNew.Internal2
+    - Examples.QLearning.AsymmetricLearnersNew.Internal3
     - Examples.QLearning.AsymmetricLearners
     - Examples.QLearning.AsymmetricLearners2
     - Examples.QLearning.AsymmetricLearners3
@@ -64,6 +66,8 @@ library:
     - Examples.QLearning.AsymmetricLearnersDefaultSanity
     - Examples.QLearning.AsymmetricLearnersDefault
     - Examples.QLearning.AsymmetricLearnersNew
+    - Examples.QLearning.AsymmetricLearnersNew2
+    - Examples.QLearning.AsymmetricLearnersNew3
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply

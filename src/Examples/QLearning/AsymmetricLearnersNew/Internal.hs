@@ -593,15 +593,18 @@ rematchedLearning :: String
                  -> ((QTable Player1N Observation PriceSpace, QTable Player2N Observation PriceSpace), Observation PriceSpace)
                  -> IO ()
 rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 parametersGameRematchingP1E2P2E1 parametersGameRematchingP1E1P2E1 parametersGameRematchingP1E2P2E2 exportConfigGameRematching ((x1,x2),lastObsX) ((y1,y2),lastObsY)  = do
-  x1'      <- copyArray x1
-  x2'      <- copyArray x2
   y1'      <- copyArray y1
+--  y1'      <- copyArray y1
   y2'      <- copyArray y2
-  pairing2 ("p1e1-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching (x1,y2) randomInitialObservation
-  pairing2 ("p1e2-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E1 exportConfigGameRematching (y1,x2) randomInitialObservation
-  pairing2 ("p1e1-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E1 exportConfigGameRematching (x1',x2') (\_ -> lastObsX)
-  pairing2 ("p1e2-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1',y2') (\_-> lastObsY)
-
+--  y2'      <- copyArray y2
+--  pairing2 ("p1e1-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching (x1,y2)
+--  pairing2 ("p1e2-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E1 exportConfigGameRematching (y1,x2)
+--  pairing2 ("p1e1-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E1 exportConfigGameRematching (x1',x2')
+--  pairing2 ("p1e2-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1',y2')
+  pairing2 ("p1e1-p2e1_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2   exportConfigGameRematching (y1,y2) randomInitialObservation
+  pairing2 ("p1e12-p2e12_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1,y2) randomInitialObservation
+  pairing2 ("p1e13-p2e13_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1,y2) randomInitialObservation
+  pairing2 ("p1e14-p2e14_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E2P2E2 exportConfigGameRematching (y1',y2') randomInitialObservation
 
 -- FIXME replace by proper Array functionality
 -- Copy original array to a new location so that we do not affect the original array when computing on the copy

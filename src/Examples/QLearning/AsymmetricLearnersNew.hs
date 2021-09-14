@@ -2,6 +2,7 @@ module Examples.QLearning.AsymmetricLearnersNew
   ( initialStrat
   , initialArray1
   , initialArray2
+  , randomInitialObservation
   , actionSpace1
   , actionSpace2
   , csvParameters
@@ -17,4 +18,4 @@ module Examples.QLearning.AsymmetricLearnersNew
 
 import           Examples.QLearning.AsymmetricLearnersNew.Internal
 
--- Re-import of AsymmetricLearners.Internal which contains all details
+-- Replicates the 3Matches of the Learners implementation from before
