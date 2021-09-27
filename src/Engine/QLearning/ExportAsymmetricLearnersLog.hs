@@ -15,7 +15,7 @@
 
 -- |
 
-module Engine.QLearning.ExportAsymmetricLearners
+module Engine.QLearning.ExportAsymmetricLearnersLog
   ( runQLearningExportingDiagnostics
   , ExportConfig(..)
   , RewardDiagnostics(..)
@@ -171,6 +171,8 @@ data ExportConfig n o a m = ExportConfig
 
 -----------------------
 -- File paths
+
+-- FIXME Different path names needed
 
 rewardsFile :: Path b t
 rewardsFile                  = [relfile|rewards.csv|]
