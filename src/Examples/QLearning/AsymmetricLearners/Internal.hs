@@ -29,12 +29,15 @@ import           Control.DeepSeq
 import           Control.Monad.IO.Class
 import qualified Data.Aeson as Aeson
 import           Data.Array.IO as A
+import qualified Data.Array.MArray as MA
+import qualified Data.Array.IArray as IA
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Builder as SB
 import           Data.Csv
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
 import           Data.Hashable
+import           Data.HashMap
 import qualified Data.Ix as I
 import qualified Data.Vector as V
 import qualified Data.Vector.Sized as SV
@@ -43,6 +46,7 @@ import           Engine.OpenGames
 import           Engine.OpticClass
 import           Engine.QLearning
 import qualified Engine.QLearning.ExportAsymmetric as ExportAsymmetric
+import qualified Engine.QLearning.ExportAsymmetricLearners as ExportAsymmetricLearners
 import           Engine.TLL
 import           FastCsv
 import           GHC.Generics
@@ -61,6 +65,17 @@ import           System.Process.Typed
 type M = RIO (GLogFunc (QLearningMsg Player1N Observation PriceSpace))
 type Player1N = 1
 type Player2N = 1
+
+-- Immutable array; needed for reproducing a fresh copy of the mutable array
+type QTableIm n o a = IA.Array (Memory.Vector n (o (Idx a)), Idx a) Double
+
+-- Match type with information about the experiment string
+
+data ReMatchType = ReMatchType
+  { experiment1 :: String
+  , experiment2 :: String
+  , randomMatch :: Bool
+  } deriving (Show,Eq)
 
 -- Mutual observation, fixes the number of players in the game
 newtype Observation a = Obs
@@ -138,15 +153,6 @@ instance FastCsv.BuildCsvField PriceSpace where
 
 -----------------------
 -- Game characteristics
--- Demand follows eq 5 in Calvano et al.
-demand :: Floating a => a -> a -> a -> a -> a -> a -> a
-demand a0 a1 a2 p1 p2 mu = (exp 1.0)**((a1-p1)/mu) / agg
-  where agg = (exp 1.0)**((a1-p1)/mu) + (exp 1.0)**((a2-p2)/mu) + (exp 1.0)**(a0/mu)
-
--- Profit function
-profit :: Double -> Double -> Double -> PriceSpace -> PriceSpace -> Double -> Double -> Double
-profit a0 a1 a2 (PriceSpace p1 _) (PriceSpace p2 _) mu c1 = (p1 - c1)* (demand a0 a1 a2 p1 p2 mu)
-
 -- demand player 1
 demand1 :: Parameters -> Double -> Double -> Double
 demand1 Parameters {..} p1 p2 = (exp 1.0)**((pA1-p1)/pMu) / agg
@@ -224,24 +230,24 @@ pricePairs par =
 -- initiate a first fixed list of values at average for player 1
 -- this assumes that player 2 randomizes uniformly
 lsValues1 :: Parameters -> [(((PriceSpace, PriceSpace), PriceSpace), Double)]
-lsValues1 par@Parameters{pGamma,pA0,pA1,pA2,pMu,pC1} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
+lsValues1 par@Parameters{pGamma} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
   where  xs = pricePairs par
-         value p1 = (sum  $ fmap (\p2 -> profit pA0 pA1 pA2 p1 p2 pMu pC1) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
+         value p1 = (sum  $ fmap (\p2 -> profit2 par p1 p2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
          priceLs = V.toList (population $ actionSpace2 par)
 
 -- initiate a first fixed list of values at average for player 2
 -- this assumes that player 1 randomizes uniformly
 lsValues2 :: Parameters -> [(((PriceSpace, PriceSpace), PriceSpace), Double)]
-lsValues2 par@Parameters{pGamma,pA0,pA1,pA2,pMu,pC2} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
+lsValues2 par@Parameters{pGamma} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- xs]
   where  xs = pricePairs par
-         value p2 = (sum  $ fmap (\p1 -> profit pA0 pA1 pA2 p1 p2 pMu pC2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
+         value p2 = (sum  $ fmap (\p1 -> profit1 par p1 p2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
          priceLs = V.toList (population $ actionSpace1 par)
 
 
 
 -- Initiate the environment given the parameters and an initial qmatrix for player 1
-initialEnv1 :: Parameters -> IO (QTable Player1N Observation PriceSpace) -> M (Env Player1N Observation PriceSpace)
-initialEnv1 par@Parameters{pInitialExploreRate1,pGeneratorEnv1} initialArray =
+initialEnv1 :: Parameters -> IO (QTable Player1N Observation PriceSpace) -> Observation PriceSpace -> M (Env Player1N Observation PriceSpace)
+initialEnv1 par@Parameters{pInitialExploreRate1,pGeneratorEnv1} initialArray initialObs =
   liftIO initialArray >>= \arr ->
     pure $
       Env
@@ -251,15 +257,15 @@ initialEnv1 par@Parameters{pInitialExploreRate1,pGeneratorEnv1} initialArray =
          0
          pInitialExploreRate1
          pGeneratorEnv1
-         (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
+         (Memory.fromSV (SV.replicate (fmap toIdx initialObs)))
          (5 * 0.999)
          "NothingHappenedYet"
          0
-         (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
+         (Memory.fromSV (SV.replicate (fmap toIdx initialObs)))
 
 -- Initiate the environment given the parameters and an initial qmatrix for player 2
-initialEnv2 :: Parameters -> IO (QTable Player2N Observation PriceSpace) -> M (Env Player2N Observation PriceSpace)
-initialEnv2 par@Parameters{pInitialExploreRate2,pGeneratorEnv2} initialArray =
+initialEnv2 :: Parameters -> IO (QTable Player2N Observation PriceSpace) -> Observation PriceSpace -> M (Env Player2N Observation PriceSpace)
+initialEnv2 par@Parameters{pInitialExploreRate2,pGeneratorEnv2} initialArray initialObs=
   liftIO initialArray >>= \arr ->
     pure $
     Env
@@ -269,11 +275,11 @@ initialEnv2 par@Parameters{pInitialExploreRate2,pGeneratorEnv2} initialArray =
       0
       pInitialExploreRate2
       pGeneratorEnv2
-      (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
+      (Memory.fromSV (SV.replicate (fmap toIdx initialObs)))
       (5 * 0.999)
       "NothingHappenedYet"
       0
-      (Memory.fromSV (SV.replicate (fmap toIdx (initialObservation par))))
+      (Memory.fromSV (SV.replicate (fmap toIdx initialObs)))
 
 -- Create an initial qTable from the default values and parameters for player 1
 -- Typical usage is when the env is created from scratch (and not reinitiated)
@@ -303,30 +309,28 @@ initialArray2 par = do
 
 -----------------------------
 -- 4. Constructing initial state
-
 -- First observation, randomly determined
--- NOTE: Dependency between initial strategy and initialobservation
-initialObservation :: Parameters -> Observation PriceSpace
-initialObservation par@Parameters{pGeneratorObs1,pGeneratorObs2} =
+randomInitialObservation :: Parameters -> Observation PriceSpace
+randomInitialObservation par@Parameters{pGeneratorObs1,pGeneratorObs2} =
   Obs (samplePopulation_ (actionSpace1 par) pGeneratorObs1, samplePopulation_ (actionSpace2 par) pGeneratorObs2)
 
--- Initiate strategy: start with random price
+-- Initiate strategy: start with two qMatrices and the common initial observation
 initialStrat :: Parameters
              -> IO (QTable Player1N Observation PriceSpace)
              -> IO (QTable Player2N Observation PriceSpace)
+             -> Observation PriceSpace
              ->  M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
-initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2} initialArr1 initialArr2= do
-  e1 <- initialEnv1 par initialArr1
-  e2 <- initialEnv2 par initialArr2
+initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2} initialArr1 initialArr2 initialObs= do
+  e1 <- initialEnv1 par initialArr1 initialObs
+  e2 <- initialEnv2 par initialArr2 initialObs
   pure
     (pure (samplePopulation_ (actionSpace1 par) pGeneratorObs1, e1) ::-
      pure (samplePopulation_ (actionSpace2 par) pGeneratorObs2, e2) ::-
      Nil)
 
-
 ------------------------------
 -- Updating state
-
+-- From both outputs of players construct the next observation
 toObs :: Monad m => m (a,Env Player1N Observation a) -> m (a, Env Player2N Observation a) -> m ((), (Observation a, Observation a))
 toObs a1 a2 = do
              (act1,_env1) <- a1
@@ -334,6 +338,7 @@ toObs a1 a2 = do
              let obs = Obs (act1,act2)
                  in return ((),(obs,obs))
 
+-- From the TLL of outputs (coming out of _evaluate_) construct new observation
 toObsFromLS :: Monad m => List '[m (a,Env Player1N Observation a), m (a,Env Player2N Observation a)] -> m ((),(Observation a,Observation a))
 toObsFromLS (x ::- (y ::- Nil))= toObs x y
 
@@ -373,6 +378,7 @@ stageSimple par@Parameters {..} = [opengame|
 
 ----------------------------------
 -- Defining the iterator structure
+-- Given a strategy and a context, evaluate the simple game
 evalStage ::
   Parameters
   -> List '[ M (PriceSpace, Env Player1N Observation PriceSpace), M ( PriceSpace
@@ -383,19 +389,7 @@ evalStage ::
                                                                       , Env Player2N Observation PriceSpace)]
 evalStage par = evaluate (stageSimple par)
 
-
--- Explicit list constructor much better
-evalStageLS :: (Ord t, Num t) =>
-  Parameters
-  -> List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)]
-  -> t
-  -> [List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)]]
-evalStageLS par startValue n =
-          let context  = fromEvalToContext startValue
-              newStrat = evalStage par startValue context
-              in if n > 0 then newStrat : evalStageLS par newStrat (n-1)
-                          else [newStrat]
-
+-- Given a strategy, and an iterator, construct the monadic output of evaluate
 evalStageM ::
   Parameters
   -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
@@ -450,6 +444,50 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
         Continue s' -> go s' newStrat (pred n)
         Stop -> pure ()
 
+-- Same as mapStagesM_ but keeps the final result in tact for reuse
+-- TODO unify with mapStagesM_
+{-# INLINE mapStagesMFinalResult #-}
+mapStagesMFinalResult ::
+  Parameters
+  -> (s ->  List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
+                                                                        , Env Player2N Observation PriceSpace)] -> M (Decision s))
+  -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
+                                                                , Env Player2N Observation PriceSpace)]
+  -> Int
+  -> s
+  -> M (List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
+                                                                        , Env Player2N Observation PriceSpace)])
+mapStagesMFinalResult par f startValue n0 s0 = go s0 startValue n0
+  where
+     goInitial s value n0 = do
+      newStrat <-
+        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+      decision <- f s newStrat
+      case decision of
+        Continue s' -> go s' newStrat (pred n0)
+        Stop -> pure value
+     go _ value 0 = pure value
+     go s value !n = do
+      let ((p1,env1) ::- (p2,env2) ::- Nil) = value
+          mem1      = (_obsAgentPrevious env1)
+          index1    = (mem1, toIdx p1)
+          table1    = _qTable env1
+          newValue1 = _stageNewValue env1
+          mem2      = (_obsAgentPrevious env2)
+          index2    = (mem2, toIdx p2)
+          table2    = _qTable env2
+          newValue2 = _stageNewValue env2
+      liftIO $ A.writeArray table1 index1 newValue1
+      liftIO $ A.writeArray table2 index2 newValue2
+      newStrat <-
+        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+      decision <- f s newStrat
+      case decision of
+        Continue s' -> go s' newStrat (pred n)
+        Stop -> pure value
+
+
+
 hoist ::
      Applicative f
   => List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
@@ -467,23 +505,6 @@ sequenceL (x ::- y ::- Nil) = do
   v' <- y
   pure (v ::- v' ::- Nil)
 
--- Learning evaluation which only keeps the last element
--- Serves as input for the later stage computations
-evalStageMOnlyFinalResult ::
-  Parameters
-  -> List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                , Env Player2N Observation PriceSpace)]
-  -> Int
-  -> M (List '[ (PriceSpace, Env Player1N Observation PriceSpace), ( PriceSpace
-                                                                    , Env Player2N Observation PriceSpace)])
-evalStageMOnlyFinalResult par val 0 = pure val
-evalStageMOnlyFinalResult par startValue n = do
-  newStrat <-
-    sequenceL
-      (evalStage par (hoist startValue) (fromEvalToContext (hoist startValue)))
-  rest <- evalStageMOnlyFinalResult par newStrat (pred n)
-  pure rest
-
 
 
 --------------------------------------------------------------------
@@ -500,25 +521,79 @@ rewardsExtendedEndNFile = [relfile|rewardsExtendedEndNLines.csv|]
 
 -- One single run for both experiments and then rematched
 {-# INLINE executeAndRematchSingleRun #-}
-executeAndRematchSingleRun name parameters1 parameters2 exportConfigGameLearning keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching = do
-  expLowC  <- firstStageLearning name parameters1 exportConfigGameLearning
-  -- ^ Instantiate run with low costs
-  expHighC <- firstStageLearning name parameters2 exportConfigGameLearning
-  -- ^ Instantiate run with high costs
-  rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching  expLowC expHighC
+executeAndRematchSingleRun :: String
+                           -> (String
+                               -> Parameters
+                               -> ExportAsymmetricLearners.ExportConfig
+                                     Player1N
+                                     Observation
+                                     PriceSpace
+                                     (RIO (GLogFunc (QLearningMsg Player1N Observation PriceSpace))))
+                           -> Map String (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                           -> Int
+                           -> Map
+                                 (String, String)
+                                 (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                           -> (String
+                               -> Parameters
+                               -> IO (QTable Player1N Observation PriceSpace)
+                               -> IO (QTable Player2N Observation PriceSpace)
+                               -> Observation PriceSpace
+                               -> ExportAsymmetric.ExportConfig
+                                     Player1N
+                                     Observation
+                                     PriceSpace
+                                     (RIO (GLogFunc (QLearningMsg Player1N Observation PriceSpace))))
+                           -> [String]
+                           -> [ReMatchType]
+                           -> IO ()
+executeAndRematchSingleRun name  exportConfigGameLearning parametersMap keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching expIds rematchTypeIds= do
+  qTablesMap <- mapM (firstStageLearningMap name exportConfigGameLearning parametersMap) expIds
+  let aggMap1 = unions $ fmap fst qTablesMap
+      aggMap2 = unions $ fmap snd qTablesMap
+  rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (aggMap1,aggMap2) rematchTypeIds
   -- ^ Rematching
+
+
 
 ------------------------
 -- Single learning stage
 ------------------------
+-- For a specific experiment rematchingType produce the q table map
+firstStageLearningMap :: String
+                      -- ^ name
+                      -> (String
+                            -> Parameters
+                            -> ExportAsymmetricLearners.ExportConfig
+                                  Player1N
+                                  Observation
+                                  PriceSpace
+                                  (RIO.RIO
+                                    (RIO.GLogFunc
+                                        (QLearningMsg
+                                          Player1N Observation PriceSpace))))
+                      -- ^ The specific experiment configuration for that learning run
+                      -> Map String (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                      -- ^ The specific parameter function for that experiment
+                      -> String
+                      -- ^ The experiment string
+                      -> IO (Map String ((QTable
+                                          Player1N Observation PriceSpace), Observation PriceSpace)
+                              , Map String ((QTable
+                                          Player2N Observation PriceSpace), Observation PriceSpace))
+firstStageLearningMap name exportConfigFunction parametersMap exp= do
+   let parametersFunction = parametersMap ! exp
+   ((q1,q2),lastObs) <- firstStageLearning name exportConfigFunction parametersFunction
+   pure $ (fromList [(exp,(q1,lastObs))],fromList [(exp,(q2,lastObs))])
+
+
+
 -- NOTE the difference is the input by the initial games parameters _parametersGameLowC_
 {-# INLINE firstStageLearning #-}
 firstStageLearning :: String
-                   -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
-                   -- ^ The specific parameter function for that learning run
-                   -> (String
+                                      -> (String
                          -> Parameters
-                         -> ExportAsymmetric.ExportConfig
+                         -> ExportAsymmetricLearners.ExportConfig
                               Player1N
                               Observation
                               PriceSpace
@@ -527,83 +602,172 @@ firstStageLearning :: String
                                     (QLearningMsg
                                       Player1N Observation PriceSpace))))
                    -- ^ The specific run configuration for that learning run
-                   -> IO ((QTable
+                  -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                   -- ^ The specific parameter function for that learning run
+                  -> IO ((QTable
                            Player1N Observation PriceSpace,
-                         ExploreRate),
-                        (QTable
-                           Player2N Observation PriceSpace,
-                         ExploreRate))
-firstStageLearning name parametersFunction exportConfigFunction  = do
+                        QTable
+                           Player2N Observation PriceSpace), Observation PriceSpace)
+firstStageLearning name exportConfigFunction parametersFunction = do
   gEnv1   <- newStdGen
   gEnv2   <- newStdGen
   gObs1   <- newStdGen
   gObs2   <- newStdGen
   let parameters = parametersFunction gEnv1 gEnv2 gObs1 gObs2
       exportConfig = exportConfigFunction name parameters
-  runRIO
-           mempty
-           (do strat <- ExportAsymmetric.initial exportConfig
-               list <-
-                 evalStageM
-                   parameters
-                   strat
-                   (ExportAsymmetric.iterations exportConfig)
-               let (x1 ::- x2 ::- Nil) = last list 
-                   (_,env1) = x1
-                   (_,env2) = x2
-                   q1       = _qTable env1
-                   q2       = _qTable env2
-                   exploreRate1 = _exploreRate env1
-                   exploreRate2 = _exploreRate env2
-               liftIO $ pure ((q1,exploreRate1),(q2,exploreRate2)))
+  list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics exportConfig
+  let (x1 ::- x2 ::- Nil) = list
+      (p1,env1) = x1
+      (p2,env2) = x2
+      q1       = _qTable env1
+      q2       = _qTable env2
+      lastObs      = Obs (p1,p2)
+  liftIO $ pure ((q1,q2),lastObs)
 
 ----------------------------------
 -- Single rematched Learning stage
 ----------------------------------
+-- Takes parameter map, exportconfig for rematching, qTable map, and a list of rematching identifiers to be used
 {-# INLINE rematchedLearning #-}
--- Takes the information from the learning phase runs (here two different experiments) and computes the exploration output
 rematchedLearning :: String
-                  -> Int
-                  -> (StdGen -> StdGen -> StdGen -> StdGen -> ExploreRate -> ExploreRate -> Parameters)
-         -- ^ Parameters specific for the rematching players
-                  -> (String
-                      -> Parameters
-                      -> IO
-                            (QTable
-                              Player1N Observation PriceSpace)
-                      -> IO
-                            (QTable
-                              Player2N Observation PriceSpace)
-                      -> ExportAsymmetric.ExportConfig
-                            Player1N
-                            Observation
-                            PriceSpace
-                            (RIO.RIO
-                              (RIO.GLogFunc
-                                  (QLearningMsg
-                                    Player1N Observation PriceSpace))))
+                    -- ^ Run name
+                    -> Int
+                    -- ^ Keep only last number of iterations
+                    -> Map (String,String) (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                    -- ^ Map of identifier into parameters
+                    -> (String
+                        -> Parameters
+                        -> IO
+                              (QTable
+                                Player1N Observation PriceSpace)
+                        -> IO
+                              (QTable
+                                Player2N Observation PriceSpace)
+                        -> Observation PriceSpace
+                        -> ExportAsymmetric.ExportConfig
+                              Player1N
+                              Observation
+                              PriceSpace
+                              (RIO.RIO
+                                (RIO.GLogFunc
+                                    (QLearningMsg
+                                      Player1N Observation PriceSpace))))
+                    -> (Map String (QTable Player1N Observation PriceSpace,Observation PriceSpace), Map String (QTable Player2N Observation PriceSpace, Observation PriceSpace))
+                    -> [ReMatchType]
+                    -- ^ Rematching information
+                    -> IO ()
+rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching qTablesMap rematchTypes =
+  mapM_ (rematchedLearningId name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching qTablesMap) rematchTypes
 
-                  -> ((QTable
-                              Player1N Observation PriceSpace,
-                            ExploreRate),
-                          (QTable
-                              Player2N Observation PriceSpace,
-                            ExploreRate))
-                  -> ((QTable
-                              Player1N Observation PriceSpace,
-                            ExploreRate),
-                          (QTable
-                              Player2N Observation PriceSpace,
-                            ExploreRate))
-                  -> IO ()
-rematchedLearning name keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching (x1,x2) (y1,y2)  = do
-  pairing2  ("p1e1-p2e2_run" ++ name) keepOnlyNLastIterations parametersGameRematchingP1E1P2E2 exportConfigGameRematching (x1,y2)
+
+-- Takes the information given for rematching pairing, qvalues from previous runs, and rematches them for a specific identifier
+-- FIXME treat the last observation differently; check maybe whether they are identical?
+rematchedLearningId :: String
+                    -- ^ Run name
+                    -> Int
+                    -- ^ Keep only last number of iterations
+                    -> Map (String,String) (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                    -- ^ Map of identifier into parameters
+                    -> (String
+                        -> Parameters
+                        -> IO
+                              (QTable
+                                Player1N Observation PriceSpace)
+                        -> IO
+                              (QTable
+                                Player2N Observation PriceSpace)
+                        -> Observation PriceSpace
+                        -> ExportAsymmetric.ExportConfig
+                              Player1N
+                              Observation
+                              PriceSpace
+                              (RIO.RIO
+                                (RIO.GLogFunc
+                                    (QLearningMsg
+                                      Player1N Observation PriceSpace))))
+                    -> (Map String (QTable Player1N Observation PriceSpace,Observation PriceSpace), Map String (QTable Player2N Observation PriceSpace, Observation PriceSpace))
+                    -> ReMatchType
+                    -- ^ Rematching information
+                    -> IO ()
+rematchedLearningId name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) rematchType@ReMatchType{..} = do
+  let parametersGameRematching = parametersGameRematchingMap ! (experiment1,experiment2)
+      (x1,lastObs1)            = qTablesMap1 ! experiment1
+      (x2,lastObs2)            = qTablesMap2 ! experiment2
+  rematchedLearningSingleRun name keepOnlyNLastIterations rematchType parametersGameRematching exportConfigGameRematching x1 x2 lastObs1
+  -- ^ FIXME this has to be made more robust
+
+
+
+
+-- Takes the information from two learning phase runs and computes the exploration output
+-- NOTE this creates a proper copy of each qmatrix. In principle not needed, there could be reuse but probably safer
+rematchedLearningSingleRun :: String
+                           -- ^ Run name
+                           -> Int
+                           -- ^ Keep only last number of iterations
+                           -> ReMatchType
+                           -- ^ Rematching information
+                           -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                           -- ^ Parameters specific for the rematching player1 from experiment i and player 2 from experiment j
+                           -> (String
+                               -> Parameters
+                               -> IO
+                                     (QTable
+                                       Player1N Observation PriceSpace)
+                               -> IO
+                                     (QTable
+                                       Player2N Observation PriceSpace)
+                               -> Observation PriceSpace
+                               -> ExportAsymmetric.ExportConfig
+                                     Player1N
+                                     Observation
+                                     PriceSpace
+                                     (RIO.RIO
+                                       (RIO.GLogFunc
+                                           (QLearningMsg
+                                             Player1N Observation PriceSpace))))
+                           -> QTable Player1N Observation PriceSpace
+                           -> QTable Player2N Observation PriceSpace
+                           -> Observation PriceSpace
+                           -> IO ()
+rematchedLearningSingleRun name keepOnlyNLastIterations ReMatchType{..} parametersGameRematching exportConfigGameRematching x1 x2 lastObs = do
+  x1'      <- copyArrayP1 x1
+  x2'      <- copyArrayP2 x2
+  if randomMatch
+    then
+         pairing2
+             ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ "_run"++ name)
+             keepOnlyNLastIterations
+             parametersGameRematching
+             exportConfigGameRematching
+             (x1',x2') randomInitialObservation
+    else
+         pairing2
+             ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ "_run"++ name)
+             keepOnlyNLastIterations
+             parametersGameRematching
+             exportConfigGameRematching
+             (x1',x2') (\_ -> lastObs)
+
+
+-- Copy original array for player 1 to a new location so that we do not affect the original array when computing on the copy
+copyArrayP1 :: QTable Player1N Observation PriceSpace -> IO (QTable Player1N Observation PriceSpace)
+copyArrayP1 x = do
+   x' <- MA.freeze x :: IO (QTableIm Player1N Observation PriceSpace)
+   MA.thaw x'
+
+
+-- Copy original array for player 2 to a new location so that we do not affect the original array when computing on the copy
+copyArrayP2 :: QTable Player2N Observation PriceSpace -> IO (QTable Player2N Observation PriceSpace)
+copyArrayP2 x = do
+   x' <- MA.freeze x :: IO (QTableIm Player2N Observation PriceSpace)
+   MA.thaw x'
+
 
 -- Reinitiates the exploitation phase for the starting conditions of two players
-{-# INLINE pairing2 #-}
 pairing2 :: String
          -> Int
-         -> (StdGen -> StdGen -> StdGen -> StdGen -> ExploreRate -> ExploreRate -> Parameters)
+         -> (StdGen -> StdGen -> StdGen -> StdGen ->  Parameters)
          -- ^ Parameters specific for the rematching players
          -> (String
             -> Parameters
@@ -613,6 +777,7 @@ pairing2 :: String
             -> IO
                   (QTable
                     Player2N Observation PriceSpace)
+            -> Observation PriceSpace
             -> ExportAsymmetric.ExportConfig
                   Player1N
                   Observation
@@ -622,21 +787,22 @@ pairing2 :: String
                         (QLearningMsg
                           Player1N Observation PriceSpace))))
          -- ^ Parameters for the rematched runs
-         -> ((QTable
+         -> (QTable
                   Player1N Observation PriceSpace,
-                ExploreRate),
-              (QTable
-                  Player2N Observation PriceSpace,
-                ExploreRate))
+              QTable
+                  Player2N Observation PriceSpace)
          -- ^ Relevant restarting conditions for players
+         -> (Parameters -> Observation PriceSpace)
+         -- ^ Function that creates new observation
+         -- Two uses: Randomly created or constant from outside
          -> IO ()
-pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction ((qt1,exploreRate1),(qt2,exploreRate2)) = do
+pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction (qt1,qt2) newObsF = do
   gEnv1   <- newStdGen
   gEnv2   <- newStdGen
   gObs1   <- newStdGen
   gObs2   <- newStdGen
-  let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2 exploreRate1 exploreRate2
-      newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2)
+  let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2
+      newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2) (newObsF newParameters)
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
   L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters)
@@ -739,8 +905,3 @@ exportParameters par = ExportParameters
 -- | export to CSV
 csvParameters :: Parameters -> L.ByteString
 csvParameters par = encodeDefaultOrderedByName  [exportParameters par]
-
-
-
-
-

@@ -1,20 +1,22 @@
 module Examples.QLearning.AsymmetricLearners
-  ( evalStageLS
-  , initialStrat
+  ( initialStrat
   , initialArray1
   , initialArray2
+  , randomInitialObservation
   , actionSpace1
   , actionSpace2
   , csvParameters
   , sequenceL
   , evalStageM
   , mapStagesM_
+  , mapStagesMFinalResult
   , executeAndRematchSingleRun
   , PriceSpace(..)
-  , Observation(..) 
+  , Observation(..)
   , Parameters(..)
+  , ReMatchType(..)
   ) where
 
 import           Examples.QLearning.AsymmetricLearners.Internal
 
--- Re-import of AsymmetricLearners.Internal which contains all details
+-- With n players and specifications accordingly
