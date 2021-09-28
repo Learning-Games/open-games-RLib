@@ -532,6 +532,9 @@ executeAndRematchSingleRun :: String
                            -> Map
                                  (String, String)
                                  (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                           -> Map
+                                 (String, String)
+                                 (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
                            -> (String
                                -> Parameters
                                -> IO (QTable Player1N Observation PriceSpace)
@@ -556,14 +559,14 @@ executeAndRematchSingleRun :: String
                            -> [ReMatchType]
                            -> [ReMatchType]
                            -> IO ()
-executeAndRematchSingleRun name  exportConfigGameLearning parametersMap keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematchingPhase2 exportConfigGameRematchingPhase3 expIds rematchTypeIdsPhase2 rematchTypeIdsPhase3= do
-  qTablesMapPhase1 <- mapM (firstStageLearningMap (name ++ "phase1")  keepOnlyNLastIterations exportConfigGameLearning parametersMap) expIds
+executeAndRematchSingleRun name  exportConfigGameLearning parametersMap keepOnlyNLastIterations parametersGameRematchingMapPhase2 parametersGameRematchingMapPhase3 exportConfigGameRematchingPhase2 exportConfigGameRematchingPhase3 expIds rematchTypeIdsPhase2 rematchTypeIdsPhase3= do
+  qTablesMapPhase1 <- mapM (firstStageLearningMap ("_phase1_run_" ++ name)  keepOnlyNLastIterations exportConfigGameLearning parametersMap) expIds
   let aggMap1Phase1 = unions $ fmap fst qTablesMapPhase1
       aggMap2Phase2 = unions $ fmap snd qTablesMapPhase1
-  qTablesMapPhase2 <- mapM (rematchedLearning (name ++ "phase2") keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematchingPhase2 (aggMap1Phase1,aggMap2Phase2)) rematchTypeIdsPhase2
+  qTablesMapPhase2 <- mapM (rematchedLearning ("_phase2_run_" ++ name) keepOnlyNLastIterations parametersGameRematchingMapPhase2 exportConfigGameRematchingPhase2 (aggMap1Phase1,aggMap2Phase2)) rematchTypeIdsPhase2
   let aggMap1Phase2 = unions $ fmap fst qTablesMapPhase2
       aggMap2Phase2 = unions $ fmap snd qTablesMapPhase2
-  mapM_ (rematchedLearning (name ++ "phase3") keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematchingPhase3 (aggMap1Phase2,aggMap2Phase2)) rematchTypeIdsPhase3
+  mapM_ (rematchedLearning ("_phase3_run_" ++ name) keepOnlyNLastIterations parametersGameRematchingMapPhase3 exportConfigGameRematchingPhase3 (aggMap1Phase2,aggMap2Phase2)) rematchTypeIdsPhase3
 
 
 
@@ -597,7 +600,7 @@ firstStageLearningMap :: String
                                           Player2N Observation PriceSpace), Observation PriceSpace))
 firstStageLearningMap name keepOnlyNLastIterations exportConfigFunction parametersMap exp= do
    let parametersFunction = parametersMap ! exp
-   ((q1,q2),lastObs) <- firstStageLearning (exp ++ "_run" ++ name) keepOnlyNLastIterations exportConfigFunction parametersFunction
+   ((q1,q2),lastObs) <- firstStageLearning (exp ++ name) keepOnlyNLastIterations exportConfigFunction parametersFunction
    pure $ (fromList [(exp,(q1,lastObs))],fromList [(exp,(q2,lastObs))])
 
 
@@ -756,14 +759,14 @@ rematchedLearningSingleRun name keepOnlyNLastIterations ReMatchType{..} paramete
   if randomMatch
     then
          pairing2
-             ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ "_run"++ name)
+             ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ name)
              keepOnlyNLastIterations
              parametersGameRematching
              exportConfigGameRematching
              (x1',x2') randomInitialObservation
     else
          pairing2
-             ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ "_run"++ name)
+             ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ name)
              keepOnlyNLastIterations
              parametersGameRematching
              exportConfigGameRematching
