@@ -22,7 +22,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.AsymmetricLearners.Internal2
+module Examples.QLearning.AsymmetricLearners.InternalTwoPhases
   where
 
 import           Control.DeepSeq
@@ -539,7 +539,7 @@ executeAndRematchSingleRun :: String
                                -> IO (QTable Player1N Observation PriceSpace)
                                -> IO (QTable Player2N Observation PriceSpace)
                                -> Observation PriceSpace
-                               -> ExportAsymmetric.ExportConfig
+                               -> ExportAsymmetricLearners.ExportConfig
                                      Player1N
                                      Observation
                                      PriceSpace
@@ -666,7 +666,7 @@ rematchedLearning :: String
                               (QTable
                                 Player2N Observation PriceSpace)
                         -> Observation PriceSpace
-                        -> ExportAsymmetric.ExportConfig
+                        -> ExportAsymmetricLearners.ExportConfig
                               Player1N
                               Observation
                               PriceSpace
@@ -699,7 +699,7 @@ rematchedLearningId :: String
                               (QTable
                                 Player2N Observation PriceSpace)
                         -> Observation PriceSpace
-                        -> ExportAsymmetric.ExportConfig
+                        -> ExportAsymmetricLearners.ExportConfig
                               Player1N
                               Observation
                               PriceSpace
@@ -740,7 +740,7 @@ rematchedLearningSingleRun :: String
                                      (QTable
                                        Player2N Observation PriceSpace)
                                -> Observation PriceSpace
-                               -> ExportAsymmetric.ExportConfig
+                               -> ExportAsymmetricLearners.ExportConfig
                                      Player1N
                                      Observation
                                      PriceSpace
@@ -800,7 +800,7 @@ pairing2 :: String
                   (QTable
                     Player2N Observation PriceSpace)
             -> Observation PriceSpace
-            -> ExportAsymmetric.ExportConfig
+            -> ExportAsymmetricLearners.ExportConfig
                   Player1N
                   Observation
                   PriceSpace
@@ -828,7 +828,7 @@ pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportCon
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
   L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters)
-  ExportAsymmetric.runQLearningExportingDiagnostics newExportConfig
+  _ <- ExportAsymmetricLearners.runQLearningExportingDiagnostics newExportConfig
   runProcess_
     (proc
         "touch"
@@ -838,7 +838,7 @@ pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportCon
     (shell
         ( "tail "
          ++ "-"
-         ++ (show $  keepOnlyNLastIterations * ExportAsymmetric.players newExportConfig)
+         ++ (show $  keepOnlyNLastIterations * ExportAsymmetricLearners.players newExportConfig)
          ++ " "
          ++ fromRelDir (dirResultIteration </> rewardsExtendedFile)
          ++ " > "

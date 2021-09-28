@@ -1,4 +1,4 @@
-module Examples.QLearning.AsymmetricLearnersThreeRematches
+module Examples.QLearning.AsymmetricLearnersThreePhases
   ( initialStrat
   , initialArray1
   , initialArray2
@@ -17,6 +17,6 @@ module Examples.QLearning.AsymmetricLearnersThreeRematches
   , ReMatchType(..)
   ) where
 
-import           Examples.QLearning.AsymmetricLearners.InternalThreeRematches
+import           Examples.QLearning.AsymmetricLearners.InternalThreePhases
 
 -- With n players and specifications accordingly

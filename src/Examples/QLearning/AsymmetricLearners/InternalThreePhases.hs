@@ -22,7 +22,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.AsymmetricLearners.InternalThreeRematches
+module Examples.QLearning.AsymmetricLearners.InternalThreePhases
   where
 
 import           Control.DeepSeq
@@ -45,7 +45,6 @@ import qualified Engine.Memory as Memory
 import           Engine.OpenGames
 import           Engine.OpticClass
 import           Engine.QLearning
-import qualified Engine.QLearning.ExportAsymmetric as ExportAsymmetric
 import qualified Engine.QLearning.ExportAsymmetricLearnersLog as ExportAsymmetricLearners
 import           Engine.TLL
 import           FastCsv
