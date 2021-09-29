@@ -1,4 +1,4 @@
-module Examples.QLearning.AsymmetricLearners2
+module Examples.QLearning.AsymmetricLearnersTwoPhases
   ( initialStrat
   , initialArray1
   , initialArray2
@@ -17,6 +17,6 @@ module Examples.QLearning.AsymmetricLearners2
   , ReMatchType(..)
   ) where
 
-import           Examples.QLearning.AsymmetricLearners.Internal2
+import           Examples.QLearning.AsymmetricLearners.InternalTwoPhases
 
 -- With n players and specifications accordingly
