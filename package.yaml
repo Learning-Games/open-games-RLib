@@ -41,8 +41,10 @@ library:
     - Examples.SequentialMoves
     - Examples.QLearning.AsymmetricLearners.InternalTwoPhases
     - Examples.QLearning.AsymmetricLearners.InternalThreePhases
+    - Examples.QLearning.AsymmetricLearners.InternalFourPhases
     - Examples.QLearning.AsymmetricLearnersTwoPhases
     - Examples.QLearning.AsymmetricLearnersThreePhases
+    - Examples.QLearning.AsymmetricLearnersFourPhases
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply
