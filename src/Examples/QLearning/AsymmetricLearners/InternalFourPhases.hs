@@ -580,7 +580,7 @@ executeAndRematchSingleRun name  exportConfigGameLearning parametersMap keepOnly
   qTablesMapPhase2 <- mapM (rematchedLearning ("_phase3_run_" ++ name) keepOnlyNLastIterations parametersGameRematchingMapPhase3 exportConfigGameRematchingPhase3 (aggMap1Phase1,aggMap2Phase1)) rematchTypeIdsPhase3
   let aggMap1Phase2 = unions $ fmap fst qTablesMapPhase2
       aggMap2Phase2 = unions $ fmap snd qTablesMapPhase2
-  mapM_ (rematchedLearning ("_phase4_run_" ++ name) keepOnlyNLastIterations parametersGameRematchingMapPhase3 exportConfigGameRematchingPhase4 (aggMap1Phase2,aggMap2Phase2)) rematchTypeIdsPhase4
+  mapM_ (rematchedLearning ("_phase4_run_" ++ name) keepOnlyNLastIterations parametersGameRematchingMapPhase4 exportConfigGameRematchingPhase4 (aggMap1Phase2,aggMap2Phase2)) rematchTypeIdsPhase4
 
 
 
