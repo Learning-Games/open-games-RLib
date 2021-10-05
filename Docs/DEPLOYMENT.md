@@ -16,7 +16,7 @@ Building the final image for running:
 
     docker image build -f pzahn/learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-06-29v2
 
-   
+
 OK, now you can upload everything:
 
     docker push ghcr.io/philipp-zahn/learning/src:2021-06-29v2
@@ -54,7 +54,7 @@ Login Succeeded
 Run:
 
 ```
-root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-09-14v2  stack run watch
+root@Debian-109-buster-64-LAMP ~ # docker run -d --rm  -v/tmp/learning-watch:/tmp/learning-watch  -v/root/learning-work:/root/learning-work  ghcr.io/philipp-zahn/learning/final:2021-09-27  stack run watch
 Unable to find image 'ghcr.io/philipp-zahn/learning/final:2021-05-29v2' locally
 2021-05-25: Pulling from philipp-zahn/learning/final
 48839397421a: Pull complete
@@ -130,8 +130,8 @@ The calvano example can be found
 
 Run the game locally (ideally with a small number of iterations, just
 to sanity check it):
-     
-    $ stack run game local calvano 
+
+    $ stack run game local calvano
     [11] 2021-05-27 10:07:07.913013048 UTC: Saved as: calvano-1fcb3a1462d2721fd3760aba6d8c35539f216b2a
     [11] 2021-05-27 10:07:07.913117147 UTC: Compiling with GHC ...
     [1 of 1] Compiling Main             ( /home/chris/Work/philipp-zahn/learning/games/calvano.hs, /home/chris/Work/philipp-zahn/learning/games/calvano.o )
