@@ -15,20 +15,85 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
+
 
 module Engine.InteractiveIO where
 
-import           Engine.Diagnostics
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
 
+import Control.Monad.Reader
 import Data.Foldable
 import Data.List (maximumBy)
 import Data.Ord (comparing)
 import Numeric.Probability.Distribution hiding (map, lift, filter)
 
 type InteractiveStageGame m a b x s y r = OpenGame (MonadOptic m) (MonadContext m) a b x s y r
+
+data DiagnosticInfoInteractive y = DiagnosticInfoInteractive
+  { player          :: String
+  , optimalMove     :: y
+  , optimalPayoff   :: Double
+  , currentMove     :: y
+  , currentPayoff   :: Double}
+
+showDiagnosticInfoInteractive :: (Show y, Ord y) => DiagnosticInfoInteractive y -> String
+showDiagnosticInfoInteractive info =
+     "\n"    ++ "Player: " ++ player info
+     ++ "\n" ++ "Optimal Move: " ++ (show $ optimalMove info)
+     ++ "\n" ++ "Optimal Payoff: " ++ (show $ optimalPayoff info)
+     ++ "\n" ++ "Current Move: " ++ (show $ currentMove info)
+     ++ "\n" ++ "Current Payoff: " ++ (show $ currentPayoff info)
+
+
+
+-- output string information for a subgame expressions containing information from several players - bayesian
+showDiagnosticInfoLInteractive :: (Show y, Ord y)  => [DiagnosticInfoInteractive y] -> String
+showDiagnosticInfoLInteractive [] = "\n --No more information--"
+showDiagnosticInfoLInteractive (x:xs)  = showDiagnosticInfoInteractive x ++ "\n --other game-- " ++ showDiagnosticInfoLInteractive xs
+
+
+
+
+data PrintOutput = PrintOutput
+
+instance (Show y, Ord y) => Apply PrintOutput [DiagnosticInfoInteractive y] String where
+  apply _ x = showDiagnosticInfoLInteractive x
+
+
+data Concat = Concat
+
+instance Apply Concat String (String -> String) where
+  apply _ x = \y -> x ++ "\n NEWGAME: \n" ++ y
+
+
+---------------------
+-- main functionality
+
+-- all information for all players
+generateOutput :: forall xs.
+               ( MapL   PrintOutput xs     (ConstMap String xs)
+               , FoldrL Concat String (ConstMap String xs)
+               ) => List xs -> IO ()
+generateOutput hlist = putStrLn $
+  "----Analytics begin----" ++ (foldrL Concat "" $ mapL @_ @_ @(ConstMap String xs) PrintOutput hlist) ++ "----Analytics end----\n"
+
+
+
 
 
 type Agent = String
@@ -40,88 +105,44 @@ bayes :: (Eq y) => Stochastic (x, y) -> y -> Stochastic x
 bayes a y = mapMaybe (\(x, y') -> if y' == y then Just x else Nothing) a
 
 
+test :: Monad m =>  (y -> m Double) -> [y] -> m [(y, Double)]
+test u ys = do
+  ls  <- mapM u ys
+  pure $ zip ys ls
 
 
 
-deviationsInContext :: (Show x, Show y, Ord y, Show theta, Monad m)
-                    => Double -> Agent -> x -> theta -> Stochastic (m y) -> (y -> m Double) -> [y] -> m [DiagnosticInfoBayesian x y]
-deviationsInContext epsilon name x theta strategy u ys
-  = do
-  let strategicPayoff = expected (fmap u strategy)
-      (optimalPlay, optimalPayoff) = maximumBy (comparing snd) [(y, u y) | y <- ys]
-  payoff <- optimalPayoff
-  strategicPayoff' <- strategicPayoff
-  pure [DiagnosticInfoBayesian { equilibrium = strategicPayoff' >=  payoff - epsilon,
-                      player = name,
-                      payoff = strategicPayoff,
-                      optimalMove = optimalPlay,
-                      optimalPayoff = payoff,
-                      context = u ,
-                      state = x,
-                      unobservedState = show theta,
-                      strategy = strategy}]
+deviationsInContext :: (Show a, Ord a, MonadIO m)
+                    =>  Agent -> a -> (a -> m Double) -> [a] -> m [DiagnosticInfoInteractive a]
+deviationsInContext name strategy u ys = do
+   ls  <- mapM u ys
+   strategicPayoff <- u strategy
+   let zippedLs =zip ys ls
+       (optimalPlay, optimalPayoff) = maximumBy (comparing snd) zippedLs
+   pure [DiagnosticInfoInteractive
+        {  player = name
+         , optimalMove = optimalPlay
+         , optimalPayoff = optimalPayoff
+         , currentMove   = strategy
+         , currentPayoff = strategicPayoff
+         }]
 
 
-{--
+
 -- Takes IO and does an evaluate? As in the Bayesian Game?
 interactiveInput ::
-  Monad m
-  => Agent -> [a] -> InteractiveStageGame m '[ m a] '[m b] () () a Double
+  (MonadIO m, Show a, Ord a) =>
+  Agent -> [a] -> InteractiveStageGame m '[ m a] '[m [DiagnosticInfoInteractive a]] () () a Double
 interactiveInput name ys = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            action' <- strat
                                            pure ((),action')
                                         in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This finds the optimal action or chooses randomly
-  evaluate = \(a ::- Nil) (MonadContext _ k) ->
-      do
-        u <- \y ->  k () y
-        (concat [ let u y = k () y
-                      strategy = a
-                      in deviationsInContext 0 name () () strategy u ys ]) ::- Nil }
-
-
-
-
-
-
- \(strat ::- Nil) (MonadContext h k) ->
-              let
-                output = do
-                   (_,pdenv') <- strat
-                   (z,obs) <- h
-                   -- ^ Take the (old observation) from the context
-                   (action,actionChoiceType) <- chooseActionFunction actionSpace (State pdenv' obs)
-                   (reward,obsNew) <- k z action
-                   let st = (_obsAgent pdenv')
-                   bounds <- liftIO (A.getBounds (_qTable pdenv'))
-                   RIO.glog (exportRewards
-                                exportType
-                                (_player pdenv')
-                                (_iteration pdenv')
-                                (st, action)
-                                (Ix.index bounds (st, toIdx action))
-                                actionChoiceType
-                                (_exploreRate pdenv')
-                                reward)
-                   (State env' _) <- ST.execStateT (updateFunction actionSpace (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
-                                                   (State pdenv' obs)
-                   return (action,env')
-                in (output ::- Nil)}
-
-
-
-{-# INLINE deterministicStratStage #-}
-deterministicStratStage ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a) =>  Agent -> (o a -> a) -> InteractiveStageGame m '[m a] '[m a] (o a) () a  (Double,(o a))
-deterministicStratStage name policy = OpenGame {
-  play =  \(_ ::- Nil) -> let v obs = pure $ ((),policy obs)
-                              in MonadOptic v (\_ -> (\_ -> pure ())),
   evaluate = \(a ::- Nil) (MonadContext h k) ->
-              let
-                output = do
-                   (_,obs) <- h
-                   -- ^ Take the (old observation) from the context
-                   pure $ policy obs
-                in (output ::- Nil)}
-
--}
+       let context = do
+              (z,_) <- h
+              strategy <- a
+              let u y = k z y
+              deviationsInContext name strategy u ys
+              in (context  ::- Nil) }
