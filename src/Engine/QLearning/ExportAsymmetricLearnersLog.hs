@@ -304,7 +304,6 @@ writeStateActionIndex1 ::
   -> m1 ()
 writeStateActionIndex1 ExportConfig {..}  initial' = do
   dirResultIteration <- parseRelDir runName
-  putStrLn "Writing state action index ..."
   withCsvFile
     (toFilePath (dirResultIteration </> stateActionIndexFile1))
     (\writeRow -> do
@@ -342,7 +341,6 @@ writeStateActionIndex2 ::
   -> m1 ()
 writeStateActionIndex2 ExportConfig {..}  initial' = do
   dirResultIteration <- parseRelDir runName
-  putStrLn "Writing state action index ..."
   withCsvFile
     (toFilePath (dirResultIteration </> stateActionIndexFile2))
     (\writeRow -> do
@@ -375,10 +373,8 @@ writeQValues ::
   -> (QValueRow -> IO ())
   -> m (List '[ ( a , Env n o a), ( a , Env n o a)])
 writeQValues ExportConfig {..} maximalState initial'@(p1_0 ::- p2_0 ::- Nil) writeRow = do
-  putStrLn "Writing initial tables"
   writePlayerQTable 0 1 p1_0
   writePlayerQTable 0 2 p2_0
-  putStrLn "Running iterations ..."
   mapStagesM_
     (\State {prev, iteration, skipping} (p1 ::- p2 ::- Nil) -> do
        let !percent = fromIntegral iteration / fromIntegral iterations * 100
@@ -386,7 +382,6 @@ writeQValues ExportConfig {..} maximalState initial'@(p1_0 ::- p2_0 ::- Nil) wri
              if percent >= prev + 10
                then percent
                else prev
-       when (save /= prev) (putStrLn (toFixed 2 percent <> "% complete ..."))
        let
         in when
              -- Always include the first and last iteration.
@@ -400,7 +395,6 @@ writeQValues ExportConfig {..} maximalState initial'@(p1_0 ::- p2_0 ::- Nil) wri
                  writePlayerQTable iteration 1 p1
                  writePlayerQTable iteration 2 p2)
        terminate <- allPlayersTerminated maximalState
-       when terminate (putStrLn "Terminating early because all players converged.")
        pure
          (if terminate
             then QLearning.Stop
