@@ -43,10 +43,12 @@ library:
     - Examples.QLearning.AsymmetricLearners.InternalThreePhases
     - Examples.QLearning.AsymmetricLearners.InternalFourPhases
     - Examples.QLearning.AsymmetricLearners.InternalSixPhases
+    - Examples.QLearning.AsymmetricLearners.InternalEightPhases
     - Examples.QLearning.AsymmetricLearnersTwoPhases
     - Examples.QLearning.AsymmetricLearnersThreePhases
     - Examples.QLearning.AsymmetricLearnersFourPhases
     - Examples.QLearning.AsymmetricLearnersSixPhases
+    - Examples.QLearning.AsymmetricLearnersEightPhases
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply
