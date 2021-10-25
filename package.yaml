@@ -39,11 +39,13 @@ library:
     - Examples.Bayesian
     - Examples.Decision
     - Examples.SequentialMoves
+    - Examples.QLearning.AsymmetricLearners.Internal
     - Examples.QLearning.AsymmetricLearners.InternalTwoPhases
     - Examples.QLearning.AsymmetricLearners.InternalThreePhases
     - Examples.QLearning.AsymmetricLearners.InternalFourPhases
     - Examples.QLearning.AsymmetricLearners.InternalSixPhases
     - Examples.QLearning.AsymmetricLearners.InternalEightPhases
+    - Examples.QLearning.AsymmetricLearners
     - Examples.QLearning.AsymmetricLearnersTwoPhases
     - Examples.QLearning.AsymmetricLearnersThreePhases
     - Examples.QLearning.AsymmetricLearnersFourPhases
