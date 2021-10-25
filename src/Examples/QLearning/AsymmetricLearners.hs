@@ -13,7 +13,6 @@ module Examples.QLearning.AsymmetricLearners
   , firstStageLearningMap
   , rematchedLearning
   , rematchedLearningWithName
-  , executeAndRematchSingleRun
   , PriceSpace(..)
   , Observation(..)
   , Parameters(..)
