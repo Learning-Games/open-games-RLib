@@ -42,6 +42,8 @@ library:
     - Examples.SequentialMoves
     - Examples.QLearning.AsymmetricLearners.Internal
     - Examples.QLearning.AsymmetricLearners
+    - Examples.QLearning.AsymmetricLearners4Phases
+    - Examples.QLearning.AsymmetricLearners8Phases
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply
