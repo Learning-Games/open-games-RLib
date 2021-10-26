@@ -43,14 +43,14 @@ import qualified Engine.Memory as Memory
 import           Engine.OpenGames
 import           Engine.OpticClass
 import           Engine.QLearning
-import qualified Engine.QLearning.ExportAsymmetricLearnersLog as ExportAsymmetricLearners
+import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as ExportAsymmetricLearners
 import           Engine.TLL
 import           FastCsv
 import           GHC.Generics
 import           Path
 import qualified Path.IO as IO
 import           Preprocessor.Compile
-import           RIO (RIO, GLogFunc, runRIO)
+import           RIO (RIO, GLogFunc, runRIO, when)
 import           System.Random
 import qualified System.Random as Rand
 import           System.Process.Typed
@@ -517,6 +517,7 @@ sequenceL (x ::- y ::- Nil) = do
 
 -- File names for results
 parametersFile          = [relfile|parameters.csv|]
+seedsFile               = [relfile|seeds.csv|]
 rewardsExtendedFile     = [relfile|rewardsExtended.csv|]
 rewardsExtendedEndNFile = [relfile|rewardsExtendedEndNLines.csv|]
 
@@ -527,6 +528,8 @@ rewardsExtendedEndNFile = [relfile|rewardsExtendedEndNLines.csv|]
 -- For a specific experiment rematchingType produce the q table map
 firstStageLearningMap :: String
                       -- ^ name
+                      -> ExportAsymmetricLearners.RunNumber
+                      -- ^ The number of the run for the same estimation
                       -> Int
                       -- ^ number of last iterations
                       -> (String
@@ -548,9 +551,9 @@ firstStageLearningMap :: String
                                           Player1N Observation PriceSpace), Observation PriceSpace)
                               , Map String ((QTable
                                           Player2N Observation PriceSpace), Observation PriceSpace))
-firstStageLearningMap name keepOnlyNLastIterations exportConfigFunction parametersMap exp= do
+firstStageLearningMap name runNo keepOnlyNLastIterations exportConfigFunction parametersMap exp= do
    let parametersFunction = parametersMap ! exp
-   ((q1,q2),lastObs) <- firstStageLearning (exp ++ name) keepOnlyNLastIterations exportConfigFunction parametersFunction
+   ((q1,q2),lastObs) <- firstStageLearning (exp ++ name) runNo keepOnlyNLastIterations exportConfigFunction parametersFunction
    pure $ (fromList [(exp,(q1,lastObs))],fromList [(exp,(q2,lastObs))])
 
 
@@ -558,25 +561,28 @@ firstStageLearningMap name keepOnlyNLastIterations exportConfigFunction paramete
 -- NOTE the difference is the input by the initial games parameters _parametersGameLowC_
 {-# INLINE firstStageLearning #-}
 firstStageLearning :: String
-                      -> Int
-                      -> (String
-                         -> Parameters
-                         -> ExportAsymmetricLearners.ExportConfig
-                              Player1N
-                              Observation
-                              PriceSpace
-                              (RIO.RIO
-                                (RIO.GLogFunc
-                                    (QLearningMsg
-                                      Player1N Observation PriceSpace))))
-                   -- ^ The specific run configuration for that learning run
-                  -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
-                   -- ^ The specific parameter function for that learning run
-                  -> IO ((QTable
-                           Player1N Observation PriceSpace,
-                        QTable
-                           Player2N Observation PriceSpace), Observation PriceSpace)
-firstStageLearning name keepOnlyNLastIterations exportConfigFunction parametersFunction = do
+                    -- ^ Name of the run
+                    -> ExportAsymmetricLearners.RunNumber
+                    -- ^ The number of the run for the same estimation
+                    -> Int
+                    -> (String
+                        -> Parameters
+                        -> ExportAsymmetricLearners.ExportConfig
+                            Player1N
+                            Observation
+                            PriceSpace
+                            (RIO.RIO
+                              (RIO.GLogFunc
+                                  (QLearningMsg
+                                    Player1N Observation PriceSpace))))
+                    -- ^ The specific run configuration for that learning run
+                    -> (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                    -- ^ The specific parameter function for that learning run
+                    -> IO ((QTable
+                            Player1N Observation PriceSpace,
+                          QTable
+                            Player2N Observation PriceSpace), Observation PriceSpace)
+firstStageLearning name runNo keepOnlyNLastIterations exportConfigFunction parametersFunction = do
   gEnv1   <- newStdGen
   gEnv2   <- newStdGen
   gObs1   <- newStdGen
@@ -585,8 +591,12 @@ firstStageLearning name keepOnlyNLastIterations exportConfigFunction parametersF
       exportConfig = exportConfigFunction name parameters
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
-  L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters parameters)
-  list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics exportConfig
+  L.writeFile (fromRelDir  (dirResultIteration </> seedsFile)) (csvSeeds parameters)
+  when
+     (runNo == 1)
+     (do L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters parameters))
+  -- ^ FIXME do the csv export in the proper export part
+  list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics exportConfig runNo
   runProcess_
     (proc
         "touch"
@@ -602,6 +612,12 @@ firstStageLearning name keepOnlyNLastIterations exportConfigFunction parametersF
          ++ " > "
          ++ fromRelDir (dirResultIteration </> rewardsExtendedEndNFile)
         ))
+  runProcess_
+    (shell
+        ( "rm "
+         ++ fromRelDir (dirResultIteration </> rewardsExtendedFile)
+        ))
+  -- ^ FIXME: once proper buffering implemented get rid of this part
   putStrLn ("completed task: " ++ name)
   let (x1 ::- x2 ::- Nil) = list
       (p1,env1) = x1
@@ -617,6 +633,8 @@ firstStageLearning name keepOnlyNLastIterations exportConfigFunction parametersF
 
 rematchedLearningWithName :: String
                     -- ^ Run name
+                    -> ExportAsymmetricLearners.RunNumber
+                    -- ^ The number of the run for the same estimation
                     -> Int
                     -- ^ Keep only last number of iterations
                     -> Map (String,String) (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
@@ -647,13 +665,14 @@ rematchedLearningWithName :: String
                                           Player1N Observation PriceSpace), Observation PriceSpace)
                               , Map String ((QTable
                                           Player2N Observation PriceSpace), Observation PriceSpace))
-rematchedLearningWithName name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) targetName rematchType@ReMatchType{..}  = do
+rematchedLearningWithName name runNo keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) targetName rematchType@ReMatchType{..}  = do
   let parametersGameRematching = parametersGameRematchingMap ! (experiment1,experiment2)
       (x1,lastObs1)            = qTablesMap1 ! experiment1
       (x2,lastObs2)            = qTablesMap2 ! experiment2
       newNameExp               = experiment1 ++ experiment2
   ((q1New,q2New),lastObs) <- rematchedLearningSingleRun
                                  name
+                                 runNo
                                  keepOnlyNLastIterations
                                  rematchType
                                  parametersGameRematching
@@ -673,6 +692,8 @@ rematchedLearningWithName name keepOnlyNLastIterations parametersGameRematchingM
 -- FIXME treat the last observation differently; check maybe whether they are identical?
 rematchedLearning :: String
                     -- ^ Run name
+                    -> ExportAsymmetricLearners.RunNumber
+                    -- ^ The number of the run for the same estimation
                     -> Int
                     -- ^ Keep only last number of iterations
                     -> Map (String,String) (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
@@ -701,13 +722,14 @@ rematchedLearning :: String
                                           Player1N Observation PriceSpace), Observation PriceSpace)
                               , Map String ((QTable
                                           Player2N Observation PriceSpace), Observation PriceSpace))
-rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) rematchType@ReMatchType{..} = do
+rematchedLearning name runNo keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) rematchType@ReMatchType{..} = do
   let parametersGameRematching = parametersGameRematchingMap ! (experiment1,experiment2)
       (x1,lastObs1)            = qTablesMap1 ! experiment1
       (x2,lastObs2)            = qTablesMap2 ! experiment2
       newNameExp               = experiment1 ++ experiment2
   ((q1New,q2New),lastObs) <- rematchedLearningSingleRun
                                  name
+                                 runNo
                                  keepOnlyNLastIterations
                                  rematchType
                                  parametersGameRematching
@@ -726,6 +748,8 @@ rematchedLearning name keepOnlyNLastIterations parametersGameRematchingMap expor
 -- NOTE this creates a proper copy of each qmatrix. In principle not needed, there could be reuse but probably safer
 rematchedLearningSingleRun :: String
                            -- ^ Run name
+                           -> ExportAsymmetricLearners.RunNumber
+                           -- ^ The number of the run for the same estimation
                            -> Int
                            -- ^ Keep only last number of iterations
                            -> ReMatchType
@@ -757,13 +781,14 @@ rematchedLearningSingleRun :: String
                                    QTable
                                       Player2N Observation PriceSpace), Observation PriceSpace)
 
-rematchedLearningSingleRun name keepOnlyNLastIterations ReMatchType{..} parametersGameRematching exportConfigGameRematching x1 x2 lastObs = do
+rematchedLearningSingleRun name runNo keepOnlyNLastIterations ReMatchType{..} parametersGameRematching exportConfigGameRematching x1 x2 lastObs = do
   x1'      <- copyArrayP1 x1
   x2'      <- copyArrayP2 x2
   if randomMatch
     then
          pairing2
              ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ name)
+             runNo
              keepOnlyNLastIterations
              parametersGameRematching
              exportConfigGameRematching
@@ -771,13 +796,11 @@ rematchedLearningSingleRun name keepOnlyNLastIterations ReMatchType{..} paramete
     else
          pairing2
              ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ name)
+             runNo
              keepOnlyNLastIterations
              parametersGameRematching
              exportConfigGameRematching
              (x1',x2') (\_ -> lastObs)
-
-
-
 
 
 -- Copy original array for player 1 to a new location so that we do not affect the original array when computing on the copy
@@ -795,6 +818,7 @@ copyArrayP2 x = do
 
 -- Reinitiates the exploitation phase for the starting conditions of two players
 pairing2 :: String
+         -> ExportAsymmetricLearners.RunNumber
          -> Int
          -> (StdGen -> StdGen -> StdGen -> StdGen ->  Parameters)
          -- ^ Parameters specific for the rematching players
@@ -828,7 +852,7 @@ pairing2 :: String
                          Player1N Observation PriceSpace,
                       QTable
                          Player2N Observation PriceSpace), Observation PriceSpace)
-pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction (qt1,qt2) newObsF = do
+pairing2 name runNo keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction (qt1,qt2) newObsF = do
   gEnv1   <- newStdGen
   gEnv2   <- newStdGen
   gObs1   <- newStdGen
@@ -837,8 +861,12 @@ pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportCon
       newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2) (newObsF newParameters)
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
-  L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters)
-  list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics newExportConfig
+  L.writeFile (fromRelDir  (dirResultIteration </> seedsFile)) (csvSeeds newParameters)
+  when
+    (runNo == 1)
+    (do L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters))
+  -- ^ FIXME do the csv export in the proper export part
+  list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics newExportConfig runNo
   runProcess_
     (proc
         "touch"
@@ -853,6 +881,11 @@ pairing2 name keepOnlyNLastIterations parametersGameRematchingFunction exportCon
          ++ fromRelDir (dirResultIteration </> rewardsExtendedFile)
          ++ " > "
          ++ fromRelDir (dirResultIteration </> rewardsExtendedEndNFile)
+        ))
+  runProcess_
+    (shell
+        ( "rm "
+         ++ fromRelDir (dirResultIteration </> rewardsExtendedFile)
         ))
   putStrLn ("completed task: " ++ name)
   let (x1 ::- x2 ::- Nil) = list
@@ -895,7 +928,13 @@ data ExportParameters = ExportParameters
   , expLowerBound2 :: !Double
   , expUpperBound1 :: !Double
   , expUpperBound2 :: !Double
-  , expGeneratorEnv1 :: !String
+  } deriving (Generic,Show)
+
+instance ToNamedRecord ExportParameters
+instance DefaultOrdered ExportParameters
+
+data ExportSeeds = ExportSeeds
+  { expGeneratorEnv1 :: !String
   , expGeneratorEnv2 :: !String
   , expGeneratorObs1 :: !String
   , expGeneratorObs2 :: !String
@@ -905,8 +944,9 @@ data ExportParameters = ExportParameters
   , expInitialPrice2 :: !PriceSpace
   } deriving (Generic,Show)
 
-instance ToNamedRecord ExportParameters
-instance DefaultOrdered ExportParameters
+instance ToNamedRecord ExportSeeds
+instance DefaultOrdered ExportSeeds
+
 
 -- | Instantiate the export parameters with the used variables
 exportParameters :: Parameters -> ExportParameters
@@ -934,6 +974,11 @@ exportParameters par = ExportParameters
   (lowerBound2 par)
   (upperBound1 par)
   (upperBound2 par)
+
+-- | Instantiate the export of seed information
+-- NOTE this tracks information which changes from run to run
+exportSeeds :: Parameters -> ExportSeeds
+exportSeeds par = ExportSeeds
   (show $ pGeneratorEnv1 par)
   (show $ pGeneratorEnv2 par)
   (show $ pGeneratorObs1 par)
@@ -943,6 +988,10 @@ exportParameters par = ExportParameters
   (samplePopulation_ (actionSpace1 par) (pGeneratorObs1 par))
   (samplePopulation_ (actionSpace2 par) (pGeneratorObs2 par))
 
+
 -- | export to CSV
 csvParameters :: Parameters -> L.ByteString
 csvParameters par = encodeDefaultOrderedByName  [exportParameters par]
+
+csvSeeds :: Parameters -> L.ByteString
+csvSeeds par = encodeDefaultOrderedByName  [exportSeeds par]
