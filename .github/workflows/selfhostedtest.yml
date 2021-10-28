@@ -12,7 +12,7 @@ on:
 
 jobs:
   push:
-    runs-on: self-hosted-ubuntu-with-docker
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v2
