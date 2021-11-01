@@ -17,6 +17,8 @@ module Engine.OpticClass
   , Precontext(..)
   , Context(..)
   , ContextAdd(..)
+  , PureLens (..)
+  , PureLensContext (..)
   , identity
   ) where
 
@@ -301,7 +303,7 @@ instance Monad m => Context (MonadicLearnLensContext m) (MonadicLearnLens m) whe
                                             pure b1)
                   in MonadicLearnLensContext h' k'
 ---------------------------------------------
--- 1 Replicate optics from external modules
+-- 5 Replicate optics from external modules
 -- Concrete lense from Optics package
 -- Used for pure open games
 

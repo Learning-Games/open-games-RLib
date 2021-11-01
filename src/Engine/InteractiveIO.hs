@@ -38,12 +38,13 @@ import           Engine.TLL
 
 import Control.Monad.Reader
 import Data.Foldable
-import Data.Functor.Identity
 import Data.List (maximumBy)
 import Data.Ord (comparing)
 import Numeric.Probability.Distribution hiding (map, lift, filter)
 
-type InteractiveStageGame m a b x s y r = OpenGame (MonadOptic m) (MonadContext m) a b x s y r
+import qualified Optics.Lens as L
+
+type InteractiveStageGame a b x s y r = OpenGame PureLens PureLensContext a b x s y r
 
 data DiagnosticInfoInteractive y = DiagnosticInfoInteractive
   { playerIO          :: String
@@ -111,7 +112,7 @@ test u ys = do
 
 
 
-deviationsInContext :: (Show a, Ord a, MonadIO m)
+deviationsInContext :: (Show a, Ord a)
                     =>  AgentIO -> a -> (a -> Double) -> [a] -> [DiagnosticInfoInteractive a]
 deviationsInContext name strategy u ys =
    let
@@ -132,25 +133,23 @@ deviationsInContext name strategy u ys =
 -- Takes IO and does an evaluate? As in the Bayesian Game?
 interactiveInput ::
   (Show a, Ord a) =>
-  AgentIO -> [a] -> InteractiveStageGame Identity '[a] '[[DiagnosticInfoInteractive a]] () () a Double
+  AgentIO -> [a] -> InteractiveStageGame  '[a] '[[DiagnosticInfoInteractive a]] () () a Double
 interactiveInput name ys = OpenGame {
-  play =  \(strat ::- Nil) -> let  v obs = do
-                                           pure ((),strat)
-                                        in MonadOptic v (\_ -> (\_ -> pure ())),
+  play =  \(strat ::- Nil) -> let  v obs = v obs
+                                        in L.lens v (\_ -> (\_ -> ())),
   -- ^ This finds the optimal action or chooses randomly
-  evaluate = \(strat ::- Nil) (MonadContext h k) ->
+  evaluate = \(strat ::- Nil) (PureLensContext h k) ->
        let context = deviationsInContext name strat u ys
-           Identity (z,_)   =  h
-           u y     = k z y
+           u y     = k  y
               in (context  ::- Nil) }
 
 
 -- Support functionality for constructing open games
-fromLens :: MonadIO m => (x -> y) -> (x -> r -> s) -> InteractiveStageGame m '[] '[] x s y r
+fromLens :: (x -> y) -> (x -> r -> s) -> InteractiveStageGame '[] '[] x s y r
 fromLens v u = OpenGame {
-  play = \Nil -> MonadOptic (\x -> return (x, v x)) (\x r -> return (u x r)),
+  play = \Nil -> L.lens (\x -> v x) (\x r -> (u x r)),
   evaluate = \Nil _ -> Nil}
 
 
-fromFunctions :: MonadIO m => (x -> y) -> (r -> s) -> InteractiveStageGame m '[] '[] x s y r
+fromFunctions :: (x -> y) -> (r -> s) -> InteractiveStageGame '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
