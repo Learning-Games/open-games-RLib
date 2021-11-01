@@ -12,9 +12,11 @@ import Engine.AtomicGames
 
 
 main = do
+  putStrLn "strategy for player 1"
   action1 <- getLine
+  putStrLn "strategy for player 2"
   action2 <- getLine
-  let strat1 = pureAction $ inputStrat action1
-      strat2 = pureAction $ inputStrat action2
+  let strat1 = inputStrat action1
+      strat2 = inputStrat action2
       strategyTuple = strat1 ::- strat2 ::- Nil
   generateOutputIO $ evaluate prisonersDilemmaIO strategyTuple void
