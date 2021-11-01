@@ -24,6 +24,13 @@ module Engine.OpticClass
 import           Control.Monad.State                hiding (state)
 import           Numeric.Probability.Distribution   hiding (lift)
 
+import qualified Optics.Getter as G
+import qualified Optics.Lens as L
+import qualified Optics.Optic as O
+import           Optics.Optic ((%))
+import qualified Optics.ReadOnly as RO
+import qualified Optics.Setter as S
+
 
 
 class Optic o where
@@ -57,7 +64,7 @@ class ContextAdd c where
   prr :: c (Either s1 s2) t (Either a1 a2) b -> Maybe (c s2 t a2 b)
 
 -------------------------------------------------------------
---- replicate the old implementation of a stochastic context 
+--- replicate the old implementation of a stochastic context
 type Stochastic = T Double
 type Vector = String -> Double
 
@@ -189,7 +196,7 @@ instance Monad m => Context (MonadicLensContext m) (MonadicLens m) where
   cmap (MonadicLens v1 u1) (MonadicLens v2 u2) (MonadicLensContext h k)
             = let h' = v1 h
                   k' a = let a' = v2 a
-                             in do {y <- k a'; u2 a y} 
+                             in do {y <- k a'; u2 a y}
                in MonadicLensContext h' k'
   (//) (MonadicLens v u) (MonadicLensContext h k)
             = let h' = let (_, s2) = h
@@ -228,7 +235,7 @@ data MonadicLearnLens m s t a b where
 instance (Monad m) => Optic (MonadicLearnLens m) where
   lens v u = MonadicLearnLens
                 (\s -> pure $ v s)
-                (\s -> do 
+                (\s -> do
                     pure $ (\b -> do return (u s b)))
   (>>>>) (MonadicLearnLens v1 u1) (MonadicLearnLens v2 u2) = MonadicLearnLens v u
     where v s1  = do
@@ -276,20 +283,83 @@ instance Monad m => Context (MonadicLearnLensContext m) (MonadicLearnLens m) whe
                                          u2'' b2'')
                in MonadicLearnLensContext h' k'
   (//) (MonadicLearnLens v u) (MonadicLearnLensContext h k)
-            = let h' = do {(s1,s2) <- h; pure s2} 
+            = let h' = do {(s1,s2) <- h; pure s2}
                   k' = do pure $ (\a2 -> do
                                             k''     <- k
                                             h'      <- h
                                             a1      <- v $ fst h'
                                             (b1,b2) <- k'' (a1,a2)
-                                            pure b2) 
+                                            pure b2)
                   in MonadicLearnLensContext h' k'
   (\\) (MonadicLearnLens v u) (MonadicLearnLensContext h k)
-            = let h' = do {(s1,s2) <- h; pure s1} 
+            = let h' = do {(s1,s2) <- h; pure s1}
                   k' = do pure $ (\a1 -> do
                                             k''     <- k
                                             h'      <- h
                                             a2      <- v $ snd h'
                                             (b1,b2) <- k'' (a1,a2)
-                                            pure b1) 
+                                            pure b1)
                   in MonadicLearnLensContext h' k'
+---------------------------------------------
+-- 1 Replicate optics from external modules
+-- Concrete lense from Optics package
+-- Used for pure open games
+
+type PureLens = O.Optic L.A_Lens O.NoIx
+
+
+instance Optic PureLens where
+  lens = L.lens
+  (>>>>) = (%)
+  (&&&&) = L.alongside
+  (++++) o1  o2 = L.lens v u
+    where v1 = (G.view . RO.getting) o1
+          v2 = (G.view . RO.getting) o2
+          sttr1 = S.set o1
+          sttr2 = S.set o2
+          v (Left s1)  = let a1 = v1 s1 in Left a1
+          v (Right s2) = let a2 = v2 s2 in Right a2
+          u (Left s1) b = sttr1 b s1
+          u (Right s2) b = sttr2 b s2
+
+
+data PureLensContext s t a b where
+  PureLensContext :: s -> (a -> b) -> PureLensContext s t a b
+
+
+instance Precontext PureLensContext where
+  void = PureLensContext () (\() -> ())
+
+
+instance Context PureLensContext PureLens where
+  cmap l1 l2 (PureLensContext h k)
+            = let v1 = (G.view . RO.getting) l1
+                  v2 = (G.view . RO.getting) l2
+                  sttr2 = S.set l2
+                  s     = h
+                  h'    = v1 s
+                  k' a  = sttr2 (k (v2 a)) a
+                  in PureLensContext h' k'
+  (//) l1 (PureLensContext h k)
+            = let v1      = (G.view . RO.getting) l1
+                  (s1,s2) = h
+                  h'      = s2
+                  k' a2   = snd $ k (v1 s1,a2)
+               in PureLensContext h' k'
+  (\\) l2 (PureLensContext h k)
+            = let v2      = (G.view . RO.getting) l2
+                  (s1,s2) = h
+                  h'      = s1
+                  k' a1   = fst $ k (a1, v2 s2)
+               in PureLensContext h' k'
+
+
+instance ContextAdd PureLensContext where
+  prl (PureLensContext h k)
+    = case h of
+         Left s1 -> Just (PureLensContext s1 (k . Left))
+         _       -> Nothing
+  prr (PureLensContext h k)
+    = case h of
+         Right s2 -> Just (PureLensContext s2 (k . Right))
+         _       -> Nothing
