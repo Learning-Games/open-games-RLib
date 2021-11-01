@@ -23,6 +23,11 @@ jobs:
       - name: Test whether docker works
         run: docker --version
 
-
       - name: Try to login to docker hub registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # Remember to update this hash whenever you update your Haskell dependencies in any way
+      - name: Pull down docker build image
+        run: |
+          time docker pull ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d
+          time docker run -v$(pwd):$(pwd) -w$(pwd) --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d stack build --allow-different-user
