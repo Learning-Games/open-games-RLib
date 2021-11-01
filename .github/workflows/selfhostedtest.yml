@@ -34,4 +34,4 @@ jobs:
       # Remember to update this hash whenever you update your Haskell dependencies in any way
       - name: Build Haskell code
         run: |
-          time docker run -v$(pwd):$(pwd) -w$(pwd) --rm --user $(whoami) ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d stack build --allow-different-user -j1
+          time docker run -v$(pwd):$(pwd) -w$(pwd) --rm --user ${UID} ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d stack build --allow-different-user -j1
