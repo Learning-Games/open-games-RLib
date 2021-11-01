@@ -38,6 +38,7 @@ import           Engine.TLL
 
 import Control.Monad.Reader
 import Data.Foldable
+import Data.Functor.Identity
 import Data.List (maximumBy)
 import Data.Ord (comparing)
 import Numeric.Probability.Distribution hiding (map, lift, filter)
@@ -45,19 +46,19 @@ import Numeric.Probability.Distribution hiding (map, lift, filter)
 type InteractiveStageGame m a b x s y r = OpenGame (MonadOptic m) (MonadContext m) a b x s y r
 
 data DiagnosticInfoInteractive y = DiagnosticInfoInteractive
-  { player          :: String
-  , optimalMove     :: y
-  , optimalPayoff   :: Double
-  , currentMove     :: y
-  , currentPayoff   :: Double}
+  { playerIO          :: String
+  , optimalMoveIO     :: y
+  , optimalPayoffIO   :: Double
+  , currentMoveIO     :: y
+  , currentPayoffIO   :: Double}
 
 showDiagnosticInfoInteractive :: (Show y, Ord y) => DiagnosticInfoInteractive y -> String
 showDiagnosticInfoInteractive info =
-     "\n"    ++ "Player: " ++ player info
-     ++ "\n" ++ "Optimal Move: " ++ (show $ optimalMove info)
-     ++ "\n" ++ "Optimal Payoff: " ++ (show $ optimalPayoff info)
-     ++ "\n" ++ "Current Move: " ++ (show $ currentMove info)
-     ++ "\n" ++ "Current Payoff: " ++ (show $ currentPayoff info)
+     "\n"    ++ "Player: " ++ playerIO info
+     ++ "\n" ++ "Optimal Move: " ++ (show $ optimalMoveIO info)
+     ++ "\n" ++ "Optimal Payoff: " ++ (show $ optimalPayoffIO info)
+     ++ "\n" ++ "Current Move: " ++ (show $ currentMoveIO info)
+     ++ "\n" ++ "Current Payoff: " ++ (show $ currentPayoffIO info)
 
 
 
@@ -65,8 +66,6 @@ showDiagnosticInfoInteractive info =
 showDiagnosticInfoLInteractive :: (Show y, Ord y)  => [DiagnosticInfoInteractive y] -> String
 showDiagnosticInfoLInteractive [] = "\n --No more information--"
 showDiagnosticInfoLInteractive (x:xs)  = showDiagnosticInfoInteractive x ++ "\n --other game-- " ++ showDiagnosticInfoLInteractive xs
-
-
 
 
 data PrintOutput = PrintOutput
@@ -85,18 +84,18 @@ instance Apply Concat String (String -> String) where
 -- main functionality
 
 -- all information for all players
-generateOutput :: forall xs.
+generateOutputIO :: forall xs.
                ( MapL   PrintOutput xs     (ConstMap String xs)
                , FoldrL Concat String (ConstMap String xs)
                ) => List xs -> IO ()
-generateOutput hlist = putStrLn $
+generateOutputIO hlist = putStrLn $
   "----Analytics begin----" ++ (foldrL Concat "" $ mapL @_ @_ @(ConstMap String xs) PrintOutput hlist) ++ "----Analytics end----\n"
 
 
 
 
 
-type Agent = String
+type AgentIO = String
 
 support :: Stochastic x -> [x]
 support = map fst . decons
@@ -113,36 +112,45 @@ test u ys = do
 
 
 deviationsInContext :: (Show a, Ord a, MonadIO m)
-                    =>  Agent -> a -> (a -> m Double) -> [a] -> m [DiagnosticInfoInteractive a]
-deviationsInContext name strategy u ys = do
-   ls  <- mapM u ys
-   strategicPayoff <- u strategy
-   let zippedLs =zip ys ls
-       (optimalPlay, optimalPayoff) = maximumBy (comparing snd) zippedLs
-   pure [DiagnosticInfoInteractive
-        {  player = name
-         , optimalMove = optimalPlay
-         , optimalPayoff = optimalPayoff
-         , currentMove   = strategy
-         , currentPayoff = strategicPayoff
-         }]
+                    =>  AgentIO -> a -> (a -> Double) -> [a] -> [DiagnosticInfoInteractive a]
+deviationsInContext name strategy u ys =
+   let
+     ls              = fmap u ys
+     strategicPayoff = u strategy
+     zippedLs        = zip ys ls
+     (optimalPlay, optimalPayoff) = maximumBy (comparing snd) zippedLs
+     in [DiagnosticInfoInteractive
+            {  playerIO = name
+            , optimalMoveIO = optimalPlay
+            , optimalPayoffIO = optimalPayoff
+            , currentMoveIO   = strategy
+            , currentPayoffIO = strategicPayoff
+            }]
 
 
 
 -- Takes IO and does an evaluate? As in the Bayesian Game?
 interactiveInput ::
-  (MonadIO m, Show a, Ord a) =>
-  Agent -> [a] -> InteractiveStageGame m '[ m a] '[m [DiagnosticInfoInteractive a]] () () a Double
+  (Show a, Ord a) =>
+  AgentIO -> [a] -> InteractiveStageGame Identity '[a] '[[DiagnosticInfoInteractive a]] () () a Double
 interactiveInput name ys = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
-                                           action' <- strat
-                                           pure ((),action')
+                                           pure ((),strat)
                                         in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This finds the optimal action or chooses randomly
-  evaluate = \(a ::- Nil) (MonadContext h k) ->
-       let context = do
-              (z,_) <- h
-              strategy <- a
-              let u y = k z y
-              deviationsInContext name strategy u ys
+  evaluate = \(strat ::- Nil) (MonadContext h k) ->
+       let context = deviationsInContext name strat u ys
+           Identity (z,_)   =  h
+           u y     = k z y
               in (context  ::- Nil) }
+
+
+-- Support functionality for constructing open games
+fromLens :: MonadIO m => (x -> y) -> (x -> r -> s) -> InteractiveStageGame m '[] '[] x s y r
+fromLens v u = OpenGame {
+  play = \Nil -> MonadOptic (\x -> return (x, v x)) (\x r -> return (u x r)),
+  evaluate = \Nil _ -> Nil}
+
+
+fromFunctions :: MonadIO m => (x -> y) -> (r -> s) -> InteractiveStageGame m '[] '[] x s y r
+fromFunctions f g = fromLens f (const g)
