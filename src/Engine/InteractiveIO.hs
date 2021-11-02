@@ -1,22 +1,5 @@
-{-# LANGUAGE DatatypeContexts #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE NamedFieldPuns, PolyKinds #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -153,3 +136,16 @@ fromLens v u = OpenGame {
 
 fromFunctions :: (x -> y) -> (r -> s) -> InteractiveStageGame '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
+
+-- FIXME remove after testing
+testLs :: a -> (a -> Double) -> [a] -> [(a,Double)]
+testLs strategy u ys =
+  let
+     ls              = fmap u ys
+     strategicPayoff = u strategy
+     zippedLs        = zip ys ls
+     in zippedLs
+
+testOptimum ls = maximumBy (comparing snd) ls
+
+testDiagnostic = deviationsInContext "test" 1 (\x -> x + 1) [2,4,6]

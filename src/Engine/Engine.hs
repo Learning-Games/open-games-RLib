@@ -21,10 +21,6 @@ module Engine.Engine
   , DiagnosticInfoBayesian(..)
   , generateOutput
   , generateIsEq
-  , InteractiveStageGame (..)
-  , interactiveInput
-  , DiagnosticInfoInteractive (..)
-  , AgentIO (..)
   , OpenGame(..)
   , lift
   , reindex
@@ -59,7 +55,6 @@ module Engine.Engine
 -- | File organizes the imports of the engine to streamline the import of relevant functionality
 import Engine.AtomicGames
 import Engine.BayesianGames hiding (liftStochastic)
-import Engine.InteractiveIO
 import Engine.OpenGames
 import Engine.OpticClass
 import Engine.Diagnostics

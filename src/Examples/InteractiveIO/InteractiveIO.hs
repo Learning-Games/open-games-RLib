@@ -1,17 +1,29 @@
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Examples.InteractiveIO.InteractiveIO where
 
 import Engine.InteractiveIO
 import Engine.OpenGames
 import Engine.OpticClass
+import Engine.TLL
 import Preprocessor.Preprocessor
 
 
 
-import Control.Monad.Reader
+import Control.Monad.Reader hiding (void)
 
 ------------------------------------------------------------------------
 -- Implement a simple interactive game which does evaluation accordingly
@@ -69,3 +81,9 @@ prisonersDilemmaIO = [opengame|
 
 -- interfacing outside world
 inputStrat x = if x == "cooperate" then Cooperate else Defect
+
+
+evaluateGame = do
+    let strategyTuple = Cooperate ::- Cooperate ::- Nil
+        (dia1 ::- dia2 ::- Nil) = evaluate prisonersDilemmaIO strategyTuple void
+    print $ show $ optimalPayoffIO  $ head $ dia1
