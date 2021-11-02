@@ -118,8 +118,7 @@ interactiveInput ::
   (Show a, Ord a) =>
   AgentIO -> [a] -> InteractiveStageGame  '[a] '[[DiagnosticInfoInteractive a]] () () a Double
 interactiveInput name ys = OpenGame {
-  play =  \(strat ::- Nil) -> let  v obs = v obs
-                                        in L.lens v (\_ -> (\_ -> ())),
+  play =  \(strat ::- Nil) -> L.lens (\x -> strat) (\ _ _ -> ()),
   -- ^ This finds the optimal action or chooses randomly
   evaluate = \(strat ::- Nil) (PureLensContext h k) ->
        let context = deviationsInContext name strat u ys
@@ -136,16 +135,3 @@ fromLens v u = OpenGame {
 
 fromFunctions :: (x -> y) -> (r -> s) -> InteractiveStageGame '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
-
--- FIXME remove after testing
-testLs :: a -> (a -> Double) -> [a] -> [(a,Double)]
-testLs strategy u ys =
-  let
-     ls              = fmap u ys
-     strategicPayoff = u strategy
-     zippedLs        = zip ys ls
-     in zippedLs
-
-testOptimum ls = maximumBy (comparing snd) ls
-
-testDiagnostic = deviationsInContext "test" 1 (\x -> x + 1) [2,4,6]
