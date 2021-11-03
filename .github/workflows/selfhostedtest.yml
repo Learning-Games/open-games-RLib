@@ -31,7 +31,16 @@ jobs:
         run: |
           time docker pull ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d
 
-      # Remember to update this hash whenever you update your Haskell dependencies in any way
+      # Docker creates files as owner root (0). That means when the
+      # runner, running as github, tries to delete the artifacts, it
+      # fails. So we create a fresh copy of the current directory
+      # under ~/run/$job_id and then remove that later with sudo. The
+      # github user is a sudoer. That's not ideal, but the self-hosted
+      # runner is private anyway.
       - name: Build Haskell code
         run: |
-          time docker run -v$(pwd) -w$(pwd) --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d stack build -j1
+          WORKDIR=~/run/$GITHUB_RUN_ID
+          sudo mkdir $WORKDIR
+          sudo cp -r . $WORKDIR/
+          time docker run -v$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d stack build -j1
+          sudo rm -rf $WORKDIR
