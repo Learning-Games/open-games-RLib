@@ -42,9 +42,9 @@ jobs:
           WORKDIR=~/run/$GITHUB_RUN_ID
           sudo mkdir -p $WORKDIR
           sudo cp -r . $WORKDIR/
-          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d stack build -j1
+          # time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d stack build -j1
 
           echo 'Hello from the runner!' > $GITHUB_RUN_ID.txt
-          ./s3cmd put $GITHUB_RUN_ID.txt s3://pricing-game/
+          s3cmd put $GITHUB_RUN_ID.txt s3://pricing-game/
 
           sudo rm -rf $WORKDIR
