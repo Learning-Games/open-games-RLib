@@ -25,6 +25,7 @@ library:
     - Engine.QLearning.ExportAsymmetric
     - Engine.QLearning.ExportAsymmetricLearners
     - Engine.QLearning.ExportAsymmetricLearnersLog
+    - Engine.QLearning.ExportAsymmetricLearnersLogReduced
     - Engine.QLearning.ExportVerbose
     - Engine.InteractiveIO
     - Engine.QLearningSimple
@@ -41,14 +42,11 @@ library:
     - Examples.Bayesian
     - Examples.Decision
     - Examples.SequentialMoves
-    - Examples.QLearning.AsymmetricLearners.InternalTwoPhases
-    - Examples.QLearning.AsymmetricLearners.InternalThreePhases
-    - Examples.QLearning.AsymmetricLearners.InternalFourPhases
-    - Examples.QLearning.AsymmetricLearners.InternalSixPhases
-    - Examples.QLearning.AsymmetricLearnersTwoPhases
-    - Examples.QLearning.AsymmetricLearnersThreePhases
-    - Examples.QLearning.AsymmetricLearnersFourPhases
-    - Examples.QLearning.AsymmetricLearnersSixPhases
+    - Examples.QLearning.AsymmetricLearners.Internal
+    - Examples.QLearning.AsymmetricLearners
+    - Examples.QLearning.AsymmetricLearners3Phases
+    - Examples.QLearning.AsymmetricLearners4Phases
+    - Examples.QLearning.AsymmetricLearners8Phases
     - Examples.QLearning.AsymmetricPrices.Internal
     - Examples.QLearning.AsymmetricPrices
     - Examples.QLearning.BestReply

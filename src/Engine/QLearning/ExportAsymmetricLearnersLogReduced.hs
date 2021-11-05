@@ -15,8 +15,10 @@
 
 -- |
 
-module Engine.QLearning.ExportAsymmetricLearnersLog
+module Engine.QLearning.ExportAsymmetricLearnersLogReduced
   ( runQLearningExportingDiagnostics
+  , RunNumber
+  , QMatrixExportMode (..)
   , ExportConfig(..)
   , RewardDiagnostics(..)
   ) where
@@ -130,14 +132,19 @@ instance BuildHeaders RewardDiagnostics where
   {-# INLINE buildHeaders #-}
 
 
+-- Which run number
+type RunNumber = Int
 
+-- Different export modes for the q matrix
+data QMatrixExportMode = Incremental | Full | LastOnly
+  deriving (Show,Eq)
 
 
 data ExportConfig n o a m = ExportConfig
   { outputEveryN :: Int
     -- ^ How often to write iteration outputs. Default=1, 5 would mean
     -- "output every 5 iterations".
-  , incrementalMode :: Bool
+  , qValueExportMode :: QMatrixExportMode
     -- ^ Whether to only output incremental changes to a QTable of a
     -- given player for each iteration, or otherwise the whole QTable
     -- is outputted.
@@ -174,8 +181,6 @@ data ExportConfig n o a m = ExportConfig
 
 -- FIXME Different path names needed
 
-rewardsFile :: Path b t
-rewardsFile                  = [relfile|rewards.csv|]
 rewardsExtendedFile :: Path b t
 rewardsExtendedFile          = [relfile|rewardsExtended.csv|]
 qValuesFile :: Path b t
@@ -208,71 +213,60 @@ runQLearningExportingDiagnostics ::
      , n ~ 1
      )
   => ExportConfig n o a (RIO (GLogFunc (QLearningMsg n o a)))
+  -> RunNumber
   -> IO (List '[ ( a , Env n o a), ( a , Env n o a)])
-runQLearningExportingDiagnostics exportConfig = do
+runQLearningExportingDiagnostics exportConfig runNo = do
   liftIO (hSetBuffering RIO.stdout NoBuffering)
   dirResultIteration <- parseRelDir $ (runName exportConfig)
   liftIO (ensureDir dirResultIteration)
   withCsvFileQMatrix
-    (toFilePath (dirResultIteration </> rewardsFile))
-    (\writeRewardRow ->
-       withCsvFileQMatrix
-         (toFilePath (dirResultIteration </> rewardsExtendedFile))
-         (\writeRewardExtendedRow ->
-            withCsvFileQMatrix
-                (toFilePath (dirResultIteration </> qValuesFile))
-                (\writeQValueRow -> do
-                  maximalState <- newMaximalState
-                  RIO.runRIO
-                    (RIO.mkGLogFunc
-                        (\_backtrace msg ->
-                          case msg of
-                            GotMaximalActionForState maximal ->
-                              updateMaximalTables
-                                (threshold exportConfig)
-                                maximalState
-                                maximal
-                                (players exportConfig)
-                            RewardMsg QLearning.Reward {..} -> do
-                              writeRewardRow
-                                Reward
-                                  { iteration = rewardIteration
-                                  , player = rewardPlayer
-                                  , state_action_index =
-                                      rewardStateActionIndex
-                                  , reward = rewardReward
-                                  }
-                            RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} -> do
-                              writeRewardExtendedRow
-                                RewardDiagnostics
-                                  { iteration = rewardDiagIteration
-                                  , player = rewardDiagPlayer
-                                  , state_action_index =
-                                      rewardDiagStateActionIndex
-                                  , action_choice = rewardDiagActionChoice
-                                  , explore_rate = rewardDiagExploreRate
-                                  , reward = rewardDiagReward
-                                  }
-                            QTableDirtied QLearning.Dirtied {..} ->
-                              when
-                                (incrementalMode exportConfig)
-                                (writeQValueRow
-                                    QValueRow
-                                      { iteration = dirtiedIteration + 1
-                                      , player = dirtiedPlayer
-                                      , state_action_index =
-                                          dirtiedStateActionIndex
-                                      , qvalue = dirtiedQValue
-                                      })))
-                    (do initial' <- initial exportConfig
-                        writeStateActionIndex1 exportConfig initial'
-                        writeStateActionIndex2 exportConfig initial'
-                        writeQValues
-                          exportConfig
-                          maximalState
-                          initial'
-                          writeQValueRow
-                    ))))
+    (toFilePath (dirResultIteration </> rewardsExtendedFile))
+        (\writeRewardExtendedRow ->
+          withCsvFileQMatrix
+              (toFilePath (dirResultIteration </> qValuesFile))
+              (\writeQValueRow -> do
+                maximalState <- newMaximalState
+                RIO.runRIO
+                  (RIO.mkGLogFunc
+                      (\_backtrace msg ->
+                        case msg of
+                          GotMaximalActionForState maximal ->
+                            updateMaximalTables
+                              (threshold exportConfig)
+                              maximalState
+                              maximal
+                              (players exportConfig)
+                          RewardDiagnosticsMsg QLearning.RewardDiagnostics {..} -> do
+                            writeRewardExtendedRow
+                              RewardDiagnostics
+                                { iteration = rewardDiagIteration
+                                , player = rewardDiagPlayer
+                                , state_action_index =
+                                    rewardDiagStateActionIndex
+                                , action_choice = rewardDiagActionChoice
+                                , explore_rate = rewardDiagExploreRate
+                                , reward = rewardDiagReward
+                                }
+                          QTableDirtied QLearning.Dirtied {..} ->
+                            when
+                              (qValueExportMode exportConfig == Incremental)
+                              (writeQValueRow
+                                  QValueRow
+                                    { iteration = dirtiedIteration + 1
+                                    , player = dirtiedPlayer
+                                    , state_action_index =
+                                        dirtiedStateActionIndex
+                                    , qvalue = dirtiedQValue
+                                    })))
+                  (do initial' <- initial exportConfig
+                      writeStateActionIndex1 exportConfig runNo initial'
+                      writeStateActionIndex2 exportConfig runNo initial'
+                      writeQValues
+                        exportConfig
+                        maximalState
+                        initial'
+                        writeQValueRow
+                  )))
 
 
 
@@ -300,30 +294,33 @@ writeStateActionIndex1 ::
      , ToIdx action
      )
   => ExportConfig n o action m2
+  -> RunNumber
   -> List '[ ( action , Env n o action), ( action , Env n o action)]
   -> m1 ()
-writeStateActionIndex1 ExportConfig {..}  initial' = do
-  dirResultIteration <- parseRelDir runName
-  withCsvFile
-    (toFilePath (dirResultIteration </> stateActionIndexFile1))
-    (\writeRow -> do
-       let (_, env) ::- _ = initial'
-       bounds' <- liftIO (A.getBounds (QLearning._qTable env))
-       liftIO
-         (V.sequence_
-            [ writeRow
-              StateActionIndex' {state = (player1, player2), action, index = i}
-            | player1 <- population ctable1
-            , player2 <- population ctable2
-            , action <- population ctable1
-            , let i =
-                    Ix.index
-                      bounds'
-                      ( Memory.fromSV
-                          (SV.replicate
-                             (mkObservation (toIdx player1) (toIdx player2)))
-                      , toIdx action)
-            ]))
+writeStateActionIndex1 ExportConfig {..} runNo initial' = do
+  when
+    (runNo == 1)
+    (do dirResultIteration <- parseRelDir runName
+        withCsvFile
+          (toFilePath (dirResultIteration </> stateActionIndexFile1))
+          (\writeRow -> do
+            let (_, env) ::- _ = initial'
+            bounds' <- liftIO (A.getBounds (QLearning._qTable env))
+            liftIO
+              (V.sequence_
+                  [ writeRow
+                    StateActionIndex' {state = (player1, player2), action, index = i}
+                  | player1 <- population ctable1
+                  , player2 <- population ctable2
+                  , action <- population ctable1
+                  , let i =
+                          Ix.index
+                            bounds'
+                            ( Memory.fromSV
+                                (SV.replicate
+                                  (mkObservation (toIdx player1) (toIdx player2)))
+                            , toIdx action)
+                  ])))
 
 -- | Dump the complete set of possible indices for player 2 to the QTable.
 writeStateActionIndex2 ::
@@ -337,30 +334,33 @@ writeStateActionIndex2 ::
      , ToIdx action
      )
   => ExportConfig n o action m2
+  -> RunNumber
   -> List '[ ( action , Env n o action), ( action , Env n o action)]
   -> m1 ()
-writeStateActionIndex2 ExportConfig {..}  initial' = do
-  dirResultIteration <- parseRelDir runName
-  withCsvFile
-    (toFilePath (dirResultIteration </> stateActionIndexFile2))
-    (\writeRow -> do
-       let (_, env) ::- _ = initial'
-       bounds' <- liftIO (A.getBounds (QLearning._qTable env))
-       liftIO
-         (V.sequence_
-            [ writeRow
-              StateActionIndex' {state = (player1, player2), action, index = i}
-            | player1 <- population ctable1
-            , player2 <- population ctable2
-            , action <- population ctable2
-            , let i =
-                    Ix.index
-                      bounds'
-                      ( Memory.fromSV
-                          (SV.replicate
-                             (mkObservation (toIdx player1) (toIdx player2)))
-                      , toIdx action)
-            ]))
+writeStateActionIndex2 ExportConfig {..} runNo  initial' = do
+  when
+    (runNo == 1)
+    (do dirResultIteration <- parseRelDir runName
+        withCsvFile
+          (toFilePath (dirResultIteration </> stateActionIndexFile2))
+          (\writeRow -> do
+            let (_, env) ::- _ = initial'
+            bounds' <- liftIO (A.getBounds (QLearning._qTable env))
+            liftIO
+              (V.sequence_
+                  [ writeRow
+                    StateActionIndex' {state = (player1, player2), action, index = i}
+                  | player1 <- population ctable1
+                  , player2 <- population ctable2
+                  , action <- population ctable2
+                  , let i =
+                          Ix.index
+                            bounds'
+                            ( Memory.fromSV
+                                (SV.replicate
+                                  (mkObservation (toIdx player1) (toIdx player2)))
+                            , toIdx action)
+                  ])))
 
 --------------------------------------------------------------------------------
 -- Write QValues
@@ -384,9 +384,13 @@ writeQValues ExportConfig {..} maximalState initial'@(p1_0 ::- p2_0 ::- Nil) wri
                else prev
        let
         in when
-             -- Always include the first and last iteration.
-             (iteration == iterations ||
-              (not incrementalMode && (skipping == 0 || iteration == 1)))
+             (iteration == 1
+             -- ^ first iteration
+             || iteration == iterations
+             -- ^ last iteration
+             || ((qValueExportMode == Full)
+                && (skipping == 0)))
+             -- ^ _Full_ export and a skipping period
              (do when
                    False
                    (putStrLn

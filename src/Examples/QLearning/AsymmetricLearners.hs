@@ -1,4 +1,4 @@
-module Examples.QLearning.AsymmetricLearnersThreePhases
+module Examples.QLearning.AsymmetricLearners
   ( initialStrat
   , initialArray1
   , initialArray2
@@ -10,13 +10,13 @@ module Examples.QLearning.AsymmetricLearnersThreePhases
   , evalStageM
   , mapStagesM_
   , mapStagesMFinalResult
-  , executeAndRematchSingleRun
+  , firstStageLearningMap
+  , rematchedLearning
+  , rematchedLearningWithName
   , PriceSpace(..)
   , Observation(..)
   , Parameters(..)
   , ReMatchType(..)
   ) where
 
-import           Examples.QLearning.AsymmetricLearners.InternalThreePhases
-
--- With n players and specifications accordingly
+import           Examples.QLearning.AsymmetricLearners.Internal
