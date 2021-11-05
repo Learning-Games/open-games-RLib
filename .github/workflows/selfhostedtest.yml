@@ -37,7 +37,7 @@ jobs:
       # under ~/run/$job_id and then remove that later with sudo. The
       # github user is a sudoer. That's not ideal, but the self-hosted
       # runner is private anyway.
-      - name: Build Haskell code
+      - name: Run learning process
         run: |
           # Setup working directory
           WORKDIR=~/run/$GITHUB_RUN_ID
@@ -45,7 +45,7 @@ jobs:
           sudo cp -r . $WORKDIR/
 
           # Run job
-          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d sh -c 'stack build -j1 && mkdir job && cd job && stack run'
+          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d sh -c 'stack build -j1 && mkdir job && cd job && stack exec learning-exe'
 
           # Archive output
           time tar czf job-$GITHUB_RUN_ID.tar.gz job
