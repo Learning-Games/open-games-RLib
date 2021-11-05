@@ -53,7 +53,7 @@ jobs:
           sudo rm -rf $JOBDIR
 
           # Upload output
-          time s3cmd put job-$GITHUB_RUN_ID.txt s3://pricing-game/
+          time s3cmd put job-$GITHUB_RUN_ID.tar.gz s3://pricing-game/
 
           # Wipe working directory
           sudo rm -rf $WORKDIR
