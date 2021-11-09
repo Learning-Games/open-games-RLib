@@ -1,4 +1,4 @@
-name: Test self-hosted runner
+name: Learn then Analyze
 
 on:
   workflow_dispatch:
@@ -11,17 +11,11 @@ on:
         description: 'dummy input, ignore'
 
 jobs:
-  push:
+  learn:
     runs-on: self-hosted-ubuntu-with-docker
 
     steps:
       - uses: actions/checkout@v2
-
-      - name: Test action
-        run: echo OK
-
-      - name: Test whether docker works
-        run: docker --version
 
       - name: Try to login to docker hub registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
