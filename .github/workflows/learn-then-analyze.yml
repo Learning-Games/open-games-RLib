@@ -54,6 +54,8 @@ jobs:
           # Wipe working directory
           sudo rm -rf $WORKDIR
   analyze:
+    needs: learn
+
     runs-on: self-hosted-ubuntu-with-docker
 
     steps:
