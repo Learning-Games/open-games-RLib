@@ -79,6 +79,10 @@ jobs:
           sudo mkdir -p $WORKDIR $JOBDIR
           sudo cp -r . $WORKDIR/
 
+          # Download & unpack learning output
+          time s3cmd get s3://pricing-game/$GITHUB_RUN_ID-learn.tar.gz $GITHUB_RUN_ID-learn.tar.gz
+          tar xf $GITHUB_RUN_ID-learn.tar.gz
+
           # Run job
           time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/r:2021-11-09@sha256:57822f0e32e64b5cb382b5d334f475981d4b602c1b4b738ca8560d0bf4104c8d sh -c 'R --version'
 
