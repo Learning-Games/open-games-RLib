@@ -34,6 +34,8 @@ jobs:
       - name: Run learning process
         run: |
           # Setup working directory
+          LEARN_FILENAME=$GITHUB_RUN_ID-learn.tar.gz
+          ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
           WORKDIR=~/run/$GITHUB_RUN_ID
           JOBDIR=$WORKDIR/job
           sudo mkdir -p $WORKDIR $JOBDIR
@@ -45,12 +47,12 @@ jobs:
           # Archive output
           PW=$(pwd)
           cd $JOBDIR
-          time tar czf $PW/job-$GITHUB_RUN_ID-learn.tar.gz .
+          time tar czf $ARCHIVE_LEARN .
           cd $PW
           sudo rm -rf $JOBDIR
 
           # Upload output
-          time s3cmd put $GITHUB_RUN_ID-learn.tar.gz s3://pricing-game/
+          time s3cmd put $ARCHIVE_LEARN s3://pricing-game/
 
           # Wipe working directory
           sudo rm -rf $WORKDIR
@@ -79,14 +81,17 @@ jobs:
       - name: Run analysis process
         run: |
           # Setup working directory
+          LEARN_FILENAME=$GITHUB_RUN_ID-learn.tar.gz
+          ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
+          ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
           WORKDIR=~/run/$GITHUB_RUN_ID
           JOBDIR=$WORKDIR/job
           sudo mkdir -p $WORKDIR $JOBDIR
           sudo cp -r . $WORKDIR/
 
           # Download & unpack learning output
-          time s3cmd get s3://pricing-game/$GITHUB_RUN_ID-learn.tar.gz $GITHUB_RUN_ID-learn.tar.gz
-          tar xvf $GITHUB_RUN_ID-learn.tar.gz
+          time s3cmd get s3://pricing-game/$LEARN_FILENAME $ARCHIVE_LEARN
+          tar xvf $ARCHIVE_LEARN
 
           # Run job
           time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/r:2021-11-09@sha256:57822f0e32e64b5cb382b5d334f475981d4b602c1b4b738ca8560d0bf4104c8d sh -c 'R --version'
@@ -94,12 +99,12 @@ jobs:
           # Archive output
           PW=$(pwd)
           cd $JOBDIR
-          time tar czf $PW/job-$GITHUB_RUN_ID-analysis.tar.gz .
+          time tar czf $ARCHIVE_ANALYSIS .
           cd $PW
           sudo rm -rf $JOBDIR
 
           # Upload output
-          time s3cmd put $GITHUB_RUN_ID-analysis.tar.gz s3://pricing-game/
+          time s3cmd put $ARCHIVE_ANALYSIS s3://pricing-game/
 
           # Wipe working directory
           sudo rm -rf $WORKDIR
