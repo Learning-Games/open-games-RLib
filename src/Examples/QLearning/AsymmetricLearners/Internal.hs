@@ -862,10 +862,7 @@ pairing2 name runNo keepOnlyNLastIterations parametersGameRematchingFunction exp
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
   L.writeFile (fromRelDir  (dirResultIteration </> seedsFile)) (csvSeeds newParameters)
-  when
-    (runNo == 1)
-    (do L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters))
-  -- ^ FIXME do the csv export in the proper export part
+  L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters newParameters)
   list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics newExportConfig runNo
   runProcess_
     (proc
