@@ -592,10 +592,7 @@ firstStageLearning name runNo keepOnlyNLastIterations exportConfigFunction param
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
   L.writeFile (fromRelDir  (dirResultIteration </> seedsFile)) (csvSeeds parameters)
-  when
-     (runNo == 1)
-     (do L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters parameters))
-  -- ^ FIXME do the csv export in the proper export part
+  L.writeFile (fromRelDir  (dirResultIteration </> parametersFile)) (csvParameters parameters)
   list <- ExportAsymmetricLearners.runQLearningExportingDiagnostics exportConfig runNo
   runProcess_
     (proc
