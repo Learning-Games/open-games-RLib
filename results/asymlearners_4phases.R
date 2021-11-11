@@ -23,7 +23,7 @@ setwd(maindir)
 # if any other run is needed, specify or download manually
 
 
-datadir <- file.path("/Users/philippzahn/Documents/projects/learning/results/asymmetricLearners4Phases-b30308aabf639a129353d9d176a0b4da89135a84")
+datadir <- file.path("/Users/philippzahn/Documents/projects/learning/results/asymmetricLearners4Phases-ebd4d33e09fec957bfe54529d9c7af9288aba8ef")
 
 ## Select the directories inside the hased run
 require(stringr)
