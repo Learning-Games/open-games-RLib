@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DataKinds #-}
@@ -15,17 +16,42 @@
 
 module Engine.InteractiveIO where
 
+import           Engine.Memory (Memory)
+import qualified Engine.Memory as Memory
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
+import           Engine.QLearning (QTable(..), Idx(..), ToIdx (..), CTable(..))
 
-import Control.Monad.Reader
-import Data.Foldable
-import Data.List (maximumBy)
-import Data.Ord (comparing)
-import Numeric.Probability.Distribution hiding (map, lift, filter)
 
+import           Control.Monad.Reader
+import qualified Data.Array.IArray as IA
+import qualified Data.Array.IO as A
+import qualified Data.Array.MArray as MA
+import           Data.Foldable
+import           Data.Ix
+import qualified Data.Ix as Ix
+import           Data.List (maximumBy,nub,sortBy)
+import           Data.Ord (comparing)
+import qualified Data.Vector as V
+import           Numeric.Probability.Distribution hiding (map, lift, filter)
 import qualified Optics.Lens as L
+
+
+
+---------------------------------------------------------------------
+-- This module implements a plain pure input version of an open game.
+-- The idea is that the input comes from the outside world.
+-- The open games just ties together the information/action flow.
+-- Use case is the connection to Ensemble as a game structure for
+-- experiments.
+---------------------------------------------------------------------
+
+
+
+-------------
+-- Data types
+type AgentIO = String
 
 type InteractiveStageGame a b x s y r = OpenGame PureLens PureLensContext a b x s y r
 
@@ -35,21 +61,6 @@ data DiagnosticInfoInteractive y = DiagnosticInfoInteractive
   , optimalPayoffIO   :: Double
   , currentMoveIO     :: y
   , currentPayoffIO   :: Double}
-
-showDiagnosticInfoInteractive :: (Show y, Ord y) => DiagnosticInfoInteractive y -> String
-showDiagnosticInfoInteractive info =
-     "\n"    ++ "Player: " ++ playerIO info
-     ++ "\n" ++ "Optimal Move: " ++ (show $ optimalMoveIO info)
-     ++ "\n" ++ "Optimal Payoff: " ++ (show $ optimalPayoffIO info)
-     ++ "\n" ++ "Current Move: " ++ (show $ currentMoveIO info)
-     ++ "\n" ++ "Current Payoff: " ++ (show $ currentPayoffIO info)
-
-
-
--- output string information for a subgame expressions containing information from several players - bayesian
-showDiagnosticInfoLInteractive :: (Show y, Ord y)  => [DiagnosticInfoInteractive y] -> String
-showDiagnosticInfoLInteractive [] = "\n --No more information--"
-showDiagnosticInfoLInteractive (x:xs)  = showDiagnosticInfoInteractive x ++ "\n --other game-- " ++ showDiagnosticInfoLInteractive xs
 
 
 data PrintOutput = PrintOutput
@@ -64,37 +75,29 @@ instance Apply Concat String (String -> String) where
   apply _ x = \y -> x ++ "\n NEWGAME: \n" ++ y
 
 
----------------------
--- main functionality
+-- QTable with only actions as index
+type QTableNoObs a = A.IOUArray (Idx a) Double
 
--- all information for all players
-generateOutputIO :: forall xs.
-               ( MapL   PrintOutput xs     (ConstMap String xs)
-               , FoldrL Concat String (ConstMap String xs)
-               ) => List xs -> IO ()
-generateOutputIO hlist = putStrLn $
-  "----Analytics begin----" ++ (foldrL Concat "" $ mapL @_ @_ @(ConstMap String xs) PrintOutput hlist) ++ "----Analytics end----\n"
+------------------------------------------------
+-- Diagnostic information that is used as output
 
-
-
-
-
-type AgentIO = String
-
-support :: Stochastic x -> [x]
-support = map fst . decons
-
-bayes :: (Eq y) => Stochastic (x, y) -> y -> Stochastic x
-bayes a y = mapMaybe (\(x, y') -> if y' == y then Just x else Nothing) a
-
-
-test :: Monad m =>  (y -> m Double) -> [y] -> m [(y, Double)]
-test u ys = do
-  ls  <- mapM u ys
-  pure $ zip ys ls
+showDiagnosticInfoInteractive :: (Show y, Ord y) => DiagnosticInfoInteractive y -> String
+showDiagnosticInfoInteractive info =
+     "\n"    ++ "Player: " ++ playerIO info
+     ++ "\n" ++ "Optimal Move: " ++ (show $ optimalMoveIO info)
+     ++ "\n" ++ "Optimal Payoff: " ++ (show $ optimalPayoffIO info)
+     ++ "\n" ++ "Current Move: " ++ (show $ currentMoveIO info)
+     ++ "\n" ++ "Current Payoff: " ++ (show $ currentPayoffIO info)
 
 
 
+-- Output string information for a subgame expressions containing information from several players - bayesian
+showDiagnosticInfoLInteractive :: (Show y, Ord y)  => [DiagnosticInfoInteractive y] -> String
+showDiagnosticInfoLInteractive [] = "\n --No more information--"
+showDiagnosticInfoLInteractive (x:xs)  = showDiagnosticInfoInteractive x ++ "\n --other game-- " ++ showDiagnosticInfoLInteractive xs
+
+
+-- Devations in a given context
 deviationsInContext :: (Show a, Ord a)
                     =>  AgentIO -> a -> (a -> Double) -> [a] -> [DiagnosticInfoInteractive a]
 deviationsInContext name strategy u ys =
@@ -111,13 +114,97 @@ deviationsInContext name strategy u ys =
             , currentPayoffIO = strategicPayoff
             }]
 
+-- all information for all players
+generateOutputIO :: forall xs.
+               ( MapL   PrintOutput xs     (ConstMap String xs)
+               , FoldrL Concat String (ConstMap String xs)
+               ) => List xs -> IO ()
+generateOutputIO hlist = putStrLn $
+  "----Analytics begin----" ++ (foldrL Concat "" $ mapL @_ @_ @(ConstMap String xs) PrintOutput hlist) ++ "----Analytics end----\n"
 
 
--- Takes IO and does an evaluate? As in the Bayesian Game?
+--------------------------
+-- Connecting to a qmatrix
+--------------------------
+
+-- Transform learned qmatrix into matrix which ignores the observation part
+transformLearnedQMatrix ::
+   (Ix (o (Idx a)) , Ix (Memory.Vector n (o (Idx a))))
+   => QTable n o a -> CTable a -> IO (QTableNoObs a) -- replace with vector
+transformLearnedQMatrix qmatrix support = do
+  immutMatrixLs <- MA.getAssocs qmatrix
+  let reduceOperation = reduceList $ listIndexToNewIndex immutMatrixLs
+      actionLs        = nub [a | ((o,a), _) <- immutMatrixLs]
+      -- ^ create non-duplicated IDx list of actions
+      reducedList     = fmap reduceOperation actionLs
+  undefined
+  where
+    listIndexToNewIndex :: [((o,a),e)] -> [(a,e)]
+    listIndexToNewIndex ls = [(a,e)|((_,a),e) <- ls]
+    -- ^ transform list by getting rid of observations
+    reduceList :: (Eq a, Num e) => [(a,e)] -> a -> (a,e)
+    reduceList ls x = (x, sumUpList x ls)
+    -- ^ for list and a single action, create action sum of value pairs
+      where
+          sumUpList :: (Eq a, Num e) => a -> [(a,e)] -> e
+          sumUpList _ [] = 0
+          sumUpList x ((y,e):ys) =
+            if x == y then e + sumUpList x ys
+                      else sumUpList x ys
+createArray :: [(a,Double)] -> QTableNoObs a
+createArray ls =
+  let sortedLs = sortBy (\(x,_) (y,_) -> compare x y) ls
+      (actionLs,valueLs) = unzip sortedLs
+      lowerBound = minimum actionLs
+      upperBound = maximum actionLs
+      in MA.newListArray (lowerBound,upperBound) valueLs
+
+{--
+-- Choose maximally given a learned Qmatrix
+maxScore2 ::
+     ( ToIdx a
+     , Ord a
+     , Functor o
+     , Ix (o (Idx a))
+     , Ix (Memory.Vector n (o (Idx a)))
+     , MonadIO m
+     )
+  => QTable n o a
+  -> Int
+  -> m (Double, a)
+maxScore2 table0 player = do
+  valuesAndActions <-
+    liftIO
+      (V.mapM
+         (\action -> do
+            let index = (obs, toIdx action)
+            value <- A.readArray table0 index
+            pure (value, action))
+         (population support))
+  let !maximum' = V.maximum valuesAndActions
+  pure maximum'
+-}
+
+
+---------------------
+-- Main functionality
+-- Takes external input and outputs a move? Does evaluate the game as in the Bayesian case.
 interactiveInput ::
   (Show a, Ord a) =>
   AgentIO -> [a] -> InteractiveStageGame  '[a] '[[DiagnosticInfoInteractive a]] () () a Double
 interactiveInput name ys = OpenGame {
+  play =  \(strat ::- Nil) -> L.lens (\x -> strat) (\ _ _ -> ()),
+  -- ^ This finds the optimal action or chooses randomly
+  evaluate = \(strat ::- Nil) (PureLensContext h k) ->
+       let context = deviationsInContext name strat u ys
+           u y     = k  y
+              in (context  ::- Nil) }
+
+-- Takes a qmatrix and chooses optimally given that information
+externalQLearner ::
+  (Show a, Ord a) =>
+  AgentIO -> [a] -> InteractiveStageGame  '[a] '[[DiagnosticInfoInteractive a]] () () a Double
+externalQLearner name ys = OpenGame {
   play =  \(strat ::- Nil) -> L.lens (\x -> strat) (\ _ _ -> ()),
   -- ^ This finds the optimal action or chooses randomly
   evaluate = \(strat ::- Nil) (PureLensContext h k) ->
