@@ -19,7 +19,7 @@ import qualified Examples.QLearning.CalvanoReplication as Scenario
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 1000
+numberOfRuns = 2
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int
@@ -50,7 +50,7 @@ parametersGame gEnv1 gEnv2 gPrice1 gPrice2 gObs1 gObs2 = Scenario.Parameters
 
 -- Configuration of run and export parameters
 exportConfigGame name parameters = QLearning.ExportConfig
-  { iterations =  1000000000
+  { iterations =  1000
   -- ^ how many iterations?
   , incrementalMode = True
   -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
@@ -111,5 +111,3 @@ specification name = do
          ++ fromRelDir (dirResultIteration </> rewardsExtendedEndNFile)
         ))
   putStrLn ("completed task: " ++ name)
-
- 
