@@ -27,7 +27,7 @@ import           Engine.QLearning (QTable(..), Idx(..), ToIdx (..), CTable(..))
 import           Control.Monad.Reader
 import qualified Data.Array.IArray as IA
 import qualified Data.Array.IO as A
-import qualified Data.Array.MArray as MA
+import           Data.Array.IO
 import           Data.Foldable
 import           Data.Ix
 import qualified Data.Ix as Ix
@@ -132,7 +132,7 @@ transformLearnedQMatrix ::
    (Ix (o (Idx a)) , Ix (Memory.Vector n (o (Idx a))))
    => QTable n o a -> CTable a -> IO (QTableNoObs a) -- replace with vector
 transformLearnedQMatrix qmatrix support = do
-  immutMatrixLs <- MA.getAssocs qmatrix
+  immutMatrixLs <- getAssocs qmatrix
   let reduceOperation = reduceList $ listIndexToNewIndex immutMatrixLs
       actionLs        = nub [a | ((o,a), _) <- immutMatrixLs]
       -- ^ create non-duplicated IDx list of actions
@@ -151,6 +151,32 @@ transformLearnedQMatrix qmatrix support = do
           sumUpList x ((y,e):ys) =
             if x == y then e + sumUpList x ys
                       else sumUpList x ys
+
+
+
+
+createArray :: [(Idx a,Double)] -> A.IOUArray (Idx a) Double
+createArray ls = do
+-- ^ creates the new array
+  let sortedLs = ls -- sortBy (\(x,_) (y,_) -> compare x y) ls
+      lowerBound = minimum $ fmap fst sortedLs
+      upperBound = maximum $ fmap fst sortedLs
+  arr  <- newArray_ (lowerBound,upperBound)
+  traverse_ (\(k,v) -> writeArray arr k v) sortedLs
+  pure arr
+{--
+
+createArray ::  [(Idx a, Double)] -> QTableNoObs a
+createArray ls = do
+-- ^ creates the new array
+  let sortedLs = sortBy (\(x,_) (y,_) -> compare x y) ls
+      (actionLs,valueLs) = unzip sortedLs
+      lowerBound = minimum actionLs
+      upperBound = maximum actionLs
+  newArray_ (lowerBound,upperBound)
+
+
+
 createArray :: [(a,Double)] -> QTableNoObs a
 createArray ls =
   let sortedLs = sortBy (\(x,_) (y,_) -> compare x y) ls
@@ -159,7 +185,7 @@ createArray ls =
       upperBound = maximum actionLs
       in MA.newListArray (lowerBound,upperBound) valueLs
 
-{--
+
 -- Choose maximally given a learned Qmatrix
 maxScore2 ::
      ( ToIdx a
