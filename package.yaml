@@ -42,6 +42,7 @@ library:
     - Examples.SequentialMoves
     - Examples.QLearning.AsymmetricLearners.Internal
     - Examples.QLearning.AsymmetricLearners
+    - Examples.QLearning.AsymmetricLearners2PhasesExogAction
     - Examples.QLearning.AsymmetricLearners3Phases
     - Examples.QLearning.AsymmetricLearners4Phases
     - Examples.QLearning.AsymmetricLearners8Phases
