@@ -84,7 +84,7 @@ data ReMatchType = ReMatchType
 data ReMatchTypeExog = ReMatchTypeExog
   { experiment1Ex :: String
   , experiment2Ex :: String
-  , priceSpaceEx  :: Double
+  , priceSpaceEx  :: Int
   , randomMatchEx :: Bool
   } deriving (Show,Eq)
 
@@ -644,7 +644,7 @@ rematchedLearningWithExogObs :: String
                     -- ^ The number of the run for the same estimation
                     -> Int
                     -- ^ Keep only last number of iterations
-                    -> Map (String,String,Double) (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                    -> Map (String,String,Int) (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
                     -- ^ Map of identifier into parameters
                     -> (String
                         -> Parameters
@@ -678,7 +678,7 @@ rematchedLearningWithExogObs name runNo keepOnlyNLastIterations parametersGameRe
       manualLastObs            = Obs (lastAction1,manualAction2)
       newNameExp               = experiment1Ex ++ experiment2Ex ++ (show priceSpaceEx)
   ((q1New,q2New),lastObs) <- rematchedLearningSingleRun
-                                 name
+                                 (name ++ "_action_" ++ show priceSpaceEx)
                                  runNo
                                  keepOnlyNLastIterations
                                  (ReMatchType experiment1Ex experiment2Ex randomMatchEx)
