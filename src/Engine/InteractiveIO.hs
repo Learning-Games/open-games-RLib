@@ -126,7 +126,6 @@ generateOutputIO hlist = putStrLn $
 --------------------------
 -- Connecting to a qmatrix
 --------------------------
-
 -- Transform learned qmatrix, which includes past observations in its state space, into matrix which ignores the observation part
 transformLearnedQMatrix ::
    (Ix (o (Idx a)) , Ix (Memory.Vector n (o (Idx a))))
@@ -160,6 +159,19 @@ transformLearnedQMatrix qmatrix = do
       arr  <- newArray_ (lowerBound,upperBound)
       traverse_ (\(k,v) -> writeArray arr k v) sortedLs
       pure arr
+
+maximizeAction :: (Ord a, (ToIdx a)) => QTableNoObs a -> CTable a -> IO a
+maximizeAction qTable support = do
+   valuesAndActions <-
+        liftIO
+          (V.mapM
+            (\action -> do
+                let index = toIdx action
+                value <- readArray qTable index
+                pure (value, action))
+            (population support))
+   let !maximum' = V.maximum valuesAndActions
+   pure $ snd maximum'
 
 ---------------------
 -- Main functionality
