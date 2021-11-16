@@ -15,7 +15,7 @@
 
 module Examples.InteractiveIO.InteractiveIOM where
 
-import Engine.InteractiveIO
+import Engine.InteractiveIOM
 import Engine.OpenGames
 import Engine.OpticClass
 import Engine.TLL
@@ -52,7 +52,7 @@ prisonersDilemmaIO ::
                        '[IO [DiagnosticInfoInteractive ActionPD], IO [DiagnosticInfoInteractive ActionPD]]
                        ()
                        ()
-                       (ActionPD, ActionPD)
+                       ()
                        ()
 prisonersDilemmaIO = [opengame|
 
@@ -79,6 +79,41 @@ prisonersDilemmaIO = [opengame|
   |]
 
 
+prisonersDilemmaIOLearner ::
+                       InteractiveMonadicStageGame IO
+                       '[ActionPD, ActionPD]
+                       '[IO [DiagnosticInfoInteractive ActionPD], IO [DiagnosticInfoInteractive ActionPD]]
+                       ()
+                       ()
+                       ()
+                       ()
+prisonersDilemmaIOLearner = [opengame|
+
+   inputs    :      ;
+   feedback  :      ;
+
+   :----------------------------:
+   inputs    :      ;
+   feedback  :      ;
+   operation : interactiveMonadicInput "player1" [Cooperate,Defect];
+   outputs   : decisionPlayer1 ;
+   returns   : prisonersDilemmaMatrix decisionPlayer1 decisionPlayer2 ;
+
+   inputs    :      ;
+   feedback  :      ;
+   operation : interactiveMonadicInput "player2" [Cooperate,Defect];
+   outputs   : decisionPlayer2 ;
+   returns   : prisonersDilemmaMatrix decisionPlayer2 decisionPlayer1 ;
+
+   :----------------------------:
+
+   outputs   :      ;
+   returns   :      ;
+  |]
+
+
+
+
 -- interfacing outside world
 inputStrat x = if x == "cooperate" then Cooperate else Defect
 
@@ -86,4 +121,5 @@ inputStrat x = if x == "cooperate" then Cooperate else Defect
 evaluateGame = do
     let strategyTuple = Cooperate ::- Cooperate ::- Nil
         (dia1 ::- dia2 ::- Nil) = evaluate prisonersDilemmaIO strategyTuple void
-    print $ show $ optimalPayoffIO  $ head $ dia1
+    dia1' <- dia1
+    print $ show $ optimalPayoffIO  $ head dia1'
