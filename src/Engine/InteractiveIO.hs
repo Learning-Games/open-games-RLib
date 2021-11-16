@@ -127,17 +127,17 @@ generateOutputIO hlist = putStrLn $
 -- Connecting to a qmatrix
 --------------------------
 
--- Transform learned qmatrix into matrix which ignores the observation part
+-- Transform learned qmatrix, which includes past observations in its state space, into matrix which ignores the observation part
 transformLearnedQMatrix ::
    (Ix (o (Idx a)) , Ix (Memory.Vector n (o (Idx a))))
-   => QTable n o a -> CTable a -> IO (QTableNoObs a) -- replace with vector
-transformLearnedQMatrix qmatrix support = do
+   => QTable n o a -> IO (QTableNoObs a)
+transformLearnedQMatrix qmatrix = do
   immutMatrixLs <- getAssocs qmatrix
   let reduceOperation = reduceList $ listIndexToNewIndex immutMatrixLs
-      actionLs        = nub [a | ((o,a), _) <- immutMatrixLs]
+      actionLs        = nub [a | ((_,a), _) <- immutMatrixLs]
       -- ^ create non-duplicated IDx list of actions
       reducedList     = fmap reduceOperation actionLs
-  undefined
+  createArray reducedList
   where
     listIndexToNewIndex :: [((o,a),e)] -> [(a,e)]
     listIndexToNewIndex ls = [(a,e)|((_,a),e) <- ls]
@@ -151,66 +151,15 @@ transformLearnedQMatrix qmatrix support = do
           sumUpList x ((y,e):ys) =
             if x == y then e + sumUpList x ys
                       else sumUpList x ys
-
-
-
-
-createArray :: [(Idx a,Double)] -> A.IOUArray (Idx a) Double
-createArray ls = do
--- ^ creates the new array
-  let sortedLs = ls -- sortBy (\(x,_) (y,_) -> compare x y) ls
-      lowerBound = minimum $ fmap fst sortedLs
-      upperBound = maximum $ fmap fst sortedLs
-  arr  <- newArray_ (lowerBound,upperBound)
-  traverse_ (\(k,v) -> writeArray arr k v) sortedLs
-  pure arr
-{--
-
-createArray ::  [(Idx a, Double)] -> QTableNoObs a
-createArray ls = do
--- ^ creates the new array
-  let sortedLs = sortBy (\(x,_) (y,_) -> compare x y) ls
-      (actionLs,valueLs) = unzip sortedLs
-      lowerBound = minimum actionLs
-      upperBound = maximum actionLs
-  newArray_ (lowerBound,upperBound)
-
-
-
-createArray :: [(a,Double)] -> QTableNoObs a
-createArray ls =
-  let sortedLs = sortBy (\(x,_) (y,_) -> compare x y) ls
-      (actionLs,valueLs) = unzip sortedLs
-      lowerBound = minimum actionLs
-      upperBound = maximum actionLs
-      in MA.newListArray (lowerBound,upperBound) valueLs
-
-
--- Choose maximally given a learned Qmatrix
-maxScore2 ::
-     ( ToIdx a
-     , Ord a
-     , Functor o
-     , Ix (o (Idx a))
-     , Ix (Memory.Vector n (o (Idx a)))
-     , MonadIO m
-     )
-  => QTable n o a
-  -> Int
-  -> m (Double, a)
-maxScore2 table0 player = do
-  valuesAndActions <-
-    liftIO
-      (V.mapM
-         (\action -> do
-            let index = (obs, toIdx action)
-            value <- A.readArray table0 index
-            pure (value, action))
-         (population support))
-  let !maximum' = V.maximum valuesAndActions
-  pure maximum'
--}
-
+    createArray :: [(Idx a,Double)] -> IO (QTableNoObs a)
+    createArray ls = do
+    -- ^ creates the new array
+      let sortedLs = sortBy (\(x,_) (y,_) -> compare x y) ls
+          lowerBound = minimum $ fmap fst sortedLs
+          upperBound = maximum $ fmap fst sortedLs
+      arr  <- newArray_ (lowerBound,upperBound)
+      traverse_ (\(k,v) -> writeArray arr k v) sortedLs
+      pure arr
 
 ---------------------
 -- Main functionality
