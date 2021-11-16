@@ -55,12 +55,23 @@ type AgentIO = String
 
 type InteractiveStageGame a b x s y r = OpenGame PureLens PureLensContext a b x s y r
 
+type InteractiveMonadicStageGame m a b x s y r = OpenGame (MonadOptic m) (MonadContext m) a b x s y r
+
 data DiagnosticInfoInteractive y = DiagnosticInfoInteractive
   { playerIO          :: String
   , optimalMoveIO     :: y
   , optimalPayoffIO   :: Double
   , currentMoveIO     :: y
   , currentPayoffIO   :: Double}
+
+
+data DiagnosticInfoInteractiveIO y = DiagnosticInfoInteractiveIO
+  { playerIO'          :: String
+  , optimalMoveIO'     :: y
+  , optimalPayoffIO'   :: Double
+  , currentMoveIO'     :: y
+  , currentPayoffIO'   :: Double}
+
 
 
 data PrintOutput = PrintOutput
@@ -113,6 +124,25 @@ deviationsInContext name strategy u ys =
             , currentMoveIO   = strategy
             , currentPayoffIO = strategicPayoff
             }]
+
+-- Devations in a given context
+deviationsInContextIO :: (Show a, Ord a)
+                    =>  AgentIO -> a -> (a -> IO Double) -> [a] -> IO [DiagnosticInfoInteractive a]
+deviationsInContextIO name strategy u ys = do
+   ls              <- mapM u ys
+   strategicPayoff <- u strategy
+   let
+     zippedLs        = zip ys ls
+     (optimalPlay, optimalPayoff) = maximumBy (comparing snd) zippedLs
+   pure [DiagnosticInfoInteractive
+            {  playerIO = name
+            , optimalMoveIO = optimalPlay
+            , optimalPayoffIO = optimalPayoff
+            , currentMoveIO   = strategy
+            , currentPayoffIO = strategicPayoff
+            }]
+
+
 
 -- all information for all players
 generateOutputIO :: forall xs.
@@ -187,17 +217,7 @@ interactiveInput name ys = OpenGame {
            u y     = k  y
               in (context  ::- Nil) }
 
--- Takes a qmatrix and chooses optimally given that information
-externalQLearner ::
-  (Show a, Ord a) =>
-  AgentIO -> [a] -> InteractiveStageGame  '[a] '[[DiagnosticInfoInteractive a]] () () a Double
-externalQLearner name ys = OpenGame {
-  play =  \(strat ::- Nil) -> L.lens (\x -> strat) (\ _ _ -> ()),
-  -- ^ This finds the optimal action or chooses randomly
-  evaluate = \(strat ::- Nil) (PureLensContext h k) ->
-       let context = deviationsInContext name strat u ys
-           u y     = k  y
-              in (context  ::- Nil) }
+
 
 
 -- Support functionality for constructing open games
@@ -209,3 +229,41 @@ fromLens v u = OpenGame {
 
 fromFunctions :: (x -> y) -> (r -> s) -> InteractiveStageGame '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
+
+------------------------------------------------------------
+-- Including input from external qMatrx and stochastic input
+-- Takes a qmatrix and chooses optimally given that information
+externalQLearner ::
+  (Show a, Ord a, ToIdx a) =>
+  AgentIO -> QTableNoObs a -> CTable a -> InteractiveMonadicStageGame IO  '[] '[] () ()  a Double
+externalQLearner name qTable actionSpace = OpenGame {
+  play =  \_ -> let  v obs = do
+                        action <- maximizeAction qTable actionSpace
+                        pure ((),action)
+                    in MonadOptic v (\_ -> (\_ -> pure ())),
+  -- ^ This finds the optimal action or chooses randomly
+  evaluate = \_ _ ->
+              Nil}
+
+interactiveMonadicInput ::
+  (Show a, Ord a) =>
+  AgentIO -> [a] -> InteractiveMonadicStageGame IO '[a] '[IO [DiagnosticInfoInteractive a]] () () a Double
+interactiveMonadicInput name ys = OpenGame {
+  play =  \(strat ::- Nil) -> let  v obs = do
+                                    pure ((),strat)
+                                in MonadOptic v (\_ -> (\_ -> pure ())),
+  evaluate = \(strat ::- Nil) (MonadContext h k) ->
+       let context = do
+             (z,_) <- h
+             let u y     = k z y
+             deviationsInContextIO name strat u ys
+             in (context  ::- Nil) }
+
+
+
+{--
+    \(strat ::- Nil) (PureLensContext h k) ->
+       let context = deviationsInContext name strat u ys
+           u y     = k  y
+              in (context  ::- Nil) }
+-}
