@@ -42,7 +42,7 @@ jobs:
           sudo cp -r . $WORKDIR/
 
           # Run job
-          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d sh -c 'ls games/ && stack build -j1 --fast && stack exec game check asymmetricLearners4Phases'
+          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d sh -c 'pwd && ls && ls games/ && stack build -j1 --fast && stack exec game check asymmetricLearners4Phases'
 
           # # Archive output
           # PW=$(pwd)
