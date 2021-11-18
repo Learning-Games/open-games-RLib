@@ -7,7 +7,6 @@ module Examples.QLearning.AsymmetricLearners3Phases
   , actionSpace2
   , csvParameters
   , sequenceL
-  , evalStageM
   , mapStagesM_
   , mapStagesMFinalResult
   , firstStageLearningMap

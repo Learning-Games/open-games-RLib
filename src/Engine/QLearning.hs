@@ -239,6 +239,14 @@ extractSnd :: Maybe (a,b) -> Maybe b
 extractSnd Nothing      = Nothing
 extractSnd (Just (a,b)) = Just b
 
+
+-----------------------
+-- Updating information
+-----------------------
+
+-----------------
+-- Single updates
+
 -- Update randomG
 updateRandomG :: State n o a -> Rand.StdGen -> State n o a
 updateRandomG s r = env % randomGen .~ r  $  s
@@ -271,22 +279,23 @@ updateExploreRate decreaseFactor = env % exploreRate %~ (* ((exp 1) ** (-decreas
 updateNewValue :: Double -> State n o a -> State n o a
 updateNewValue value s = env % stageNewValue .~ value $ s
 
--- Update gen, qtable
-updateRandomGAndQTable :: State n o a -> Rand.StdGen -> State n o a
-updateRandomGAndQTable s r = updateRandomG s r
-
-
 -- Update action choice info
 updateActionChoice ::  ActionChoice -> State n o a -> State n o a
 updateActionChoice info s = env % actionChoice .~ info $ s
 
+
+------------------
+-- Combine updates
+
+{-- OLD -}
+
 -- Update gen, qtable, temp
 updateRandomGQTableTemp :: Temperature -> State n o a -> Rand.StdGen -> State n o a
-updateRandomGQTableTemp decreaseFactor s r = (updateTemperature decreaseFactor) $ updateRandomGAndQTable s r
+updateRandomGQTableTemp decreaseFactor s r = (updateTemperature decreaseFactor) $ updateRandomG s r
 
 -- Update gen, qtable,exploreRate
 updateRandomGQTableExplore :: ExploreRate -> State n o a -> Rand.StdGen -> State n o a
-updateRandomGQTableExplore decreaseFactor s r = (updateExploreRate decreaseFactor) $ updateRandomGAndQTable s r
+updateRandomGQTableExplore decreaseFactor s r = (updateExploreRate decreaseFactor) $ updateRandomG s r
 
 -- Update gen, qtable,exploreRate,agentObs
 updateRandomGQTableExploreObs :: ExploreRate -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
@@ -304,6 +313,22 @@ updateRandomGQTableExploreObsIterationReward value decreaseFactor obs s r  = upd
 updateAll :: Memory.Vector n (o (Idx a)) -> Double ->  ExploreRate -> Memory.Vector n (o (Idx a)) -> State n o a -> Rand.StdGen -> State n o a
 updateAll previousMemory value decreaseFactor obs s r  = updatePreviousObservationAgent previousMemory $ updateRandomGQTableExploreObsIterationReward value decreaseFactor obs s r
 
+{-- FIXME NEW TEST AGAINST OLD and then replace -}
+
+-- Update gen, agentObs, iteration
+updateAllNew :: ExploreRate -> Memory.Vector n (o (Idx a)) ->  Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
+updateAllNew decreaseFactor previousMemory value obs r s =
+  updateExploreRate decreaseFactor $
+    updateNewValue value $
+     updateNoLearning previousMemory obs r s
+
+-- Update gen, agentObs, iteration, stage reward, previous memory
+updateNoLearning :: Memory.Vector n (o (Idx a)) ->  Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
+updateNoLearning previousMemory  obs r s =
+  updatePreviousObservationAgent previousMemory $
+    updateIteration $
+      updateObservationAgent obs $
+         updateRandomG s r
 
 
 
@@ -314,14 +339,15 @@ updateAll previousMemory value decreaseFactor obs s r  = updatePreviousObservati
 
 -- 2.1. e-greedy experimentation
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
-{-# INLINE chooseActionNoExplore  #-}
-chooseActionNoExplore :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
-  CTable a -> State n o a -> m a
-chooseActionNoExplore support s = do
+-- Does _not_ update the matrix
+{-# INLINE chooseNoExploreAction  #-}
+chooseNoExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+  CTable a -> State n o a -> m (a, ActionChoice)
+chooseNoExploreAction support s = do
   maxed <- maxScore obsVec (_qTable $ _env s) support (_player (_env s))
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
       optimalAction = snd $  maxed
-  return optimalAction
+  return (optimalAction, "Exploitation w/o updates")
   where  obsVec = _obsAgent (_env s)
 
 -- | Choose the optimal action given the current state or explore; indicate whether exploration tool place (False) or randomization tool place (True)
@@ -361,9 +387,15 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
        return action
   where obsVec = _obsAgent (_env s)
 
-
-
-
+-- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
+{-# INLINE chooseNoLearnDecrExploreQTable #-}
+chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
+chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 (action,info) reward  = do
+       let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+       ST.put $  updateNoLearning obsVec (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
+       return action
+  where obsVec = _obsAgent (_env s)
 
 ----------------------------------------------------
 -- Helper function for logging qvalues incrementally
