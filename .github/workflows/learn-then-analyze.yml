@@ -37,7 +37,7 @@ jobs:
           LEARN_FILENAME=$GITHUB_RUN_ID-learn.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
           WORKDIR=~/run/$GITHUB_RUN_ID
-          JOBDIR=$WORKDIR/job
+          JOBDIR=$WORKDIR/results
           sudo mkdir -p $WORKDIR $JOBDIR
           sudo cp -r . $WORKDIR/
 
