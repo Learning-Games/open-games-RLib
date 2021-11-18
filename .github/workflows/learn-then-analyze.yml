@@ -25,41 +25,37 @@ jobs:
         run: |
           time docker pull ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d
 
-      - name: Try to pull scenarios
+      # Docker creates files as owner root (0). That means when the
+      # runner, running as github, tries to delete the artifacts, it
+      # fails. So we create a fresh copy of the current directory
+      # under ~/run/$job_id and then remove that later with sudo. The
+      # github user is a sudoer. That's not ideal, but the self-hosted
+      # runner is private anyway.
+      - name: Run learning process
         run: |
-          git clone git@github.com:Learning-Games/learning-run-scenarios.git
+          # Setup working directory
+          LEARN_FILENAME=$GITHUB_RUN_ID-learn.tar.gz
+          ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
+          WORKDIR=~/run/$GITHUB_RUN_ID
+          JOBDIR=$WORKDIR/job
+          sudo mkdir -p $WORKDIR $JOBDIR
+          sudo cp -r . $WORKDIR/
 
-  #     # Docker creates files as owner root (0). That means when the
-  #     # runner, running as github, tries to delete the artifacts, it
-  #     # fails. So we create a fresh copy of the current directory
-  #     # under ~/run/$job_id and then remove that later with sudo. The
-  #     # github user is a sudoer. That's not ideal, but the self-hosted
-  #     # runner is private anyway.
-  #     - name: Run learning process
-  #       run: |
-  #         # Setup working directory
-  #         LEARN_FILENAME=$GITHUB_RUN_ID-learn.tar.gz
-  #         ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
-  #         WORKDIR=~/run/$GITHUB_RUN_ID
-  #         JOBDIR=$WORKDIR/job
-  #         sudo mkdir -p $WORKDIR $JOBDIR
-  #         sudo cp -r . $WORKDIR/
+          # Run job
+          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d sh -c 'stack build -j1 && cd job && stack exec game asymmetricLearners4Phases'
 
-  #         # Run job
-  #         time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d sh -c 'stack build -j1 && cd job && stack exec learning-exe'
+          # Archive output
+          PW=$(pwd)
+          cd $JOBDIR
+          time tar czf $ARCHIVE_LEARN .
+          cd $PW
+          sudo rm -rf $JOBDIR
 
-  #         # Archive output
-  #         PW=$(pwd)
-  #         cd $JOBDIR
-  #         time tar czf $ARCHIVE_LEARN .
-  #         cd $PW
-  #         sudo rm -rf $JOBDIR
+          # Upload output
+          time s3cmd put $ARCHIVE_LEARN s3://pricing-game/
 
-  #         # Upload output
-  #         time s3cmd put $ARCHIVE_LEARN s3://pricing-game/
-
-  #         # Wipe working directory
-  #         sudo rm -rf $WORKDIR
+          # Wipe working directory
+          sudo rm -rf $WORKDIR
   # analyze:
   #   needs: learn
 
@@ -74,7 +70,7 @@ jobs:
   #     # Remember to update this hash whenever you update your R dependencies in any way
   #     - name: Pull down image
   #       run: |
-  #         time docker pull ghcr.io/learning-games/r:2021-11-09@sha256:57822f0e32e64b5cb382b5d334f475981d4b602c1b4b738ca8560d0bf4104c8d
+  #         time docker pull ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8
 
   #     # Docker creates files as owner root (0). That means when the
   #     # runner, running as github, tries to delete the artifacts, it
@@ -98,17 +94,17 @@ jobs:
   #         tar xvf $ARCHIVE_LEARN
 
   #         # Run job
-  #         time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/r:2021-11-09@sha256:57822f0e32e64b5cb382b5d334f475981d4b602c1b4b738ca8560d0bf4104c8d sh -c 'R --version'
+  #         time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 sh -c 'R --version'
 
-  #         # Archive output
-  #         PW=$(pwd)
-  #         cd $JOBDIR
-  #         time tar czf $ARCHIVE_ANALYSIS .
-  #         cd $PW
-  #         sudo rm -rf $JOBDIR
+          # # Archive output
+          # PW=$(pwd)
+          # cd $JOBDIR
+          # time tar czf $ARCHIVE_ANALYSIS .
+          # cd $PW
+          # sudo rm -rf $JOBDIR
 
-  #         # Upload output
-  #         time s3cmd put $ARCHIVE_ANALYSIS s3://pricing-game/
+          # # Upload output
+          # time s3cmd put $ARCHIVE_ANALYSIS s3://pricing-game/
 
-  #         # Wipe working directory
-  #         sudo rm -rf $WORKDIR
+          # # Wipe working directory
+          # sudo rm -rf $WORKDIR
