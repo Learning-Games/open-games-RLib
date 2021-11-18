@@ -77,9 +77,9 @@ main = do
   root <- IO.getCurrentDir
   gamesDir <- IO.makeAbsolute gamesRelDir
   case args of
-    ["local", file0] -> do
+    ("local":file0:skipGit) -> do
       file <- IO.resolveFile gamesDir (addHs file0)
-      runLocal root gamesDir file (normalizeName (dropHs file0))
+      runLocal (skipGit== ["--skip-git"]) root gamesDir file (normalizeName (dropHs file0))
     ["check", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
       runCheck file
@@ -192,21 +192,24 @@ runLogs name = do
 --------------------------------------------------------------------------------
 -- Run locally
 
-runLocal :: Path Abs Dir -> Path Abs Dir -> Path Abs File -> Name -> IO ()
-runLocal rootDir gamesDir sourceFile name = do
+runLocal :: Bool -> Path Abs Dir -> Path Abs Dir -> Path Abs File -> Name -> IO ()
+runLocal skipGit rootDir gamesDir sourceFile name = do
   exists <- IO.doesFileExist sourceFile
   if not exists
     then error ("Game not found: " ++ toFilePath sourceFile)
     else do
-      runProcess_
-        (setWorkingDir
-           (toFilePath gamesDir)
-           (proc "git" ["add", toFilePath sourceFile]))
       code <-
-        runProcess
-          (setWorkingDir
-             (toFilePath gamesDir)
-             (proc "git" ["diff-index", "--quiet", "HEAD"]))
+        if skipGit
+          then pure ExitSuccess
+          else do
+            runProcess_
+              (setWorkingDir
+                 (toFilePath gamesDir)
+                 (proc "git" ["add", toFilePath sourceFile]))
+            runProcess
+              (setWorkingDir
+                 (toFilePath gamesDir)
+                 (proc "git" ["diff-index", "--quiet", "HEAD"]))
       let getHash =
             fmap
               (addHash name)
@@ -321,6 +324,7 @@ runWatch = do
                IO.withCurrentDir
                  learningWorkDir
                  (runLocal
+                    False -- skip git
                     learningWorkDir
                     targetGamesDir
                     finalFile
