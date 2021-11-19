@@ -6,6 +6,8 @@ module Examples.QLearning.AsymmetricLearners
   , actionSpace1
   , actionSpace2
   , csvParameters
+  , configQL
+  , configQLNoLearning
   , sequenceL
   , mapStagesM_
   , mapStagesMFinalResult

@@ -147,11 +147,12 @@ configQL  Parameters {..} = ConfigQLearning
   (chooseLearnDecrExploreQTable pLearningRate pGamma pBeta)
   RewardExtendedExport
 
+
+
 configQLNoLearning Parameters {..} = ConfigQLearning
   chooseNoExploreAction
   (chooseNoLearnDecrExploreQTable pLearningRate pGamma pBeta)
   RewardExtendedExport
-
 
 
 ---------------
