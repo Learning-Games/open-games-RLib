@@ -29,4 +29,4 @@ Things to change when running:
 * Create an ./output dir
 * Change the results hash
 
-docker run -v`pwd`/outputs:/outputs -v`pwd`/Rscripts:/Rscripts -v`pwd`/testGame-f1c54fe43a8e4f37b0f3f5891db4a235c71a1d99:/experiment/ --rm ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 R -f /Rscripts/asymlearners_4phases.R
+docker run -v`pwd`/outputs:/outputs -v`pwd`/Rscripts:/Rscripts -v`pwd`/testGame-87cc1567373a3995220c7a62930e070210a77ff4:/experiment/ --rm ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 R -f /Rscripts/asymlearners_4phases.R
