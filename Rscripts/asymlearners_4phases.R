@@ -101,7 +101,6 @@ cyc[, eq_type := factor(eq_type, levels = c("sym1", "asym1", "cyc_2", "cyc_3", "
                                     "cyc_36", "cyc_37", "cyc_38", "cyc_39", "cyc_40", "cyc_41",
                                     "cyc_42", "cyc_43", "cyc_44", "cyc_45", "cyc_46", "cyc_47",
                                     "cyc_48", "cyc_49", "cyc_50", "other"))]
-<<<<<<< Updated upstream
 
 
 
@@ -142,5 +141,3 @@ setcolorder(tab1, c("phase" ,"match_type", "eq_type", "N", "mreward.m", "mreward
 setkey(tab1, phase, match_type, eq_type)
 tab1
 fwrite(tab1, file.path(maindir, "summary_statistics_matchtype.csv"))
-=======
->>>>>>> Stashed changes
