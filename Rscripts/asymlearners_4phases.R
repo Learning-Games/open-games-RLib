@@ -4,7 +4,7 @@
 
 
 #===================== SET REPOSITORY AS WORKING DIRECTORY =====================
-maindir <- file.path("/results")
+maindir <- file.path("/outputs")
 
 
 # set working directory
@@ -29,7 +29,6 @@ datadir <- file.path("/experiment")
 require(stringr)
 
 datadirs <- str_subset(list.files(datadir, full.names = TRUE), "run")
-print(datadirs)
 
 #================================== LIBRARIES ==================================
 
@@ -40,7 +39,7 @@ library(stringr)
 
 # auxiliary functions for asymmetric learner analysis
 # includes additional libraries needed
-source("asymlearners_aux_funcs.R")
+source("/Rscripts/asymlearners_aux_funcs.R")
 
 
 #====================== READ IN DATA FROM DATA DIRECTORY =======================
