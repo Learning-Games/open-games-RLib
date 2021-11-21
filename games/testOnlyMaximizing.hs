@@ -17,9 +17,9 @@ import           Test.Hspec
 
 
 import Engine.QLearningVerboseOutput
-import Engine.Engine
+import Engine.TLL
 import qualified Examples.QLearning.AsymmetricLearners.InternalVerboseOutput as AL
-import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as ExportAsymmetricLearners
+import qualified Engine.QLearning.ExportAsymmetricLearnersLogReducedVerboseOutput as ExportAsymmetricLearners
 import qualified Engine.Memory as Memory
 
 -- TODO REDO PROPER TESTING
