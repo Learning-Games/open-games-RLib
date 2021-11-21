@@ -16,7 +16,7 @@ import           System.Random
 import           Test.Hspec
 
 
-import Engine.QLearning
+import Engine.QLearningVerboseOutput
 import Engine.Engine
 import qualified Examples.QLearning.AsymmetricLearners.InternalVerboseOutput as AL
 import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as ExportAsymmetricLearners
