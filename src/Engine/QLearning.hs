@@ -315,22 +315,21 @@ updateAll previousMemory value decreaseFactor obs s r  = updatePreviousObservati
 
 {-- FIXME NEW TEST AGAINST OLD and then replace -}
 
+
 -- Update gen, agentObs, iteration
 updateAllNew :: ExploreRate -> Memory.Vector n (o (Idx a)) ->  Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
 updateAllNew decreaseFactor previousMemory value obs r s =
   updateExploreRate decreaseFactor $
-    updateNewValue value $
-     updateNoLearning previousMemory obs r s
+     updateNoLearning previousMemory value obs r s
 
 -- Update gen, agentObs, iteration, stage reward, previous memory
-updateNoLearning :: Memory.Vector n (o (Idx a)) ->  Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
-updateNoLearning previousMemory  obs r s =
+updateNoLearning :: Memory.Vector n (o (Idx a)) -> Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
+updateNoLearning previousMemory value obs r s =
   updatePreviousObservationAgent previousMemory $
-    updateIteration $
-      updateObservationAgent obs $
-         updateRandomG s r
-
-
+    updateNewValue value $
+      updateIteration $
+        updateObservationAgent obs $
+          updateRandomG s r
 
 
 -----------------------------------

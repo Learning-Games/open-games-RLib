@@ -20,11 +20,13 @@ library:
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
+    - Engine.QLearningVerboseOutput
     - Engine.QLearning.Export
     - Engine.QLearning.ExportAsymmetric
     - Engine.QLearning.ExportAsymmetricLearners
     - Engine.QLearning.ExportAsymmetricLearnersLog
     - Engine.QLearning.ExportAsymmetricLearnersLogReduced
+    - Engine.QLearning.ExportAsymmetricLearnersLogReducedVerboseOutput
     - Engine.QLearning.ExportVerbose
     - Engine.QLearningSimple
     - Engine.TLL
@@ -41,6 +43,7 @@ library:
     - Examples.Decision
     - Examples.SequentialMoves
     - Examples.QLearning.AsymmetricLearners.Internal
+    - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
     - Examples.QLearning.AsymmetricLearners
     - Examples.QLearning.AsymmetricLearners2PhasesExogAction
     - Examples.QLearning.AsymmetricLearners3Phases
