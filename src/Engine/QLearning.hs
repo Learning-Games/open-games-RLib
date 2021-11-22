@@ -391,8 +391,11 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s 
 chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
 chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore support s obs2 (action,info) reward  = do
-       let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-       ST.put $  updateNoLearning obsVec (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
+       let (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+           table0       = _qTable $ _env s
+       prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
+       recordingArray (_iteration (_env s)) (_player (_env s)) table0 (obsVec, toIdx action) prediction
+       ST.put $  updateNoLearning obsVec prediction (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
   where obsVec = _obsAgent (_env s)
 
