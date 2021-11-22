@@ -71,7 +71,7 @@ main = do
                 -- ^ For complete reporting of Q-values, how often should values be exported?
                   , threshold = 1000000
                 -- ^ Stopping criterion: After how many runs should the computation be stopped?
-                , mapStagesM_ = AL.mapStagesMFinalResult AL.configQL AL.configQL parameters
+                , mapStagesM_ = AL.mapStagesMFinalResult AL.configQLNoLearning AL.configQLNoLearning parameters
                 , initial = AL.initialStrat parameters (AL.initialArray1 parameters) (AL.initialArray2 parameters) (AL.randomInitialObservation parameters) >>= AL.sequenceL
                 , ctable1 = AL.actionSpace1 parameters
                 , ctable2 = AL.actionSpace2 parameters
