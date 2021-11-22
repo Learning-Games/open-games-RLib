@@ -27,7 +27,6 @@ import qualified Engine.Memory as Memory
 -------------
 -- 0. Types
 
-
 ---------------------
 -- 1. Top-level file
 -- Uses just two actions for simplicity
