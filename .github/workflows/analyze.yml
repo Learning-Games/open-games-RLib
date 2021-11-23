@@ -42,12 +42,12 @@ jobs:
           sudo mkdir -p $WORKDIR $JOBDIR
           sudo cp -r . $WORKDIR/
 
-          cd $WORKDIR
           ls -alh $WORKDIR
 
           # Download & unpack learning output
           time s3cmd get s3://pricing-game/$LEARN_FILENAME $ARCHIVE_LEARN
           tar xzf $ARCHIVE_LEARN
+          ls -alh
 
           # Run job
           # docker run -v`pwd`/outputs:/outputs \
