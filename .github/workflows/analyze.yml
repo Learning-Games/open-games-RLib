@@ -3,7 +3,7 @@ name: Analyze
 on:
   workflow_dispatch:
     inputs:
-      logLevel:
+      run-id:
         description: 'The run ID for the learning file'
         required: true
         default: ''
