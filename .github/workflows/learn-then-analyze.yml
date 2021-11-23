@@ -57,42 +57,44 @@ jobs:
 
           # Wipe working directory
           sudo rm -rf $WORKDIR
-  # analyze:
-  #   needs: learn
+  analyze:
+    needs: learn
 
-  #   runs-on: self-hosted-ubuntu-with-docker
+    runs-on: self-hosted-ubuntu-with-docker
 
-  #   steps:
-  #     - uses: actions/checkout@v2
+    steps:
+      - uses: actions/checkout@v2
 
-  #     - name: Try to login to docker hub registry
-  #       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Try to login to docker hub registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-  #     # Remember to update this hash whenever you update your R dependencies in any way
-  #     - name: Pull down image
-  #       run: |
-  #         time docker pull ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8
+      # Remember to update this hash whenever you update your R dependencies in any way
+      - name: Pull down image
+        run: |
+          time docker pull ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8
 
-  #     # Docker creates files as owner root (0). That means when the
-  #     # runner, running as github, tries to delete the artifacts, it
-  #     # fails. So we create a fresh copy of the current directory
-  #     # under ~/run/$job_id and then remove that later with sudo. The
-  #     # github user is a sudoer. That's not ideal, but the self-hosted
-  #     # runner is private anyway.
-  #     - name: Run analysis process
-  #       run: |
-  #         # Setup working directory
-  #         LEARN_FILENAME=$GITHUB_RUN_ID-learn.tar.gz
-  #         ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
-  #         ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
-  #         WORKDIR=~/run/$GITHUB_RUN_ID
-  #         JOBDIR=$WORKDIR/job
-  #         sudo mkdir -p $WORKDIR $JOBDIR
-  #         sudo cp -r . $WORKDIR/
+      # Docker creates files as owner root (0). That means when the
+      # runner, running as github, tries to delete the artifacts, it
+      # fails. So we create a fresh copy of the current directory
+      # under ~/run/$job_id and then remove that later with sudo. The
+      # github user is a sudoer. That's not ideal, but the self-hosted
+      # runner is private anyway.
+      - name: Run analysis process
+        run: |
+          # Setup working directory
+          LEARN_FILENAME=$GITHUB_RUN_ID-learn.tar.gz
+          ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
+          ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
+          WORKDIR=~/run/$GITHUB_RUN_ID
+          JOBDIR=$WORKDIR/job
+          sudo mkdir -p $WORKDIR $JOBDIR
+          sudo cp -r . $WORKDIR/
 
-  #         # Download & unpack learning output
-  #         time s3cmd get s3://pricing-game/$LEARN_FILENAME $ARCHIVE_LEARN
-  #         tar xvf $ARCHIVE_LEARN
+          # Download & unpack learning output
+          time s3cmd get s3://pricing-game/$LEARN_FILENAME $ARCHIVE_LEARN
+          tar xvf $ARCHIVE_LEARN
+
+          ls -alh $ARCHIVE_LEARN
 
   #         # Run job
   #         time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 sh -c 'R --version'
