@@ -33,6 +33,8 @@ jobs:
         env:
           LEARN_RUNID: ${{ github.event.inputs.learn-run-id }}
         run: |
+          echo Workflow was run with input: learn-run-id=$LEARN_RUNID
+
           # Grab experiment outputs
           LEARN_FILENAME=$LEARN_RUNID-learn.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
