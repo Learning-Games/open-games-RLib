@@ -30,9 +30,11 @@ jobs:
       # github user is a sudoer. That's not ideal, but the self-hosted
       # runner is private anyway.
       - name: Run analysis process
+        env:
+          RUNID: ${{ inputs.run-id }}
         run: |
           # Setup working directory
-          LEARN_FILENAME=${{ inputs.run-id }}-learn.tar.gz
+          LEARN_FILENAME=$RUNID-learn.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
           ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
           WORKDIR=~/run/$GITHUB_RUN_ID
