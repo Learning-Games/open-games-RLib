@@ -63,7 +63,7 @@ jobs:
             -v$WORKDIR/Rscripts:/Rscripts \
             -v$WORKDIR/experiment:/experiment \
             --rm \
-            ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 \
+            ghcr.io/learning-games/r:2021-11-23@sha256:9a9b4071d863d3e541ee31162b3a869f9cfe9cd40ada6ee11425bc6fd2c46d21 \
             R -f /Rscripts/asymlearners_4phases.R
 
           # # Archive output
