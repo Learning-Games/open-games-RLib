@@ -33,6 +33,7 @@ jobs:
         env:
           RUNID: ${{ inputs.run-id }}
         run: |
+          echo RUNID: $RUNID
           # Setup working directory
           LEARN_FILENAME=$RUNID-learn.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
