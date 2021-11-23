@@ -66,14 +66,14 @@ jobs:
             ghcr.io/learning-games/r:2021-11-23@sha256:9a9b4071d863d3e541ee31162b3a869f9cfe9cd40ada6ee11425bc6fd2c46d21 \
             R -f /Rscripts/asymlearners_4phases.R
 
-          # # Archive output
-          # PW=$(pwd)
-          # cd $JOBDIR
-          # time tar czf $ARCHIVE_ANALYSIS .
-          # cd $PW
+          # Archive output
+          PW=$(pwd)
+          cd $WORKDIR/outputs
+          time tar czf $ARCHIVE_ANALYSIS .
+          cd $PW
 
-          # # Upload output
-          # time s3cmd put $ARCHIVE_ANALYSIS s3://pricing-game/
+          # Upload output
+          time s3cmd put $ARCHIVE_ANALYSIS s3://pricing-game/
 
           # Wipe working directory
           sudo rm -rf $WORKDIR
