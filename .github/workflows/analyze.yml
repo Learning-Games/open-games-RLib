@@ -36,7 +36,10 @@ jobs:
           # Grab experiment outputs
           LEARN_FILENAME=$LEARN_RUNID-learn.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
+
+          # Setup directories
           mkdir experiment
+          mkdir outputs
 
           # Download & unpack learning output
           mkdir extraction
@@ -48,39 +51,26 @@ jobs:
           rm -r extraction
           # End of experiment extraction
 
-          # Prepare outputs directory
-          mkdir outputs
-
-          # Check files
-          ls -alh experiment/
-          ls -alh Rscripts/
-
-
-
-
           # Setup working directory
-          # ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
-          # WORKDIR=~/run/$GITHUB_RUN_ID
-          # JOBDIR=$WORKDIR/job
-          # sudo mkdir -p $WORKDIR $JOBDIR
-          # sudo cp -r . $WORKDIR/
-
-
+          ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
+          WORKDIR=~/run/$GITHUB_RUN_ID
+          sudo mkdir -p $WORKDIR $JOBDIR
+          sudo cp -r . $WORKDIR/
 
           # Run job
-          # docker run -v`pwd`/outputs:/outputs \
-          #   -v$WORKDIR/Rscripts:/Rscripts \
-          #   -v`pwd`/testGame-f1c54fe43a8e4f37b0f3f5891db4a235c71a1d99:/experiment/ \
-          #   --rm \
-          #   ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 \
-          #   R -f asymlearners_4phases.R
+          docker run \
+            -v$WORKDIR/outputs:/outputs \
+            -v$WORKDIR/Rscripts:/Rscripts \
+            -v$WORKDIR/experiment:/experiment \
+            --rm \
+            ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 \
+            R -f /Rscripts/asymlearners_4phases.R
 
           # # Archive output
           # PW=$(pwd)
           # cd $JOBDIR
           # time tar czf $ARCHIVE_ANALYSIS .
           # cd $PW
-          # sudo rm -rf $JOBDIR
 
           # # Upload output
           # time s3cmd put $ARCHIVE_ANALYSIS s3://pricing-game/
