@@ -33,21 +33,39 @@ jobs:
         env:
           LEARN_RUNID: ${{ github.event.inputs.learn-run-id }}
         run: |
-          # Setup working directory
+          # Grab experiment outputs
           LEARN_FILENAME=$LEARN_RUNID-learn.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
-          ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
-          WORKDIR=~/run/$GITHUB_RUN_ID
-          JOBDIR=$WORKDIR/job
-          sudo mkdir -p $WORKDIR $JOBDIR
-          sudo cp -r . $WORKDIR/
-
-          ls -alh $WORKDIR
+          mkdir experiment
 
           # Download & unpack learning output
+          mkdir extraction
           time s3cmd get s3://pricing-game/$LEARN_FILENAME $ARCHIVE_LEARN
+          cd extraction
           tar xzf $ARCHIVE_LEARN
-          ls -alh
+          cd ..
+          mv extraction/*/* experiment/
+          rm -r extraction
+          # End of experiment extraction
+
+          # Prepare outputs directory
+          mkdir outputs
+
+          # Check files
+          ls -alh experiment/
+          ls -alh Rscripts/
+
+
+
+
+          # Setup working directory
+          # ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
+          # WORKDIR=~/run/$GITHUB_RUN_ID
+          # JOBDIR=$WORKDIR/job
+          # sudo mkdir -p $WORKDIR $JOBDIR
+          # sudo cp -r . $WORKDIR/
+
+
 
           # Run job
           # docker run -v`pwd`/outputs:/outputs \
