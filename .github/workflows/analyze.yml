@@ -12,6 +12,7 @@ jobs:
   analyze:
     runs-on: self-hosted-ubuntu-with-docker
 
+    using: "composite"
     steps:
       - uses: actions/checkout@v2
 
@@ -31,7 +32,7 @@ jobs:
       # runner is private anyway.
       - name: Run analysis process
         env:
-          RUNID: ${{ inputs.run-id }}
+          RUNID: ${{inputs.run-id}}
         run: |
           echo RUNID: $RUNID
           # Setup working directory
