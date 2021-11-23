@@ -12,7 +12,6 @@ jobs:
   analyze:
     runs-on: self-hosted-ubuntu-with-docker
 
-    using: "composite"
     steps:
       - uses: actions/checkout@v2
 
@@ -32,9 +31,10 @@ jobs:
       # runner is private anyway.
       - name: Run analysis process
         env:
-          RUNID: ${{inputs.run-id}}
+          RUNID: ${{ github.event.inputs.run-id }}
         run: |
           echo RUNID: $RUNID
+          echo run-id: ${{ github.event.inputs.run-id }}
           # Setup working directory
           LEARN_FILENAME=$RUNID-learn.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
