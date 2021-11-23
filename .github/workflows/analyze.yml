@@ -66,6 +66,9 @@ jobs:
             ghcr.io/learning-games/r:2021-11-23@sha256:9a9b4071d863d3e541ee31162b3a869f9cfe9cd40ada6ee11425bc6fd2c46d21 \
             R -f /Rscripts/asymlearners_4phases.R
 
+          echo Behold, the outputs are...
+          ls -alh $WORKDIR/outputs
+
           # Archive output
           PW=$(pwd)
           cd $WORKDIR/outputs
