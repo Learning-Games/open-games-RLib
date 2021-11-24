@@ -359,7 +359,7 @@ exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetri
     -- ^ For complete reporting of Q-values, how often should values be exported?
       , threshold = 1000 -- NOTE this is a hack, as we avoid stopping the execution too early
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
-    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQL Scenario.configQL parameters
+    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQLNoLearning Scenario.configQLNoLearning parameters
     , initial = Scenario.initialStrat parameters arr1 arr2 obs >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
