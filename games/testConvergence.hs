@@ -351,13 +351,13 @@ exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
 
 -- Configuration of run and export parameters for rematching phase
 exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000
+    { iterations = 100000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
     , outputEveryN = 1
     -- ^ For complete reporting of Q-values, how often should values be exported?
-      , threshold = 100000 -- NOTE this is a hack, as we avoid stopping the execution too early
+      , threshold = 1000 -- NOTE this is a hack, as we avoid stopping the execution too early
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
     , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQLNoLearning Scenario.configQLNoLearning parameters
     , initial = Scenario.initialStrat parameters arr1 arr2 obs >>= Scenario.sequenceL
