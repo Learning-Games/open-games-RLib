@@ -353,7 +353,7 @@ exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
 exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetricLearners.ExportConfig
     { iterations = 100000
     -- ^ how many iterations?
-    , qValueExportMode = ExportAsymmetricLearners.Incremental
+    , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
     , outputEveryN = 1
     -- ^ For complete reporting of Q-values, how often should values be exported?
