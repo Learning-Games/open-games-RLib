@@ -306,7 +306,7 @@ parametersGameRematchingMap explore1 explore2 =
             , (("e3","e2"),p1e3p2e2 explore1 explore2)
             , (("e3","e3"),p1e3p2e3 explore1 explore2)
             , (("e3","e4"),p1e3p2e4 explore1 explore2)
-            , (("e3","e4"),p1e3p2e5 explore1 explore2)]
+            , (("e3","e5"),p1e3p2e5 explore1 explore2)]
 
 rematchIds = [ Scenario.ReMatchType "e3" "e1" True
              , Scenario.ReMatchType "e3" "e2" True
@@ -372,7 +372,7 @@ exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetri
 exportConfigGameRematchingPhase3 name parameters arr1 arr2 obs = ExportAsymmetricLearners.ExportConfig
     { iterations = 1000000000
     -- ^ how many iterations?
-    , qValueExportMode = ExportAsymmetricLearners.Full
+    , qValueExportMode = ExportAsymmetricLearners.Incremental
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
     , outputEveryN = 1
     -- ^ For complete reporting of Q-values, how often should values be exported?
