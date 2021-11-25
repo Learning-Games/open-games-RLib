@@ -43,7 +43,7 @@ jobs:
           sudo cp -r . $WORKDIR/
 
           # Run job
-          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-24 sh -c "stack build -j1 --fast --exec 'game local testGame --skip-git'"
+          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-24 sh -c "stack build -j1 --fast --exec 'game local asymmetricLearners4Phases --skip-git'"
 
           # Archive output
           PW=$(pwd)
