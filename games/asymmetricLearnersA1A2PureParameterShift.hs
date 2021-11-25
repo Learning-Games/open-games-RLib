@@ -381,7 +381,7 @@ rematchIds = [ Scenario.ReMatchType "e11" "e11" True
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 1
+numberOfRuns = 50
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int
@@ -390,7 +390,7 @@ keepOnlyNLastIterations = 100
 
 -- Configuration of run and export parameters for initial learning run
 exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000
+    { iterations = 1000000000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
@@ -428,7 +428,7 @@ exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetri
 
 -- Configuration of run and export parameters for rematching phase
 exportConfigGameRematchingPhase3 name parameters arr1 arr2 obs = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000
+    { iterations = 1000000000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
