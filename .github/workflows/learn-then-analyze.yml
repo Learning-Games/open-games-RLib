@@ -24,7 +24,7 @@ jobs:
       # Remember to update this hash whenever you update your Haskell dependencies in any way
       - name: Pull down image
         run: |
-          time docker pull ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d
+          time docker pull ghcr.io/learning-games/base:2021-11-24
 
       # Docker creates files as owner root (0). That means when the
       # runner, running as github, tries to delete the artifacts, it
@@ -43,7 +43,7 @@ jobs:
           sudo cp -r . $WORKDIR/
 
           # Run job
-          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01@sha256:c3b126b366be45f3ad92b2d73d3117a4170c0f77908c57327c2c15326ec6863d sh -c "stack build -j1 --fast --exec 'game local testGame --skip-git'"
+          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-24 sh -c "stack build -j1 --fast --exec 'game local testGame --skip-git'"
 
           # Archive output
           PW=$(pwd)
@@ -71,7 +71,7 @@ jobs:
       # Remember to update this hash whenever you update your R dependencies in any way
       - name: Pull down image
         run: |
-          time docker pull ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8
+          time docker pull ghcr.io/learning-games/r:2021-11-24
 
       # Docker creates files as owner root (0). That means when the
       # runner, running as github, tries to delete the artifacts, it
@@ -111,7 +111,7 @@ jobs:
             -v$WORKDIR/Rscripts:/Rscripts \
             -v$WORKDIR/experiment:/experiment \
             --rm \
-            ghcr.io/learning-games/r:2021-11-23@sha256:9a9b4071d863d3e541ee31162b3a869f9cfe9cd40ada6ee11425bc6fd2c46d21 \
+            ghcr.io/learning-games/r:2021-11-24 \
             R -f /Rscripts/asymlearners_4phases.R
 
           echo Behold, the outputs are...
