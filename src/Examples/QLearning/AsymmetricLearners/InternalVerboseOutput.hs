@@ -20,7 +20,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.AsymmetricLearners.Internal
+module Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
   where
 
 import           Control.DeepSeq
@@ -42,10 +42,10 @@ import qualified Data.Vector.Sized as SV
 import qualified Engine.Memory as Memory
 import           Engine.OpenGames
 import           Engine.OpticClass
-import           Engine.QLearning
-import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as ExportAsymmetricLearners
+import           Engine.QLearningVerboseOutput
+import qualified Engine.QLearning.ExportAsymmetricLearnersLogReducedVerboseOutput as ExportAsymmetricLearners
 import           Engine.TLL
-import           FastCsv
+import           FastCsvVerboseOutput
 import           GHC.Generics
 import           Path
 import qualified Path.IO as IO
@@ -158,13 +158,13 @@ configQLNoLearning Parameters {..} = ConfigQLearning
 ---------------
 -- Export types
 
-instance FastCsv.BuildCsvField (PriceSpace, PriceSpace) where
+instance FastCsvVerboseOutput.BuildCsvField (PriceSpace, PriceSpace) where
   {-# INLINE buildCsvField #-}
   buildCsvField (PriceSpace {value=p1},PriceSpace {value=p2}) =
     SB.byteString (toShortest p1) <> " " <>
     SB.byteString (toShortest p2)
 
-instance FastCsv.BuildCsvField PriceSpace where
+instance FastCsvVerboseOutput.BuildCsvField PriceSpace where
   buildCsvField (PriceSpace {value=p1}) =
     SB.byteString (toShortest p1)
   {-# INLINE buildCsvField #-}
