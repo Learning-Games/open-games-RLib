@@ -347,12 +347,31 @@ parametersGameRematchingMap explore1 explore2 =
             , (("e54","e54"),p1e4p2e4 explore1 explore2)
             , (("e55","e55"),p1e5p2e5 explore1 explore2)]
 
-rematchIds = [ Scenario.ReMatchType "e3" "e1" True
-             , Scenario.ReMatchType "e3" "e2" True
-             , Scenario.ReMatchType "e3" "e3" True
-             , Scenario.ReMatchType "e3" "e4" True
-             , Scenario.ReMatchType "e3" "e5" True]
-
+rematchIds = [ Scenario.ReMatchType "e11" "e11" True
+             , Scenario.ReMatchType "e12" "e12" True
+             , Scenario.ReMatchType "e13" "e13" True
+             , Scenario.ReMatchType "e14" "e14" True
+             , Scenario.ReMatchType "e15" "e15" True
+             , Scenario.ReMatchType "e21" "e21" True
+             , Scenario.ReMatchType "e22" "e22" True
+             , Scenario.ReMatchType "e23" "e23" True
+             , Scenario.ReMatchType "e24" "e24" True
+             , Scenario.ReMatchType "e25" "e25" True
+             , Scenario.ReMatchType "e31" "e31" True
+             , Scenario.ReMatchType "e32" "e32" True
+             , Scenario.ReMatchType "e33" "e33" True
+             , Scenario.ReMatchType "e34" "e34" True
+             , Scenario.ReMatchType "e35" "e35" True
+             , Scenario.ReMatchType "e41" "e41" True
+             , Scenario.ReMatchType "e42" "e42" True
+             , Scenario.ReMatchType "e43" "e43" True
+             , Scenario.ReMatchType "e44" "e44" True
+             , Scenario.ReMatchType "e45" "e45" True
+             , Scenario.ReMatchType "e51" "e51" True
+             , Scenario.ReMatchType "e52" "e52" True
+             , Scenario.ReMatchType "e53" "e53" True
+             , Scenario.ReMatchType "e54" "e54" True
+             , Scenario.ReMatchType "e55" "e55" True]
 
 -----------------------------------
 -- Fix variables for Run and Export
