@@ -55,3 +55,7 @@ Now push the image to the registry, also updating the date here too:
 Jump to `.github/workflows/learn-then-analyze.yml` and `analyze.yml`
 and update the references to `ghcr.io/learning-games/r:...`. You don't
 need to use the `@sha256...` suffix.
+
+# Patching the R image
+
+    time docker image build Rscripts/ -f r-patch.Dockerfile -t ghcr.io/learning-games/r:2021-11-26
