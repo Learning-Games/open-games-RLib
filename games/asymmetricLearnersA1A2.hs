@@ -159,10 +159,283 @@ parametersMap = fromList [ ("e1",parametersGame1)
 
 expIds = keys parametersMap
 
+---------------------------
+-- Matches for experiment 1
+
+
+p1e1p2e1 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e1p2e1 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.1
+  , pA2 = 2.1
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+p1e1p2e2 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e1p2e2 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.1
+  , pA2 = 2.2
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+p1e1p2e3 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e1p2e3 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.1
+  , pA2 = 2.3
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+p1e1p2e4 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e1p2e4 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.1
+  , pA2 = 2.4
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+p1e1p2e5 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e1p2e5 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.1
+  , pA2 = 2.5
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+---------------------------
+-- Matches for experiment 2
+
+
+p1e2p2e1 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e2p2e1 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.2
+  , pA2 = 2.1
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+p1e2p2e2 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e2p2e2 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.2
+  , pA2 = 2.2
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+p1e2p2e3 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e2p2e3 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.2
+  , pA2 = 2.3
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+p1e2p2e4 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e2p2e4 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.2
+  , pA2 = 2.4
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+p1e2p2e5 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e2p2e5 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.2
+  , pA2 = 2.5
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
 
 
 --------------------
--- Symmetric matches
+-- Matches for experiment 3
 
 p1e3p2e1 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
 p1e3p2e1 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
@@ -298,22 +571,336 @@ p1e3p2e5 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
 
 
 
+
+--------------------
+-- Matches for experiment 4
+
+p1e4p2e1 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e4p2e1 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.1
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+p1e4p2e2 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e4p2e2 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.2
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+p1e4p2e3 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e4p2e3 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.3
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+p1e4p2e4 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e4p2e4 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.4
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+p1e4p2e5 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e4p2e5 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.5
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+--------------------
+-- Matches for experiment 5
+
+p1e5p2e1 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e5p2e1 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.1
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+p1e5p2e2 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e5p2e2 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.2
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+p1e5p2e3 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e5p2e3 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.3
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+p1e5p2e4 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e5p2e4 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.4
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+p1e5p2e5 :: Double -> Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e5p2e5 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = explore1
+  , pInitialExploreRate2 = explore2
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2.3
+  , pA2 = 2.5
+  , pA0 = 0
+  , pC1 = 1.3
+  , pC2 = 1.3
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = gEnv1
+  , pGeneratorEnv2 = gEnv2
+  , pGeneratorObs1 = gObs1
+  , pGeneratorObs2 = gObs2
+  }
+
+
+
 ----------------
 -- Create the map which contains all the parameterizations
 -- NOTE: the keys have to follow the pattern "exey"
 parametersGameRematchingMap explore1 explore2 =
-   fromList [ (("e3","e1"),p1e3p2e1 explore1 explore2)
+   fromList [ (("e1","e1"),p1e1p2e1 explore1 explore2)
+            , (("e1","e2"),p1e1p2e2 explore1 explore2)
+            , (("e1","e3"),p1e1p2e3 explore1 explore2)
+            , (("e1","e4"),p1e1p2e4 explore1 explore2)
+            , (("e1","e5"),p1e1p2e5 explore1 explore2)
+            , (("e2","e1"),p1e2p2e1 explore1 explore2)
+            , (("e2","e2"),p1e2p2e2 explore1 explore2)
+            , (("e2","e3"),p1e2p2e3 explore1 explore2)
+            , (("e2","e4"),p1e2p2e4 explore1 explore2)
+            , (("e2","e5"),p1e2p2e5 explore1 explore2)
+            , (("e3","e1"),p1e3p2e1 explore1 explore2)
             , (("e3","e2"),p1e3p2e2 explore1 explore2)
             , (("e3","e3"),p1e3p2e3 explore1 explore2)
             , (("e3","e4"),p1e3p2e4 explore1 explore2)
-            , (("e3","e5"),p1e3p2e5 explore1 explore2)]
+            , (("e3","e5"),p1e3p2e5 explore1 explore2)
+            , (("e4","e1"),p1e4p2e1 explore1 explore2)
+            , (("e4","e2"),p1e4p2e2 explore1 explore2)
+            , (("e4","e3"),p1e4p2e3 explore1 explore2)
+            , (("e4","e4"),p1e4p2e4 explore1 explore2)
+            , (("e4","e5"),p1e4p2e5 explore1 explore2)
+            , (("e5","e1"),p1e5p2e1 explore1 explore2)
+            , (("e5","e2"),p1e5p2e2 explore1 explore2)
+            , (("e5","e3"),p1e5p2e3 explore1 explore2)
+            , (("e5","e4"),p1e5p2e4 explore1 explore2)
+            , (("e5","e5"),p1e5p2e5 explore1 explore2)
+            ]
 
-rematchIds = [ Scenario.ReMatchType "e3" "e1" True
+rematchIds = [ Scenario.ReMatchType "e1" "e1" True
+             , Scenario.ReMatchType "e1" "e2" True
+             , Scenario.ReMatchType "e1" "e3" True
+             , Scenario.ReMatchType "e1" "e4" True
+             , Scenario.ReMatchType "e1" "e5" True
+             , Scenario.ReMatchType "e2" "e1" True
+             , Scenario.ReMatchType "e2" "e2" True
+             , Scenario.ReMatchType "e2" "e3" True
+             , Scenario.ReMatchType "e2" "e4" True
+             , Scenario.ReMatchType "e2" "e5" True
+             , Scenario.ReMatchType "e3" "e1" True
              , Scenario.ReMatchType "e3" "e2" True
              , Scenario.ReMatchType "e3" "e3" True
              , Scenario.ReMatchType "e3" "e4" True
-             , Scenario.ReMatchType "e3" "e5" True]
-
+             , Scenario.ReMatchType "e3" "e5" True
+             , Scenario.ReMatchType "e4" "e1" True
+             , Scenario.ReMatchType "e4" "e2" True
+             , Scenario.ReMatchType "e4" "e3" True
+             , Scenario.ReMatchType "e4" "e4" True
+             , Scenario.ReMatchType "e4" "e5" True
+             , Scenario.ReMatchType "e5" "e1" True
+             , Scenario.ReMatchType "e5" "e2" True
+             , Scenario.ReMatchType "e5" "e3" True
+             , Scenario.ReMatchType "e5" "e4" True
+             , Scenario.ReMatchType "e5" "e5" True]
 
 -----------------------------------
 -- Fix variables for Run and Export
@@ -323,7 +910,7 @@ rematchIds = [ Scenario.ReMatchType "e3" "e1" True
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 50
+numberOfRuns = 250
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int
