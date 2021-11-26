@@ -235,6 +235,11 @@ In the repo main directory, run the following, with the date changed to the curr
 
     docker image build Rscripts/ -f r.Dockerfile -t ghcr.io/learning-games/r:2021-11-23
 
+NOTE: Might need to use the patched version
+
+    docker image build Rscripts/ -f r-patch.Dockerfile -t ghcr.io/learning-games/r:2021-11-23
+
+
 The date serves as a tag for this version of the image.
 
 Login to the GitHub registry via:
