@@ -215,3 +215,41 @@ Note the relevant folder and the `Main.hs` it contains
 Command to benchmark a specific game inside that folder:
 
     stack bench --file-watch --ba PDDeterministicPlayer --profile
+
+
+# Remote workflow
+
+0. Update the R image and push it
+
+1. Update the Haskell image and push it
+
+2. Update the workflow files.
+   0. Include the correct image information
+   1. Include the correct experiment to be run
+   2. NOTE: both yaml files may need to be updated
+
+
+## How to update the R image
+
+In the repo main directory, run the following, with the date changed to the current date:
+
+    docker image build Rscripts/ -f r.Dockerfile -t ghcr.io/learning-games/r:2021-11-23
+
+The date serves as a tag for this version of the image.
+
+Login to the GitHub registry via:
+
+    docker logout ghcr.io # Clears bad state. This has bitten me once.
+    docker login ghcr.io
+
+For your password, it should be a GitHub Developer token
+(https://github.com/settings/tokens) with access to write:packages
+(which implies read:packages).
+
+Now push the image to the registry, also updating the date here too:
+
+    docker push ghcr.io/learning-games/r:2021-11-23
+
+Jump to `.github/workflows/learn-then-analyze.yml` and `analyze.yml`
+and update the references to `ghcr.io/learning-games/r:...`. You don't
+need to use the `@sha256...` suffix.
