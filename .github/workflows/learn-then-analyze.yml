@@ -21,11 +21,6 @@ jobs:
       - name: Try to login to docker hub registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      # Remember to update this hash whenever you update your Haskell dependencies in any way
-      - name: Pull down image
-        run: |
-          time docker pull ghcr.io/learning-games/base:2021-11-26
-
       # Docker creates files as owner root (0). That means when the
       # runner, running as github, tries to delete the artifacts, it
       # fails. So we create a fresh copy of the current directory
@@ -43,7 +38,7 @@ jobs:
           sudo cp -r . $WORKDIR/
 
           # Run job
-          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-26 sh -c "stack build -j1 --fast --exec 'game local asymmetricLearners4Phases --skip-git'"
+          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01 sh -c "stack build -j1 --fast --exec 'game local asymmetricLearners4Phases --skip-git'"
 
           # Archive output
           PW=$(pwd)
