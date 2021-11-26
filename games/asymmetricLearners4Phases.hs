@@ -402,7 +402,7 @@ exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
     -- ^ For complete reporting of Q-values, how often should values be exported?
       , threshold = 1000000
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
-    , mapStagesM_ = Scenario.mapStagesMFinalResult parameters
+    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQL Scenario.configQL parameters
     , initial = Scenario.initialStrat parameters (Scenario.initialArray1 parameters) (Scenario.initialArray2 parameters) (Scenario.randomInitialObservation parameters) >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
@@ -421,7 +421,7 @@ exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetri
     -- ^ For complete reporting of Q-values, how often should values be exported?
       , threshold = 100000 -- NOTE this is a hack, as we avoid stopping the execution too early
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
-    , mapStagesM_ = Scenario.mapStagesMFinalResult parameters
+    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQL Scenario.configQL parameters
     , initial = Scenario.initialStrat parameters arr1 arr2 obs >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
@@ -440,7 +440,7 @@ exportConfigGameRematchingPhase3 name parameters arr1 arr2 obs = ExportAsymmetri
     -- ^ For complete reporting of Q-values, how often should values be exported?
       , threshold = 100000
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
-    , mapStagesM_ = Scenario.mapStagesMFinalResult parameters
+    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQL Scenario.configQL parameters
     , initial = Scenario.initialStrat parameters arr1 arr2 obs >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
@@ -458,7 +458,7 @@ exportConfigGameRematchingPhase4 name parameters arr1 arr2 obs = ExportAsymmetri
     -- ^ For complete reporting of Q-values, how often should values be exported?
       , threshold = 100000 -- NOTE this is a hack, as we avoid stopping the execution too early
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
-    , mapStagesM_ = Scenario.mapStagesMFinalResult parameters
+    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQL Scenario.configQL parameters
     , initial = Scenario.initialStrat parameters arr1 arr2 obs >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
