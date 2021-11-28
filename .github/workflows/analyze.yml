@@ -21,7 +21,7 @@ jobs:
       # Remember to update this hash whenever you update your R dependencies in any way
       - name: Pull down image
         run: |
-          time docker pull ghcr.io/learning-games/r:2021-11-26@sha256:09559c6bbb4b00f68076c79839aea8a9ef6e22020770566a40aadcb1115d4d78
+          time docker pull ghcr.io/learning-games/r:2021-11-28@sha256:46bd2520e4578407160f4de50d1dc8c0ace7577777968520945e7ac3351606a0
 
       # Docker creates files as owner root (0). That means when the
       # runner, running as github, tries to delete the artifacts, it
@@ -65,8 +65,8 @@ jobs:
             -v$WORKDIR/Rscripts:/Rscripts \
             -v$WORKDIR/experiment:/experiment \
             --rm \
-            ghcr.io/learning-games/r:2021-11-26@sha256:09559c6bbb4b00f68076c79839aea8a9ef6e22020770566a40aadcb1115d4d78 \
-            R -f /Rscripts/asymlearners_4phases.R
+            ghcr.io/learning-games/r:2021-11-28@sha256:46bd2520e4578407160f4de50d1dc8c0ace7577777968520945e7ac3351606a0 \
+            R -f /Rscripts/asymlearners_robustness.R
 
           echo Behold, the outputs are...
           ls -alh $WORKDIR/outputs
