@@ -108,7 +108,8 @@ jobs:
             -v$WORKDIR/Rscripts:/Rscripts \
             -v$WORKDIR/experiment:/experiment \
             --rm \
-            ghcr.io/learning-games/r:2021-11-26 \
+            # NOTE update image here
+            ghcr.io/learning-games/r:2021-11-28 \
             # NOTE Update R file here
             R -f /Rscripts/asymlearners_robustness.R
 
