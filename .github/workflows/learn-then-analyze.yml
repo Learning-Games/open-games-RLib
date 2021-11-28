@@ -67,6 +67,7 @@ jobs:
       # Remember to update this hash whenever you update your R dependencies in any way
       - name: Pull down image
         run: |
+          # NOTE: Update R image here
           time docker pull ghcr.io/learning-games/r:2021-11-28@sha256:46bd2520e4578407160f4de50d1dc8c0ace7577777968520945e7ac3351606a0
 
       # Docker creates files as owner root (0). That means when the
@@ -108,7 +109,8 @@ jobs:
             -v$WORKDIR/experiment:/experiment \
             --rm \
             ghcr.io/learning-games/r:2021-11-26 \
-            R -f /Rscripts/asymlearners_4phases.R
+            # NOTE Update R file here
+            R -f /Rscripts/asymlearners_robustness.R
 
           echo Behold, the outputs are...
           ls -alh $WORKDIR/outputs
