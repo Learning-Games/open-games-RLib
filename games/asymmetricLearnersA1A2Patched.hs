@@ -849,22 +849,7 @@ p1e5p2e5 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
 -- Create the map which contains all the parameterizations
 -- NOTE: the keys have to follow the pattern "exey"
 parametersGameRematchingMap explore1 explore2 =
-   fromList [ (("e1","e1"),p1e1p2e1 explore1 explore2)
-            , (("e1","e2"),p1e1p2e2 explore1 explore2)
-            , (("e1","e3"),p1e1p2e3 explore1 explore2)
-            , (("e1","e4"),p1e1p2e4 explore1 explore2)
-            , (("e1","e5"),p1e1p2e5 explore1 explore2)
-            , (("e2","e1"),p1e2p2e1 explore1 explore2)
-            , (("e2","e2"),p1e2p2e2 explore1 explore2)
-            , (("e2","e3"),p1e2p2e3 explore1 explore2)
-            , (("e2","e4"),p1e2p2e4 explore1 explore2)
-            , (("e2","e5"),p1e2p2e5 explore1 explore2)
-            , (("e3","e1"),p1e3p2e1 explore1 explore2)
-            , (("e3","e2"),p1e3p2e2 explore1 explore2)
-            , (("e3","e3"),p1e3p2e3 explore1 explore2)
-            , (("e3","e4"),p1e3p2e4 explore1 explore2)
-            , (("e3","e5"),p1e3p2e5 explore1 explore2)
-            , (("e4","e1"),p1e4p2e1 explore1 explore2)
+   fromList [ (("e4","e1"),p1e4p2e1 explore1 explore2)
             , (("e4","e2"),p1e4p2e2 explore1 explore2)
             , (("e4","e3"),p1e4p2e3 explore1 explore2)
             , (("e4","e4"),p1e4p2e4 explore1 explore2)
@@ -876,22 +861,7 @@ parametersGameRematchingMap explore1 explore2 =
             , (("e5","e5"),p1e5p2e5 explore1 explore2)
             ]
 
-rematchIds = [ Scenario.ReMatchType "e1" "e1" True
-             , Scenario.ReMatchType "e1" "e2" True
-             , Scenario.ReMatchType "e1" "e3" True
-             , Scenario.ReMatchType "e1" "e4" True
-             , Scenario.ReMatchType "e1" "e5" True
-             , Scenario.ReMatchType "e2" "e1" True
-             , Scenario.ReMatchType "e2" "e2" True
-             , Scenario.ReMatchType "e2" "e3" True
-             , Scenario.ReMatchType "e2" "e4" True
-             , Scenario.ReMatchType "e2" "e5" True
-             , Scenario.ReMatchType "e3" "e1" True
-             , Scenario.ReMatchType "e3" "e2" True
-             , Scenario.ReMatchType "e3" "e3" True
-             , Scenario.ReMatchType "e3" "e4" True
-             , Scenario.ReMatchType "e3" "e5" True
-             , Scenario.ReMatchType "e4" "e1" True
+rematchIds = [ Scenario.ReMatchType "e4" "e1" True
              , Scenario.ReMatchType "e4" "e2" True
              , Scenario.ReMatchType "e4" "e3" True
              , Scenario.ReMatchType "e4" "e4" True
