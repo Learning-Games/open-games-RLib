@@ -164,3 +164,8 @@ TSWLatexianTemp*
 
 # DS Store
 .DS_Store
+
+#Haskell compilation files
+
+*.hi
+*.o
