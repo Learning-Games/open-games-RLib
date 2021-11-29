@@ -27,6 +27,7 @@ library:
     - Engine.QLearning.ExportAsymmetricLearnersLog
     - Engine.QLearning.ExportAsymmetricLearnersLogReduced
     - Engine.QLearning.ExportAsymmetricLearnersLogReducedVerboseOutput
+    - Engine.QLearning.ExportAsymmetricLearnersOwnPrice
     - Engine.QLearning.ExportVerbose
     - Engine.QLearningSimple
     - Engine.TLL

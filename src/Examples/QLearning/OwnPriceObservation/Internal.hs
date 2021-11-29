@@ -43,7 +43,7 @@ import qualified Engine.Memory as Memory
 import           Engine.OpenGames
 import           Engine.OpticClass
 import           Engine.QLearning
-import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as ExportAsymmetricLearners
+import qualified Engine.QLearning.ExportAsymmetricLearnersOwnPrice as ExportAsymmetricLearners
 import           Engine.TLL
 import           FastCsv
 import           GHC.Generics
@@ -336,11 +336,11 @@ randomInitialObservation par@Parameters{pGeneratorObs1, pGeneratorObs2} =
 initialStrat :: Parameters
              -> IO (QTable Player1N Observation PriceSpace)
              -> IO (QTable Player2N Observation PriceSpace)
-             -> Observation PriceSpace
+             -> (Observation PriceSpace, Observation PriceSpace)
              ->  M (List '[M (PriceSpace, Env Player1N Observation PriceSpace), M (PriceSpace, Env Player2N Observation PriceSpace)])
-initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2} initialArr1 initialArr2 initialObs= do
-  e1 <- initialEnv1 par initialArr1 initialObs
-  e2 <- initialEnv2 par initialArr2 initialObs
+initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2} initialArr1 initialArr2 (initialObs1, initialObs2)= do
+  e1 <- initialEnv1 par initialArr1 initialObs1
+  e2 <- initialEnv2 par initialArr2 initialObs2
   pure
     (pure (samplePopulation_ (actionSpace1 par) pGeneratorObs1, e1) ::-
      pure (samplePopulation_ (actionSpace2 par) pGeneratorObs2, e2) ::-
