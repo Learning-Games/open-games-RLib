@@ -42,6 +42,8 @@ library:
     - Examples.Bayesian
     - Examples.Decision
     - Examples.SequentialMoves
+    - Examples.QLearning.OwnPriceObservation.Internal
+    - Examples.QLearning.OwnPriceObservation3Phases
     - Examples.QLearning.AsymmetricLearners.Internal
     - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
     - Examples.QLearning.AsymmetricLearners
