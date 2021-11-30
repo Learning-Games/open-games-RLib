@@ -15,7 +15,6 @@ import qualified Examples.QLearning.OwnPriceObservation3Phases as Scenario
 -------------------------
 -- Player parameters for learning phase
 -- Game with low costs
--- Denoted as e1
 parametersGame1 :: StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
 parametersGame1 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   { pKsi = 0.1
