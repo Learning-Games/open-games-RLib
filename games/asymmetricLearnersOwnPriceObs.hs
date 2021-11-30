@@ -15,6 +15,7 @@ import qualified Examples.QLearning.OwnPriceObservation3Phases as Scenario
 -------------------------
 -- Player parameters for learning phase
 -- Game with low costs
+-- Denoted as e1
 parametersGame1 :: StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
 parametersGame1 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   { pKsi = 0.1
@@ -489,37 +490,70 @@ p1e8p2e8 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
 parametersGameRematchingMap explore1 explore2 =
    fromList [ (("e11","e12"),p1e1p2e1 explore1 explore2)
             , (("e12","e11"),p1e1p2e1 explore1 explore2)
+            , (("e11","e11"),p1e1p2e1 explore1 explore2)
+            , (("e12","e12"),p1e1p2e1 explore1 explore2)
             , (("e21","e22"),p1e2p2e2 explore1 explore2)
             , (("e22","e21"),p1e2p2e2 explore1 explore2)
+            , (("e21","e21"),p1e2p2e2 explore1 explore2)
+            , (("e22","e22"),p1e2p2e2 explore1 explore2)
             , (("e31","e32"),p1e3p2e3 explore1 explore2)
             , (("e32","e31"),p1e3p2e3 explore1 explore2)
+            , (("e31","e31"),p1e3p2e3 explore1 explore2)
+            , (("e32","e32"),p1e3p2e3 explore1 explore2)
             , (("e41","e42"),p1e4p2e4 explore1 explore2)
             , (("e42","e41"),p1e4p2e4 explore1 explore2)
+            , (("e41","e41"),p1e4p2e4 explore1 explore2)
+            , (("e42","e42"),p1e4p2e4 explore1 explore2)
             , (("e51","e52"),p1e5p2e5 explore1 explore2)
             , (("e52","e51"),p1e5p2e5 explore1 explore2)
+            , (("e51","e51"),p1e5p2e5 explore1 explore2)
+            , (("e52","e52"),p1e5p2e5 explore1 explore2)
             , (("e61","e62"),p1e6p2e6 explore1 explore2)
             , (("e62","e61"),p1e6p2e6 explore1 explore2)
+            , (("e61","e61"),p1e6p2e6 explore1 explore2)
+            , (("e62","e62"),p1e6p2e6 explore1 explore2)
             , (("e71","e72"),p1e7p2e7 explore1 explore2)
             , (("e72","e71"),p1e7p2e7 explore1 explore2)
+            , (("e71","e71"),p1e7p2e7 explore1 explore2)
+            , (("e72","e72"),p1e7p2e7 explore1 explore2)
             , (("e81","e82"),p1e8p2e8 explore1 explore2)
-            , (("e82","e81"),p1e8p2e8 explore1 explore2)]
+            , (("e82","e81"),p1e8p2e8 explore1 explore2)
+            , (("e81","e81"),p1e8p2e8 explore1 explore2)
+            , (("e82","e82"),p1e8p2e8 explore1 explore2)]
+
 
 rematchIds = [ Scenario.ReMatchType "e11" "e12" True
              , Scenario.ReMatchType "e12" "e11" True
+             , Scenario.ReMatchType "e11" "e11" True
+             , Scenario.ReMatchType "e12" "e12" True
              , Scenario.ReMatchType "e21" "e22" True
              , Scenario.ReMatchType "e22" "e21" True
+             , Scenario.ReMatchType "e21" "e21" True
+             , Scenario.ReMatchType "e22" "e22" True
              , Scenario.ReMatchType "e31" "e32" True
              , Scenario.ReMatchType "e32" "e31" True
+             , Scenario.ReMatchType "e31" "e31" True
+             , Scenario.ReMatchType "e32" "e32" True
              , Scenario.ReMatchType "e41" "e42" True
              , Scenario.ReMatchType "e42" "e41" True
+             , Scenario.ReMatchType "e41" "e41" True
+             , Scenario.ReMatchType "e42" "e42" True
              , Scenario.ReMatchType "e51" "e52" True
              , Scenario.ReMatchType "e52" "e51" True
+             , Scenario.ReMatchType "e51" "e51" True
+             , Scenario.ReMatchType "e52" "e52" True
              , Scenario.ReMatchType "e61" "e62" True
              , Scenario.ReMatchType "e62" "e61" True
+             , Scenario.ReMatchType "e61" "e61" True
+             , Scenario.ReMatchType "e62" "e62" True
              , Scenario.ReMatchType "e71" "e72" True
              , Scenario.ReMatchType "e72" "e71" True
+             , Scenario.ReMatchType "e71" "e71" True
+             , Scenario.ReMatchType "e72" "e72" True
              , Scenario.ReMatchType "e81" "e82" True
-             , Scenario.ReMatchType "e82" "e81" True]
+             , Scenario.ReMatchType "e82" "e81" True
+             , Scenario.ReMatchType "e81" "e81" True
+             , Scenario.ReMatchType "e82" "e82" True]
 
 
 -----------------------------------
@@ -539,7 +573,7 @@ keepOnlyNLastIterations = 100
 
 -- Configuration of run and export parameters for initial learning run
 exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000
+    { iterations = 100
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
@@ -593,8 +627,6 @@ exportConfigGameRematchingPhase3 name parameters arr1 arr2 obs = ExportAsymmetri
     , runName = name
     , players = 2
     }
-
-
 
 ----------------
 -- Main run file
