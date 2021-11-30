@@ -19,7 +19,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Try to login to docker hub registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: |
+          docker logout ghcr.io
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       # Docker creates files as owner root (0). That means when the
       # runner, running as github, tries to delete the artifacts, it
