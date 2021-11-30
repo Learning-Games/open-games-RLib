@@ -1043,3 +1043,29 @@ csvParameters par = encodeDefaultOrderedByName  [exportParameters par]
 
 csvSeeds :: Parameters -> L.ByteString
 csvSeeds par = encodeDefaultOrderedByName  [exportSeeds par]
+
+parametersGame1 :: Parameters
+parametersGame1  = Parameters
+  { pKsi = 0.1
+  , pBeta =  0.000004
+  , pInitialExploreRate1 = ((exp 1) ** 0)
+  , pInitialExploreRate2 = ((exp 1) ** 0)
+  , pBertrandPrice1 = 1.47
+  , pBertrandPrice2 = 1.47
+  , pMonopolyPrice1 = 2.62
+  , pMonopolyPrice2 = 2.62
+  , pGamma = 0.95
+  , pLearningRate = 0.15
+  , pMu = 0.25
+  , pA1 = 2
+  , pA2 = 2
+  , pA0 = 0
+  , pC1 = 1
+  , pC2 = 1
+  , pM1 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 19 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pGeneratorEnv1 = mkStdGen 1
+  , pGeneratorEnv2 = mkStdGen 1
+  , pGeneratorObs1 = mkStdGen 1
+  , pGeneratorObs2 = mkStdGen 1
+  }

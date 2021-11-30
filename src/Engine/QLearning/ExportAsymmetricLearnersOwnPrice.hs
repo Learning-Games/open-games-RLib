@@ -285,7 +285,6 @@ data State n o a = State
 -- | Dump the complete set of possible indices for player 1 to the QTable.
 writeStateActionIndex1 ::
      ( BuildCsvField action
-     , BuildCsvField (action, action)
      , MonadUnliftIO m1
      , RIO.MonadThrow m1
      , Ix (Memory.Vector n (o (Idx action)))
@@ -309,9 +308,8 @@ writeStateActionIndex1 ExportConfig {..} runNo initial' = do
             liftIO
               (V.sequence_
                   [ writeRow
-                    StateActionIndex' {state = (player1, player2), action, index = i}
+                    StateActionIndex' {state = player1, action, index = i}
                   | player1 <- population ctable1
-                  , player2 <- population ctable2
                   , action <- population ctable1
                   , let i =
                           Ix.index
@@ -325,7 +323,6 @@ writeStateActionIndex1 ExportConfig {..} runNo initial' = do
 -- | Dump the complete set of possible indices for player 2 to the QTable.
 writeStateActionIndex2 ::
      ( BuildCsvField action
-     , BuildCsvField (action, action)
      , MonadUnliftIO m1
      , RIO.MonadThrow m1
      , Ix (Memory.Vector n (o (Idx action)))
@@ -349,9 +346,8 @@ writeStateActionIndex2 ExportConfig {..} runNo  initial' = do
             liftIO
               (V.sequence_
                   [ writeRow
-                    StateActionIndex' {state = (player1, player2), action, index = i}
-                  | player1 <- population ctable1
-                  , player2 <- population ctable2
+                    StateActionIndex' {state =  player2, action, index = i}
+                  | player2 <- population ctable2
                   , action <- population ctable2
                   , let i =
                           Ix.index
