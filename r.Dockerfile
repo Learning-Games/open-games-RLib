@@ -20,4 +20,4 @@ RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
 ENV LANG en_US.UTF-8
 
 RUN R --version && \
-    R -e 'install.packages(c("stringr","network","sna","ggnetwork","data.table","xtable", "ggplot2", "latex2exp"))'
+    R -e 'install.packages(c("stringr","network","sna","ggnetwork","data.table","xtable", "ggplot2", "latex2exp","patchwork"))'
