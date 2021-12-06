@@ -67,7 +67,7 @@ jobs:
             -v$WORKDIR/Rscripts:/Rscripts \
             -v$WORKDIR/experiment:/experiment \
             --rm \
-            ghcr.io/learning-games/r:2021-12-06-chris \
+            ghcr.io/learning-games/r:2021-12-07 \
             R -f /Rscripts/asymlearners_robustness.R
 
           echo Behold, the outputs are...
