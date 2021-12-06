@@ -18,7 +18,7 @@ jobs:
       - name: Try to login to docker hub registry
         run: |
           docker logout ghcr.io
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.THE_GITHUB_ACCESS_TOKEN }}" | docker login ghcr.io -u ${{ secrets.THE_GITHUB_USERNAME }} --password-stdin
 
       # Remember to update this hash whenever you update your R dependencies in any way
       - name: Pull down image
