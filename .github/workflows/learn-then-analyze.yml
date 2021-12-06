@@ -12,14 +12,11 @@ on:
 
 jobs:
   learn:
-    runs-on: self-hosted-ubuntu-with-docker
+    runs-on: self-hosted
     timeout-minutes: 1440
 
     steps:
       - uses: actions/checkout@v2
-
-      - name: Try to login to docker hub registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       # Docker creates files as owner root (0). That means when the
       # runner, running as github, tries to delete the artifacts, it
@@ -61,15 +58,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Try to login to docker hub registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      # Remember to update this hash whenever you update your R dependencies in any way
-      - name: Pull down image
-        run: |
-          # NOTE: Update R image here
-          time docker pull ghcr.io/learning-games/r:2021-11-28@sha256:46bd2520e4578407160f4de50d1dc8c0ace7577777968520945e7ac3351606a0
-
       # Docker creates files as owner root (0). That means when the
       # runner, running as github, tries to delete the artifacts, it
       # fails. So we create a fresh copy of the current directory
@@ -109,7 +97,7 @@ jobs:
             -v$WORKDIR/experiment:/experiment \
             --rm \
             # NOTE update image here
-            ghcr.io/learning-games/r:2021-11-28 \
+            ghcr.io/learning-games/r:2021-12-06-chris \
             # NOTE Update R file here
             R -f /Rscripts/asymlearners_robustness.R
 
