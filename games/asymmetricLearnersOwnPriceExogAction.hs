@@ -142,7 +142,7 @@ exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
     , initial = Scenario.initialStrat parameters (Scenario.initialArray1 parameters) (Scenario.initialArray2 parameters) (Scenario.randomInitialObservation parameters) >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
-    , mkObservation = \a b -> Scenario.Obs (a, b)
+    , mkObservation = Scenario.Obs
     , runName = name
     , players = 2
     }
@@ -161,7 +161,7 @@ exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetri
     , initial = Scenario.initialStrat parameters arr1 arr2 obs >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
-    , mkObservation = \a b -> Scenario.Obs (a, b)
+    , mkObservation = Scenario.Obs
     , runName = name
     , players = 2
     }
