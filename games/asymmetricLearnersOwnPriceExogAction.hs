@@ -109,9 +109,9 @@ rematchIds = zip lsRematchKeys (lsRepeatedValues par)
         -- NOTE setting 0 0 to get access to the keys
         lsRematchKeys = fmap rematchIdsMap (keys $ parametersGameRematchingMap 0 0)
         -- ^ list of all relevant keys
-        lsRepeatedValues par = (listPrices2 $ par gen1 gen1 gen1 gen1)
+        lsRepeatedValues par = concat $ replicate 8 (listPrices2 $ par gen1 gen1 gen1 gen1)
         -- ^ create 8 times the same list with the pricevalues
-        par = (parametersGameRematchingMap 0 0) ! ("e1","e1",1 :: Int)
+        par = (parametersGameRematchingMap 0 0) ! ("e7","e7",1 :: Int)
         gen1 = mkStdGen 1
 
 
