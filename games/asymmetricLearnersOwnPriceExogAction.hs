@@ -14,6 +14,7 @@ import qualified Examples.QLearning.OwnPriceObservationExogAction as Scenario
 
 -- This experiment analyzes the exploitation phase after convergence, where player1 continues with his last move and player 2 gets manually put to another move
 -- This experiment consider only the own price
+-- This experiment only considers one price
 
 -------------------------
 -- Fix variables for Game
@@ -122,7 +123,7 @@ rematchIds = zip lsRematchKeys (lsRepeatedValues par)
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 2
+numberOfRuns = 250
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int
@@ -130,7 +131,7 @@ keepOnlyNLastIterations = 100
 
 -- Configuration of run and export parameters for initial learning run
 exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000
+    { iterations = 1000000000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?

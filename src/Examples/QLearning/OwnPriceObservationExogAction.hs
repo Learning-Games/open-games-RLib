@@ -19,6 +19,7 @@ module Examples.QLearning.OwnPriceObservationExogAction
   , Observation(..)
   , Parameters(..)
   , ReMatchType(..)
+  , ReMatchTypeExog(..)
   ) where
 
 import           Examples.QLearning.OwnPriceObservation.Internal
