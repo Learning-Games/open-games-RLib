@@ -8,7 +8,7 @@ import           System.Random
 
 
 import           Engine.QLearning (population)
-import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as ExportAsymmetricLearners
+import qualified Engine.QLearning.ExportAsymmetricLearnersOwnPrice as ExportAsymmetricLearners
 import qualified Examples.QLearning.OwnPriceObservationExogAction as Scenario
 
 
