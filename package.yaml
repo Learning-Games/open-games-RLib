@@ -44,6 +44,7 @@ library:
     - Examples.Decision
     - Examples.SequentialMoves
     - Examples.QLearning.OwnPriceObservation.Internal
+    - Examples.QLearning.OwnPriceObservationExogAction
     - Examples.QLearning.OwnPriceObservation3Phases
     - Examples.QLearning.AsymmetricLearners.Internal
     - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
