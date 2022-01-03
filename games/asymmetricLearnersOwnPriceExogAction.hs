@@ -53,10 +53,7 @@ parametersGame7 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
 -- NOTE Keys have to follow the pattern ei
 parametersMap = fromList [("e7",parametersGame7)]
 
-
 expIds = keys parametersMap
-
-
 
 --------------------
 -- Symmetric matches
@@ -150,7 +147,7 @@ exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
 
 -- Configuration of run and export parameters for rematching phase
 exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000
+    { iterations = 100
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
