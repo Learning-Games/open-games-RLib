@@ -53,7 +53,7 @@ jobs:
   analyze:
     needs: learn
 
-    runs-on: self-hosted-ubuntu-with-docker
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v2
@@ -91,15 +91,7 @@ jobs:
           sudo cp -r . $WORKDIR/
 
           # Run job
-          docker run \
-            -v$WORKDIR/outputs:/outputs \
-            -v$WORKDIR/Rscripts:/Rscripts \
-            -v$WORKDIR/experiment:/experiment \
-            --rm \
-            # NOTE update image here
-            ghcr.io/learning-games/r:2021-12-07 \
-            # NOTE Update R file here
-            R -f /Rscripts/asymlearners_robustness.R
+          docker run -v$WORKDIR/outputs:/outputs -v$WORKDIR/Rscripts:/Rscripts -v$WORKDIR/experiment:/experiment --rm ghcr.io/learning-games/r:2021-12-07 R -f /Rscripts/asymlearners_robustness.R
 
           echo Behold, the outputs are...
           ls -alh $WORKDIR/outputs
