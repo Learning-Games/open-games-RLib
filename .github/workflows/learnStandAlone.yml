@@ -12,7 +12,7 @@ on:
 
 jobs:
   learn:
-    runs-on: runner-ubuntu-fast
+    runs-on: self-hosted
     timeout-minutes: 1440
 
     steps:
