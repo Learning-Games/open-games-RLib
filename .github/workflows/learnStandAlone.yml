@@ -36,7 +36,7 @@ jobs:
 
           # Run job
           # NOTE Update information on game here
-          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2022-01-05v2 sh -c "stack build -j1 --fast --exec 'game local asymmetricLearners3PhasesRobustnessExplorationConvergence --skip-git'"
+          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2022-01-05v2 sh -c "stack build -j1 --fast --exec 'game local cournot.hs --skip-git'"
 
           # Archive output
           PW=$(pwd)
