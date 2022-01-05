@@ -224,7 +224,7 @@ Command to benchmark a specific game inside that folder:
 1. Update the Haskell image and push it
 
 2. Update the workflow files.
-   0. Include the correct image information (NOTE this might be needed for both the learning step and the analysis step)
+   0. Include the correct R image information (NOTE Haskell just uses a base image)
    1. Include the correct experiment to be run
    2. NOTE: both yaml files may need to be updated
 
@@ -260,30 +260,3 @@ Now push the image to the registry, also updating the date here too:
 Jump to `.github/workflows/learn-then-analyze.yml` and `analyze.yml`
 and update the references to `ghcr.io/learning-games/r:...`. You don't
 need to use the `@sha256...` suffix.
-
-## How to update the Haskell image
-
-NOTE there is a convenience script running the steps below
-
-### Docker build on local machine
-
-Build an image with the source in it:
-
-    docker image build -f pzahn/learning/src.Dockerfile -t ghcr.io/philipp-zahn/learning/src:2021-06-29v2 .
-
-Build a base image with stack and haskell dependencies in it:
-
-    docker image build -f pzahn/learning/base.Dockerfile -t ghcr.io/philipp-zahn/learning/base:2021-06-29v2 pzahn/
-
-Building the final image for running:
-
-    docker image build -f pzahn/learning/final.Dockerfile . -t ghcr.io/philipp-zahn/learning/final:2021-06-29v2
-
-
-OK, now you can upload everything:
-
-    docker push ghcr.io/philipp-zahn/learning/src:2021-06-29v2
-    docker push ghcr.io/philipp-zahn/learning/base:2021-06-29v2
-    docker push ghcr.io/philipp-zahn/learning/final:2021-06-29v2
-
-Ideally, you'll change the date tag when you change an image.
