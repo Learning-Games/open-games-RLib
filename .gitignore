@@ -165,4 +165,7 @@ TSWLatexianTemp*
 # DS Store
 .DS_Store
 
-games/
+#Haskell compilation files
+
+*.hi
+*.o

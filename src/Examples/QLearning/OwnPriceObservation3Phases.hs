@@ -1,4 +1,4 @@
-module Examples.QLearning.AsymmetricLearners3Phases
+module Examples.QLearning.OwnPriceObservation3Phases
   ( initialStrat
   , initialArray1
   , initialArray2
@@ -21,7 +21,7 @@ module Examples.QLearning.AsymmetricLearners3Phases
   , ReMatchType(..)
   ) where
 
-import           Examples.QLearning.AsymmetricLearners.Internal
+import           Examples.QLearning.OwnPriceObservation.Internal
 import           Data.HashMap
 
 -- Model for paper: three cost levels

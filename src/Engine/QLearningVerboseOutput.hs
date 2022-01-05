@@ -15,7 +15,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Engine.QLearning where
+module Engine.QLearningVerboseOutput where
 
 import           Control.DeepSeq
 import           Control.Monad.Reader
@@ -42,6 +42,11 @@ import           System.Random
 import qualified System.Random as Rand
 import           System.Random.MWC.CondensedTable
 import           System.Random.Stateful
+
+
+
+-- Implementation as in Engine.QLearning but with verbose outputs for inspection and debugging purposes
+-- NOTE the extra type class constraints added for accessing show output
 
 --------------------------------------------------------------------------------
 -- Logging
@@ -315,7 +320,6 @@ updateAll previousMemory value decreaseFactor obs s r  = updatePreviousObservati
 
 {-- FIXME NEW TEST AGAINST OLD and then replace -}
 
-
 -- Update gen, agentObs, iteration
 updateAllNew :: ExploreRate -> Memory.Vector n (o (Idx a)) ->  Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
 updateAllNew decreaseFactor previousMemory value obs r s =
@@ -330,6 +334,8 @@ updateNoLearning previousMemory value obs r s =
       updateIteration $
         updateObservationAgent obs $
           updateRandomG s r
+
+
 
 
 -----------------------------------
@@ -466,6 +472,11 @@ pureDecisionQStage ::
      , GMsg r ~ QLearningMsg n o a
      , Ix (Memory.Vector n (o (Idx a)))
      , ToIdx a
+     , ToIdx a
+     , Show (o a) --TODO added for inspecting output
+     , Show a -- TODO added for inspecting output
+     , Show (Memory.Vector n (o (Idx a))) -- TODO added for inspection output
+     , Ord a -- TODO added for inspection output
      )
   => ConfigQLearning n o a m
   -> CTable a
@@ -477,6 +488,35 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
                                            (_,env') <- strat
                                            let s obs = State env' obs
                                            (action,_)   <- chooseActionFunction actionSpace (s obs)
+                                           let mem    = (_obsAgent env')
+                                               index  = (mem, toIdx action)
+                                               table0 = _qTable env'
+                                               playerNo = _player env'
+                                           liftIO $ print "^^^^^^^^^^^"
+                                           liftIO $ print "playerNo"
+                                           liftIO $ print $ playerNo
+                                           liftIO $ print "iteration"
+                                           liftIO $ print $ (_iteration env')
+                                           liftIO $ print "memory agent"
+                                           liftIO $ print $ mem
+                                           liftIO $ print "obs"
+                                           liftIO $ print obs
+                                           liftIO $ print "action"
+                                           liftIO $ print action
+                                           liftIO $ print "qValue"
+                                           value <- liftIO $ A.readArray table0 index
+                                           liftIO $ print value
+                                           liftIO $ print "maxed action"
+                                           valuesAndActions <- liftIO
+                                                                  (V.mapM
+                                                                    (\action -> do
+                                                                        let index = (mem, toIdx action)
+                                                                        value <- A.readArray table0 index
+                                                                        pure (value, action))
+                                                                    (population actionSpace))
+                                           let !maximum' = V.maximum valuesAndActions
+                                           liftIO $ print maximum'
+                                           liftIO $ print "^^^^^^^^^^^"
                                            pure ((),action)
                                         in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This finds the optimal action or chooses randomly
@@ -484,11 +524,31 @@ pureDecisionQStage ConfigQLearning {..} actionSpace name = OpenGame {
               let
                 output = do
                    (_,pdenv') <- strat
+                   liftIO $ print "===================="
+                   liftIO $ print "(iteration,playerNo)"
+                   liftIO $ print (_iteration pdenv', _player pdenv')
                    (z,obs) <- h
+                   liftIO $ print "Old Context"
+                   liftIO $ print obs
                    -- ^ Take the (old observation) from the context
                    (action,actionChoiceType) <- chooseActionFunction actionSpace (State pdenv' obs)
                    (reward,obsNew) <- k z action
+                   liftIO $ print "Action taken"
+                   liftIO $ print action
+                   liftIO $ print "Reward"
+                   liftIO $ print reward
+                   liftIO $ print "New obs"
+                   liftIO $ print obsNew
                    let st = (_obsAgent pdenv')
+                   liftIO $ print "Memory from last round"
+                   liftIO $ print st
+                   let mem    = (_obsAgent pdenv')
+                       index  = (mem, toIdx action)
+                       table0 = _qTable pdenv'
+                       playerNo = _player pdenv'
+                   liftIO $ print "qValue"
+                   value <- liftIO $ A.readArray table0 index
+                   liftIO $ print value
                    bounds <- liftIO (A.getBounds (_qTable pdenv'))
                    RIO.glog (exportRewards
                                 exportType
