@@ -52,6 +52,8 @@ library:
     - Examples.QLearning.CalvanoReplication.Internal
     - Examples.QLearning.CalvanoReplicationVerbose
     - Examples.QLearning.CalvanoReplication.InternalVerbose
+    - Examples.QLearning.Cournot.Internal
+    - Examples.QLearning.Cournot
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
