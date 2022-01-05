@@ -9,7 +9,6 @@ module Examples.QLearning.Cournot
   , configQL
   , configQLNoLearning
   , sequenceL
-  , evalStageM
   , mapStagesM_
   , mapStagesMFinalResult
   , firstStageLearningMap

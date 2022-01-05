@@ -348,26 +348,29 @@ fromEvalToContext ls = MonadContext (toObsFromLS ls) (\_ -> (\_ -> pure ()))
 
 ------------------------------
 -- Game stage
-stageSimple :: Parameters -> OpenGame (MonadOptic M) (MonadContext M) ('[M (QuantitySpace, Env Player1N Observation QuantitySpace), M (QuantitySpace, Env Player1N Observation QuantitySpace)] +:+ '[]) ('[M (QuantitySpace, Env Player1N Observation QuantitySpace), M (QuantitySpace, Env Player1N Observation QuantitySpace)] +:+ '[]) (Observation QuantitySpace, Observation QuantitySpace) () (QuantitySpace, QuantitySpace) ()
-stageSimple par@Parameters {..} = [opengame|
+stageSimple :: (Parameters -> ConfigQLearning Player1N Observation QuantitySpace M)
+            -> (Parameters -> ConfigQLearning Player2N Observation QuantitySpace M)
+            -> Parameters
+            -> OpenGame (MonadOptic M) (MonadContext M) ('[M (QuantitySpace, Env Player1N Observation QuantitySpace), M (QuantitySpace, Env Player1N Observation QuantitySpace)] +:+ '[]) ('[M (QuantitySpace, Env Player1N Observation QuantitySpace), M (QuantitySpace, Env Player1N Observation QuantitySpace)] +:+ '[]) (Observation QuantitySpace, Observation QuantitySpace) () (QuantitySpace, QuantitySpace) ()
+stageSimple configQLearningSpec1 configQLearningSpec2 par@Parameters {..} = [opengame|
    inputs    : (state1,state2) ;
    feedback  :      ;
 
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStage (configQL par) (actionSpace1 par) "Player1" ;
-   outputs   :  p1 ;
-   returns   :  (profit1 par p1 p2, Obs (p1,p2)) ;
+   operation : pureDecisionQStage (configQLearningSpec1 par) (actionSpace1 par) "Player1" ;
+   outputs   :  q1 ;
+   returns   :  (profit1 par q1 q2, Obs (q1,q2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
-   operation : pureDecisionQStage (configQL par) (actionSpace2 par) "Player2"  ;
-   outputs   :  p2 ;
-   returns   :  (profit2 par p1 p2, Obs (p1,p2))    ;
+   operation : pureDecisionQStage (configQLearningSpec2 par) (actionSpace2 par) "Player2"  ;
+   outputs   :  q2 ;
+   returns   :  (profit2 par q1 q2, Obs (q1,q2))    ;
    :-----------------:
 
-   outputs   :  (p1, p2)    ;
+   outputs   :  (q1, q2)    ;
    returns   :      ;
 
 |]
@@ -375,47 +378,33 @@ stageSimple par@Parameters {..} = [opengame|
 ----------------------------------
 -- Defining the iterator structure
 -- Given a strategy and a context, evaluate the simple game
-evalStage ::
-  Parameters
-  -> List '[ M (QuantitySpace, Env Player1N Observation QuantitySpace), M ( QuantitySpace
-                                                                      , Env Player2N Observation QuantitySpace)]
-  -> MonadContext M (Observation QuantitySpace, Observation QuantitySpace) () ( QuantitySpace
-                                                                         , QuantitySpace) ()
-  -> List '[ M (QuantitySpace, Env Player1N Observation QuantitySpace), M ( QuantitySpace
-                                                                      , Env Player2N Observation QuantitySpace)]
-evalStage par = evaluate (stageSimple par)
-
--- Given a strategy, and an iterator, construct the monadic output of evaluate
-evalStageM ::
-  Parameters
-  -> List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
-                                                                , Env Player2N Observation QuantitySpace)]
-  -> Int
-  -> M [List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
-                                                                    , Env Player2N Observation QuantitySpace)]]
-evalStageM par _ 0 = pure []
-evalStageM par startValue n = do
-  newStrat <-
-    sequenceL
-      (evalStage par (hoist startValue) (fromEvalToContext (hoist startValue)))
-  rest <- evalStageM par newStrat (pred n)
-  pure (newStrat : rest)
+evalStage :: (Parameters -> ConfigQLearning Player1N Observation QuantitySpace M)
+          -> (Parameters -> ConfigQLearning Player2N Observation QuantitySpace M)
+          -> Parameters
+          -> List '[ M (QuantitySpace, Env Player1N Observation QuantitySpace), M ( QuantitySpace
+                                                                              , Env Player2N Observation QuantitySpace)]
+          -> MonadContext M (Observation QuantitySpace, Observation QuantitySpace) () ( QuantitySpace
+                                                                                , QuantitySpace) ()
+          -> List '[ M (QuantitySpace, Env Player1N Observation QuantitySpace), M ( QuantitySpace
+                                                                              , Env Player2N Observation QuantitySpace)]
+evalStage configQLearningSpec1 configQLearningSpec2 par = evaluate (stageSimple configQLearningSpec1 configQLearningSpec2 par)
 
 {-# INLINE mapStagesM_ #-}
-mapStagesM_ ::
-  Parameters
-  -> (s ->  List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
-                                                                        , Env Player2N Observation QuantitySpace)] -> M (Decision s))
-  -> List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
-                                                                , Env Player2N Observation QuantitySpace)]
-  -> Int
-  -> s
-  -> M ()
-mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
+mapStagesM_ :: (Parameters -> ConfigQLearning Player1N Observation QuantitySpace M)
+            -> (Parameters -> ConfigQLearning Player2N Observation QuantitySpace M)
+            -> Parameters
+            -> (s ->  List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
+                                                                                  , Env Player2N Observation QuantitySpace)] -> M (Decision s))
+            -> List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
+                                                                          , Env Player2N Observation QuantitySpace)]
+            -> Int
+            -> s
+            -> M ()
+mapStagesM_ configQLearningSpec1 configQLearningSpec2 par f startValue n0 s0 = go s0 startValue n0
   where
      goInitial s value n0 = do
       newStrat <-
-        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) (fromEvalToContext (hoist value)))
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n0)
@@ -434,7 +423,7 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
       liftIO $ A.writeArray table1 index1 newValue1
       liftIO $ A.writeArray table2 index2 newValue2
       newStrat <-
-        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) (fromEvalToContext (hoist value)))
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n)
@@ -443,21 +432,22 @@ mapStagesM_ par f startValue n0 s0 = go s0 startValue n0
 -- Same as mapStagesM_ but keeps the final result in tact for reuse
 -- TODO unify with mapStagesM_
 {-# INLINE mapStagesMFinalResult #-}
-mapStagesMFinalResult ::
-  Parameters
-  -> (s ->  List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
-                                                                        , Env Player2N Observation QuantitySpace)] -> M (Decision s))
-  -> List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
-                                                                , Env Player2N Observation QuantitySpace)]
-  -> Int
-  -> s
-  -> M (List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
-                                                                        , Env Player2N Observation QuantitySpace)])
-mapStagesMFinalResult par f startValue n0 s0 = go s0 startValue n0
+mapStagesMFinalResult :: (Parameters -> ConfigQLearning Player1N Observation QuantitySpace M)
+                      -> (Parameters -> ConfigQLearning Player2N Observation QuantitySpace M)
+                      -> Parameters
+                      -> (s ->  List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
+                                                                                            , Env Player2N Observation QuantitySpace)] -> M (Decision s))
+                      -> List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
+                                                                                    , Env Player2N Observation QuantitySpace)]
+                      -> Int
+                      -> s
+                      -> M (List '[ (QuantitySpace, Env Player1N Observation QuantitySpace), ( QuantitySpace
+                                                                                            , Env Player2N Observation QuantitySpace)])
+mapStagesMFinalResult configQLearningSpec1 configQLearningSpec2 par f startValue n0 s0 = go s0 startValue n0
   where
      goInitial s value n0 = do
       newStrat <-
-        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) (fromEvalToContext (hoist value)))
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n0)
@@ -476,7 +466,7 @@ mapStagesMFinalResult par f startValue n0 s0 = go s0 startValue n0
       liftIO $ A.writeArray table1 index1 newValue1
       liftIO $ A.writeArray table2 index2 newValue2
       newStrat <-
-        sequenceL (evalStage par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) (fromEvalToContext (hoist value)))
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n)
@@ -674,7 +664,7 @@ rematchedLearningWithExogObs name runNo keepOnlyNLastIterations parametersGameRe
 
 
 
-
+-- Same as rematchedLearning but with a target name to store output
 rematchedLearningWithName :: String
                     -- ^ Run name
                     -> ExportAsymmetricLearners.RunNumber
@@ -728,8 +718,6 @@ rematchedLearningWithName name runNo keepOnlyNLastIterations parametersGameRemat
   pure $ (fromList [(targetName,(q1New,lastObs))],fromList [(targetName,(q2New,lastObs))])
   -- ^ Format: e1e2 ; e1e2
   -- FIXME lastObservation needs fixing; assumes observation the same
-
-
 
 
 -- Takes the information given for rematching pairing, qvalues from previous runs, and rematches them for a specific identifier
@@ -937,9 +925,6 @@ pairing2 name runNo keepOnlyNLastIterations parametersGameRematchingFunction exp
       lastObs      = Obs (p1,p2)
   liftIO $ pure ((q1,q2),lastObs)
   -- ^ FIXME the last observation construction should be made more robust
-
-
-
 
 ------------------------
 -- Export extended config data  as csv
