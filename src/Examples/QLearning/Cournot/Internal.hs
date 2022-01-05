@@ -79,6 +79,16 @@ data ReMatchType = ReMatchType
   , randomMatch :: Bool
   } deriving (Show,Eq)
 
+-- For rematch with exogenous strategy
+data ReMatchTypeExog = ReMatchTypeExog
+  { experiment1Ex :: String
+  , experiment2Ex :: String
+  , priceSpaceEx  :: Int
+  , randomMatchEx :: Bool
+  } deriving (Show,Eq)
+
+
+
 -- Mutual observation, fixes the number of players in the game
 newtype Observation a = Obs
   { unObs :: (a, a)
@@ -135,6 +145,13 @@ configQL  Parameters {..} = ConfigQLearning
   chooseExploreAction
   (chooseLearnDecrExploreQTable pLearningRate pGamma pBeta)
   RewardExtendedExport
+
+configQLNoLearning Parameters {..} = ConfigQLearning
+  chooseNoExploreAction
+  (chooseNoLearnDecrExploreQTable pLearningRate pGamma pBeta)
+  RewardExtendedExport
+
+
 
 ---------------
 -- Export types
@@ -603,6 +620,60 @@ firstStageLearning name runNo keepOnlyNLastIterations exportConfigFunction param
 ----------------------------------
 -- Single rematched Learning stage
 ----------------------------------
+-- Same as rematchedLearning but requires an additional action to compose the new observation
+rematchedLearningWithExogObs :: String
+                    -- ^ Run name
+                    -> ExportAsymmetricLearners.RunNumber
+                    -- ^ The number of the run for the same estimation
+                    -> Int
+                    -- ^ Keep only last number of iterations
+                    -> Map (String,String,Int) (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                    -- ^ Map of identifier into parameters
+                    -> (String
+                        -> Parameters
+                        -> IO
+                              (QTable
+                                Player1N Observation QuantitySpace)
+                        -> IO
+                              (QTable
+                                Player2N Observation QuantitySpace)
+                        -> Observation QuantitySpace
+                        -> ExportAsymmetricLearners.ExportConfig
+                              Player1N
+                              Observation
+                              QuantitySpace
+                              (RIO.RIO
+                                (RIO.GLogFunc
+                                    (QLearningMsg
+                                      Player1N Observation QuantitySpace))))
+                    -> (Map String (QTable Player1N Observation QuantitySpace,Observation QuantitySpace), Map String (QTable Player2N Observation QuantitySpace, Observation QuantitySpace))
+                    -> (ReMatchTypeExog,QuantitySpace)
+                    -- ^ Rematching information and manual action for player 2, creates fixed observation
+                    -> IO (Map String ((QTable
+                                          Player1N Observation QuantitySpace), Observation QuantitySpace)
+                              , Map String ((QTable
+                                          Player2N Observation QuantitySpace), Observation QuantitySpace))
+rematchedLearningWithExogObs name runNo keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) (rematchType@ReMatchTypeExog{..}, manualAction2) = do
+  let parametersGameRematching = parametersGameRematchingMap ! (experiment1Ex,experiment2Ex,priceSpaceEx)
+      (x1,lastObs1)            = qTablesMap1 ! experiment1Ex
+      (x2,_)                   = qTablesMap2 ! experiment2Ex
+      lastAction1              = fst $ unObs lastObs1
+      manualLastObs            = Obs (lastAction1,manualAction2)
+      newNameExp               = experiment1Ex ++ experiment2Ex ++ (show priceSpaceEx)
+  ((q1New,q2New),lastObs) <- rematchedLearningSingleRun
+                                 (name ++ "_action_" ++ show priceSpaceEx)
+                                 runNo
+                                 keepOnlyNLastIterations
+                                 (ReMatchType experiment1Ex experiment2Ex randomMatchEx)
+                                 parametersGameRematching
+                                 exportConfigGameRematching
+                                 x1
+                                 x2
+                                 manualLastObs
+  pure  (fromList [(newNameExp,(q1New,lastObs))],fromList [(newNameExp,(q2New,lastObs))])
+
+
+
 
 rematchedLearningWithName :: String
                     -- ^ Run name

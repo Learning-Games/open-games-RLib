@@ -6,6 +6,8 @@ module Examples.QLearning.Cournot
   , actionSpace1
   , actionSpace2
   , csvParameters
+  , configQL
+  , configQLNoLearning
   , sequenceL
   , evalStageM
   , mapStagesM_
