@@ -12,7 +12,7 @@ on:
 
 jobs:
   learn:
-    runs-on: self-hosted
+    runs-on: [self-hosted, cpu]
     timeout-minutes: 1440
 
     steps:
