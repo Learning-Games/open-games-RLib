@@ -9,6 +9,7 @@ import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as ExportAs
 import qualified Examples.QLearning.Cournot as Scenario
 
 -- This experiment considers a simple Cournot setting with linear demand and two players
+-- Under this parameterization, q^*=40/12; p^*13; pi=^*40
 
 -------------------------
 -- Fix variables for Game
