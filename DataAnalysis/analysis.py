@@ -12,16 +12,19 @@ import matplotlib.pyplot as plt
 """
 # Paths 
 ## Define paths and folders - input
-FILEPATH = '/Users/philippzahn/Documents/projects/learning/Software/results/cournot-459ccceb814ff4270c8a70dafd66b8cfff799e37'
+FILEPATH = '/Users/philippzahn/Documents/projects/learning/Software/results/cournot-ff5baf6649d29931bec9256f70ea1600b3f9ef56'
 foldernames_phase1 = glob.glob(os.path.join(FILEPATH,"e*_*"))
 foldernames_phase2 = glob.glob(os.path.join(FILEPATH,"p*_phase2_*"))
 foldernames_phase3 = glob.glob(os.path.join(FILEPATH,"p*_phase3_*"))
 
 ## Define paths output 
-OUTPUTPATH = '/Users/philippzahn/Documents/projects/learning/Software/results/output/'
+OUTPUTPATH = '/Users/philippzahn/Documents/projects/learning/Software/results/output/cournot-ff5baf6649d29931bec9256f70ea1600b3f9ef56/'
 # create directory if it does not exist
-os.makedirs(OUTPUTPATH)
-
+try:
+    os.makedirs(OUTPUTPATH, exist_ok = True)
+    print("Directory '%s' created successfully" % OUTPUTPATH)
+except OSError as error:
+    print("Directory '%s' can not be created" % OUTPUTPATH)
 
 # Prepare outcome files
 avgs_reward_phase1 = []
