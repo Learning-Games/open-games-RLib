@@ -10,7 +10,7 @@ on:
 
 jobs:
   analyze:
-    runs-on: self-hosted-ubuntu-with-docker
+    runs-on: [self-hosted, cpu]
 
     steps:
       - uses: actions/checkout@v2
