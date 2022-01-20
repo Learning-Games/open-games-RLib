@@ -260,3 +260,10 @@ Now push the image to the registry, also updating the date here too:
 Jump to `.github/workflows/learn-then-analyze.yml` and `analyze.yml`
 and update the references to `ghcr.io/learning-games/r:...`. You don't
 need to use the `@sha256...` suffix.
+
+
+## How to updgrade the python image
+
+    docker image build DataAnalysis/ -f python.Dockerfile -t ghcr.io/learning-games/r:2022-01-20
+
+   
