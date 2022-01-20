@@ -24,6 +24,7 @@ import           System.Environment
 import           System.Exit
 import           System.IO hiding (putStrLn)
 import           System.Process.Typed
+import           UnliftIO.Async
 
 --------------------------------------------------------------------------------
 -- Main entry point
@@ -77,9 +78,9 @@ main = do
   root <- IO.getCurrentDir
   gamesDir <- IO.makeAbsolute gamesRelDir
   case args of
-    ["local", file0] -> do
+    ("local":file0:skipGit:verbose) -> do
       file <- IO.resolveFile gamesDir (addHs file0)
-      runLocal root gamesDir file (normalizeName (dropHs file0))
+      runLocal (skipGit== "--skip-git") (verbose==["--verbose"]) root gamesDir file (normalizeName (dropHs file0))
     ["check", file0] -> do
       file <- IO.resolveFile gamesDir (addHs file0)
       runCheck file
@@ -192,21 +193,24 @@ runLogs name = do
 --------------------------------------------------------------------------------
 -- Run locally
 
-runLocal :: Path Abs Dir -> Path Abs Dir -> Path Abs File -> Name -> IO ()
-runLocal rootDir gamesDir sourceFile name = do
+runLocal :: Bool -> Bool -> Path Abs Dir -> Path Abs Dir -> Path Abs File -> Name -> IO ()
+runLocal skipGit verbose rootDir gamesDir sourceFile name = do
   exists <- IO.doesFileExist sourceFile
   if not exists
     then error ("Game not found: " ++ toFilePath sourceFile)
     else do
-      runProcess_
-        (setWorkingDir
-           (toFilePath gamesDir)
-           (proc "git" ["add", toFilePath sourceFile]))
       code <-
-        runProcess
-          (setWorkingDir
-             (toFilePath gamesDir)
-             (proc "git" ["diff-index", "--quiet", "HEAD"]))
+        if skipGit
+          then pure ExitSuccess
+          else do
+            runProcess_
+              (setWorkingDir
+                 (toFilePath gamesDir)
+                 (proc "git" ["add", toFilePath sourceFile]))
+            runProcess
+              (setWorkingDir
+                 (toFilePath gamesDir)
+                 (proc "git" ["diff-index", "--quiet", "HEAD"]))
       let getHash =
             fmap
               (addHash name)
@@ -260,15 +264,24 @@ runLocal rootDir gamesDir sourceFile name = do
               startTime <- getCurrentTime
               hprint statsfile ("Starting at " % F.datetime % "\n") startTime
               start <- getTime Monotonic
+              let runBinaryInDir =
+                    setWorkingDir (toFilePath resultDir)
+                    (proc (toFilePath binaryAbsFile) ["+RTS", "-s"])
               status <-
-                runProcess
-                  (setStderr
-                     (useHandleClose errfile)
-                     (setStdout
-                        (useHandleClose outfile)
-                        (setWorkingDir
-                           (toFilePath resultDir)
-                           (proc (toFilePath binaryAbsFile) ["+RTS", "-s"]))))
+                if verbose
+                  then
+                    withProcessWait (setStderr createPipe (setStdout createPipe runBinaryInDir)) $ \p -> do
+                      let forwardStdOut = teeHandle (getStdout p) [stdout, outfile]
+                          forwardStdErr = teeHandle (getStderr p) [stderr, errfile]
+                      concurrently_ forwardStdOut forwardStdErr
+                      waitExitCode p
+                  else
+                    runProcess
+                      (setStderr
+                        (useHandleClose errfile)
+                        (setStdout
+                          (useHandleClose outfile)
+                          runBinaryInDir))
               end <- getTime Monotonic
               endTime <- getCurrentTime
               if status == ExitSuccess
@@ -298,6 +311,21 @@ runLocal rootDir gamesDir sourceFile name = do
                     end
         putStrLn ("Run complete in directory " ++ toFilePath resultDir)
 
+-- | send lines from input handle to all of the output handle, finishes on EOF
+teeHandle :: Handle -> [Handle]-> IO ()
+teeHandle h outHandles = do
+  hSetBuffering h LineBuffering
+  let loop = do
+        eof <- hIsEOF h
+        if eof
+          then pure ()
+          else do
+            line <- S.hGetLine h
+            forM_ outHandles $ \outHandle ->
+              S8.hPutStrLn outHandle line
+            loop
+  loop
+
 --------------------------------------------------------------------------------
 -- Watcher
 
@@ -321,6 +349,8 @@ runWatch = do
                IO.withCurrentDir
                  learningWorkDir
                  (runLocal
+                    False -- skip git
+                    False -- verbose
                     learningWorkDir
                     targetGamesDir
                     finalFile

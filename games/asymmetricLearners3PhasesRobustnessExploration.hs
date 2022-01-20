@@ -9,9 +9,6 @@ import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as ExportAs
 import qualified Examples.QLearning.AsymmetricLearners3Phases as Scenario
 
 
--- This experiment analyzes the convergence behavior if agents do not explore.
--- The qmatrix is still updated on the basis of the per-period-rewards
-
 -------------------------
 -- Fix variables for Game
 -------------------------
@@ -226,7 +223,7 @@ rematchIds = [ Scenario.ReMatchType "e11" "e12" True
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 2
+numberOfRuns = 250
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int
@@ -235,7 +232,7 @@ keepOnlyNLastIterations = 100
 
 -- Configuration of run and export parameters for initial learning run
 exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
-    { iterations = 10000
+    { iterations = 1000000000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
@@ -243,7 +240,7 @@ exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
     -- ^ For complete reporting of Q-values, how often should values be exported?
       , threshold = 1000000
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
-    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQL Scenario.configQL parameters
+    , mapStagesM_ = Scenario.mapStagesMFinalResult parameters
     , initial = Scenario.initialStrat parameters (Scenario.initialArray1 parameters) (Scenario.initialArray2 parameters) (Scenario.randomInitialObservation parameters) >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
@@ -254,7 +251,7 @@ exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
 
 -- Configuration of run and export parameters for rematching phase
 exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000
+    { iterations = 10000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
@@ -262,7 +259,7 @@ exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetri
     -- ^ For complete reporting of Q-values, how often should values be exported?
       , threshold = 100000 -- NOTE this is a hack, as we avoid stopping the execution too early
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
-    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQL Scenario.configQL parameters
+    , mapStagesM_ = Scenario.mapStagesMFinalResult parameters
     , initial = Scenario.initialStrat parameters arr1 arr2 obs >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters
@@ -273,7 +270,7 @@ exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetri
 
 -- Configuration of run and export parameters for rematching phase
 exportConfigGameRematchingPhase3 name parameters arr1 arr2 obs = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000
+    { iterations = 100000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
@@ -281,7 +278,7 @@ exportConfigGameRematchingPhase3 name parameters arr1 arr2 obs = ExportAsymmetri
     -- ^ For complete reporting of Q-values, how often should values be exported?
       , threshold = 100000 -- NOTE this is a hack, as we avoid stopping the execution too early
     -- ^ Stopping criterion: After how many runs should the computation be stopped?
-    , mapStagesM_ = Scenario.mapStagesMFinalResult Scenario.configQL Scenario.configQL parameters
+    , mapStagesM_ = Scenario.mapStagesMFinalResult parameters
     , initial = Scenario.initialStrat parameters arr1 arr2 obs >>= Scenario.sequenceL
     , ctable1 = Scenario.actionSpace1 parameters
     , ctable2 = Scenario.actionSpace2 parameters

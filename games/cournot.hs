@@ -99,7 +99,7 @@ rematchIds = [ Scenario.ReMatchType "e11" "e12" True
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 2
+numberOfRuns = 250
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int
