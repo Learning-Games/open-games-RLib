@@ -36,7 +36,7 @@ jobs:
 
           # Run job
           # NOTE Update information on game here
-          time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01 sh -c "stack build -j1 --fast --exec 'game local asymmetricLearners3PhasesRobustnessExplorationConvergence --skip-git'"
+          time docker run --privileged -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01 sh -c "stack build -j1 --exec 'game local asymmetricLearners3PhasesRobustnessExplorationConvergence --skip-git'"
 
           # Archive output
           PW=$(pwd)
@@ -91,7 +91,7 @@ jobs:
           sudo cp -r . $WORKDIR/
 
           # Run job
-          docker run -v$WORKDIR/outputs:/outputs -v$WORKDIR/Rscripts:/Rscripts -v$WORKDIR/experiment:/experiment --rm ghcr.io/learning-games/r:2021-12-07 R -f /Rscripts/asymlearners_robustness.R
+          docker run --privileged -v$WORKDIR/outputs:/outputs -v$WORKDIR/Rscripts:/Rscripts -v$WORKDIR/experiment:/experiment --rm ghcr.io/learning-games/r:2021-12-07 R -f /Rscripts/asymlearners_robustness.R
 
           echo Behold, the outputs are...
           ls -alh $WORKDIR/outputs

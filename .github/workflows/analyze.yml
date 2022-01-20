@@ -47,7 +47,7 @@ jobs:
           ls -alh $ARCHIVE_LEARN
 
   #         # Run job
-  #         time docker run -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 sh -c 'R --version'
+  #         time docker run --privileged -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/r:2021-11-11@sha256:08975d657fd2e84e611028460e55bd32484f34479785e7de4cb52b7d1be286e8 sh -c 'R --version'
 
           # # Archive output
           # PW=$(pwd)
