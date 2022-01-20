@@ -3,36 +3,43 @@ name: Analyze
 on:
   workflow_dispatch:
     inputs:
-      run-id:
-        description: 'The run ID for the learning file'
+      learn-run-id:
+        description: 'The run ID for the Learn job'
         required: true
         default: ''
 
 jobs:
   analyze:
-    runs-on: [self-hosted, cpu]
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Try to login to docker hub registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
+        run: |
+          docker logout ghcr.io
+          echo "${{ secrets.THE_GITHUB_ACCESS_TOKEN }}" | docker login ghcr.io -u ${{ secrets.THE_GITHUB_USERNAME }} --password-stdin
       # Remember to update this hash whenever you update your R dependencies in any way
+      - name: Pull down image
+        run: |
+          time docker pull ghcr.io/learning-games/r:2021-12-07
+      # Docker creates files as owner root (0). That means when the
+      # runner, running as github, tries to delete the artifacts, it
+      # fails. So we create a fresh copy of the current directory
+      # under ~/run/$job_id and then remove that later with sudo. The
+      # github user is a sudoer. That's not ideal, but the self-hosted
+      # runner is private anyway.
       - name: Run analysis process
         env:
           LEARN_RUNID: ${{ github.event.inputs.learn-run-id }}
         run: |
           echo Workflow was run with input: learn-run-id=$LEARN_RUNID
-
           # Grab experiment outputs
           LEARN_FILENAME=$LEARN_RUNID-learn.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
-
           # Setup directories
           mkdir experiment
           mkdir outputs
-
           # Download & unpack learning output
           mkdir extraction
           time s3cmd get s3://pricing-game/$LEARN_FILENAME $ARCHIVE_LEARN
@@ -42,13 +49,11 @@ jobs:
           mv extraction/*/* experiment/
           rm -r extraction
           # End of experiment extraction
-
           # Setup working directory
           ARCHIVE_ANALYSIS=$(pwd)/$GITHUB_RUN_ID-analysis.tar.gz
           WORKDIR=~/run/$GITHUB_RUN_ID
           sudo mkdir -p $WORKDIR $JOBDIR
           sudo cp -r . $WORKDIR/
-
           # Run job
           docker run \
             -v$WORKDIR/outputs:/outputs \
@@ -57,18 +62,14 @@ jobs:
             --rm \
             ghcr.io/learning-games/r:2021-12-07 \
             R -f /Rscripts/asymlearners_robustness.R
-
           echo Behold, the outputs are...
           ls -alh $WORKDIR/outputs
-
           # Archive output
           PW=$(pwd)
           cd $WORKDIR/outputs
           time tar czf $ARCHIVE_ANALYSIS .
           cd $PW
-
           # Upload output
           time s3cmd put $ARCHIVE_ANALYSIS s3://pricing-game/
-
           # Wipe working directory
           sudo rm -rf $WORKDIR
