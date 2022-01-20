@@ -1,4 +1,3 @@
-
 import os
 import pandas as pd
 import glob
@@ -7,24 +6,24 @@ import matplotlib.pyplot as plt
 
 """ Module does some basic analytics on the learning games
     It is meant as a replacement for the R code and meant to
-    be executed on the server
+    be executed on the server. This preliminary for testing purposes mostly.
 
 """
-# Paths 
+# Paths
 ## Define paths and folders - input
-FILEPATH = '/Users/philippzahn/Documents/projects/learning/Software/results/cournot-ff5baf6649d29931bec9256f70ea1600b3f9ef56'
-foldernames_phase1 = glob.glob(os.path.join(FILEPATH,"e*_*"))
-foldernames_phase2 = glob.glob(os.path.join(FILEPATH,"p*_phase2_*"))
-foldernames_phase3 = glob.glob(os.path.join(FILEPATH,"p*_phase3_*"))
+file_path = '/Users/philippzahn/Documents/projects/learning/Software/results/cournot-86a63ab1c7b0f8d7c9e81b3a2800f5b3fea3a331'
+foldernames_phase1 = glob.glob(os.path.join(file_path,"e*_*"))
+foldernames_phase2 = glob.glob(os.path.join(file_path,"p*_phase2_*"))
+foldernames_phase3 = glob.glob(os.path.join(file_path,"p*_phase3_*"))
 
 ## Define paths output 
-OUTPUTPATH = '/Users/philippzahn/Documents/projects/learning/Software/results/output/cournot-ff5baf6649d29931bec9256f70ea1600b3f9ef56/'
+output_path = '/Users/philippzahn/Documents/projects/learning/Software/results/output/cournot-86a63ab1c7b0f8d7c9e81b3a2800f5b3fea3a331/'
 # create directory if it does not exist
 try:
-    os.makedirs(OUTPUTPATH, exist_ok = True)
-    print("Directory '%s' created successfully" % OUTPUTPATH)
+    os.makedirs(output_path, exist_ok = True)
+    print("Directory '%s' created successfully" % output_path)
 except OSError as error:
-    print("Directory '%s' can not be created" % OUTPUTPATH)
+    print("Directory '%s' can not be created" % output_path)
 
 # Prepare outcome files
 avgs_reward_phase1 = []
@@ -94,4 +93,4 @@ resultSeries = pd.Series([avg_phase1,avg_phase2,avg_phase3],
 
 fig = plt.figure()
 resultSeries.plot(kind='bar')
-fig.savefig(os.path.join(OUTPUTPATH,'testBar.png'))
+fig.savefig(os.path.join(output_path,'testBar.png'))
