@@ -117,8 +117,7 @@ instance ToIdx QuantitySpace where
 ----------------------
 -- Define parameters needed to specify the game
 data Parameters = Parameters
-  { pKsi :: Double
-  , pBeta :: ExploreRate
+  { pBeta :: ExploreRate
   , pInitialExploreRate1 :: ExploreRate
   , pInitialExploreRate2 :: ExploreRate
   , pLowerQuantity1 :: Double
@@ -239,8 +238,13 @@ lsValues2 par@Parameters{pGamma} = [(((x,y),z),value z)| (x,y) <- xs, (z,_) <- x
          value p2 = (sum  $ fmap (\p1 -> profit1 par p1 p2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
          priceLs = V.toList (population $ actionSpace1 par)
 
+-- initiate a list of zeros
+lsZeros :: Parameters -> [(((QuantitySpace, QuantitySpace), QuantitySpace), Double)]
+lsZeros par = [(((x,y),z), 0)| (x,y) <- xs, (z,_) <- xs]
+  where
+         xs = quantityPairs par
 
-
+    
 -- Initiate the environment given the parameters and an initial qmatrix for player 1
 initialEnv1 :: Parameters -> IO (QTable Player1N Observation QuantitySpace) -> Observation QuantitySpace -> M (Env Player1N Observation QuantitySpace)
 initialEnv1 par@Parameters {..} initialArray initialObs = do
@@ -294,7 +298,7 @@ initialArray1 par = do
   traverse_ (\(k, v) -> writeArray arr ( (asIdx k)) v) lsValues'
   pure arr
   where
-    lsValues' = lsValues1 par
+    lsValues' = lsZeros par
     l = minimum $ fmap fst lsValues'
     u = maximum $ fmap fst lsValues'
     asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
@@ -307,7 +311,7 @@ initialArray2 par = do
       traverse_ (\(k, v) -> writeArray arr (asIdx k) v) lsValues'
       pure arr
       where
-        lsValues' = lsValues2 par
+        lsValues' = lsZeros par
         l = minimum $ fmap fst lsValues'
         u = maximum $ fmap fst lsValues'
         asIdx ((x, y), z) = (Memory.fromSV (SV.replicate (Obs (toIdx x, toIdx y))), toIdx z)
@@ -940,8 +944,7 @@ pairing2 name runNo keepOnlyNLastIterations parametersGameRematchingFunction exp
 -- Parameters
 
 data ExportParameters = ExportParameters
-  { expKsi :: !Double
-  , expBeta :: !ExploreRate
+  { expBeta :: !ExploreRate
   , expInitialExploreRate1 :: !ExploreRate
   , expInitialExploreRate2 :: !ExploreRate
   , expDecreaseFactor :: !ExploreRate
@@ -980,7 +983,6 @@ instance DefaultOrdered ExportSeeds
 -- | Instantiate the export parameters with the used variables
 exportParameters :: Parameters -> ExportParameters
 exportParameters par = ExportParameters
-  (pKsi par)
   (pBeta par)
   (pInitialExploreRate1 par)
   (pInitialExploreRate2 par)

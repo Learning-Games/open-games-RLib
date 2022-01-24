@@ -275,7 +275,7 @@ updateTemperature decreaseFactor = env % temperature %~ (* decreaseFactor)
 
 -- Update explorRate
 updateExploreRate :: ExploreRate -> State n o a -> State n o a
-updateExploreRate decreaseFactor = env % exploreRate %~ (* ((exp 1) ** (-decreaseFactor)))
+updateExploreRate decreaseFactor = env % exploreRate %~ (* decreaseFactor)
 
 -- Update reward
 updateNewValue :: Double -> State n o a -> State n o a
