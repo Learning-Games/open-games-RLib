@@ -30,6 +30,8 @@ library:
     - Engine.QLearning.ExportAsymmetricLearnersOwnPrice
     - Engine.QLearning.ExportVerbose
     - Engine.QLearningSimple
+    - Engine.QLearningBoltzmann.ExportAsymmetricLearnersLogReduced
+    - Engine.QLearningBoltzmann
     - Engine.TLL
     - Preprocessor.AbstractSyntax
     - Preprocessor.Compile
