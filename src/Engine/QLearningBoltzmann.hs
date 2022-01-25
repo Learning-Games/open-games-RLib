@@ -112,20 +112,6 @@ uniformCTable population =
   where
     probability = 1 / fromIntegral (V.length population)
 
--- | Create a distribution condensed table on the basis
--- of Boltzmann
-boltzmannCTable exploreRate q obs = do
-  assocs <- MA.getAssocs q
-  let ls = [(action,value) | ((o,action),value) <- assocs, o == obs ]
-      --actionValue :: (Idx a,Double) -> (Idx a,Double)
-      actionValue = \(action,value) -> (action, ((exp 1.0) ** value / exploreRate))
-      denominator = sum (fmap (snd . actionValue) ls)
-      --updateProbability :: (a,Double) -> (a,Double)
-      updateProbability = \(action,value) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
-      newProbabilityV   = tableFromProbabilities $ V.fromList $ fmap updateProbability ls
-      population = V.fromList $ fmap fst ls 
-  return $ CTable newProbabilityV population 
-
 -- | Read the table at an index.
 readTable :: CTable a -> Idx a -> a
 readTable (CTable {population}) (Idx i) =
@@ -188,7 +174,6 @@ data Env n o a = Env
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
-  , _cTable :: CTable a
   , _obsAgent :: Memory.Vector n (o (Idx a))
   , _temperature :: Temperature
   , _actionChoice :: ActionChoice
@@ -300,10 +285,6 @@ updateNewValue value s = env % stageNewValue .~ value $ s
 updateActionChoice ::  ActionChoice -> State n o a -> State n o a
 updateActionChoice info s = env % actionChoice .~ info $ s
 
--- Update ctable given qMatrix
-updateCTable :: CTable a -> State n o a -> State n o a
-updateCTable newCTable s = env % cTable .~ newCTable $ s
-
 
 
 
@@ -340,20 +321,19 @@ updateAll previousMemory value decreaseFactor obs s r  = updatePreviousObservati
 
 
 -- Update gen, agentObs, iteration
-updateAllNew ::  ExploreRate -> CTable a -> Memory.Vector n (o (Idx a)) ->  Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
-updateAllNew decreaseFactor cTable'  previousMemory value obs r s =
+updateAllNew ::  ExploreRate ->  Memory.Vector n (o (Idx a)) ->  Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
+updateAllNew decreaseFactor previousMemory value obs r s =
    updateExploreRate decreaseFactor $
-     updateNoLearning cTable' previousMemory value obs r s
+     updateNoLearning previousMemory value obs r s
 
 -- Update gen, agentObs, iteration, stage reward, previous memory
-updateNoLearning :: CTable a -> Memory.Vector n (o (Idx a)) -> Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
-updateNoLearning cTable' previousMemory value obs r s =
-  updateCTable cTable' $
-    updatePreviousObservationAgent previousMemory $
-      updateNewValue value $
-        updateIteration $
-          updateObservationAgent obs $
-            updateRandomG s r
+updateNoLearning ::  Memory.Vector n (o (Idx a)) -> Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
+updateNoLearning  previousMemory value obs r s =
+  updatePreviousObservationAgent previousMemory $
+    updateNewValue value $
+      updateIteration $
+        updateObservationAgent obs $
+          updateRandomG s r
 
 
 -----------------------------------
@@ -367,12 +347,14 @@ updateNoLearning cTable' previousMemory value obs r s =
 chooseNoExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
    State n o a -> m (a, ActionChoice)
 chooseNoExploreAction s = do
-  let cTable' = _cTable $ _env s
-  maxed <- maxScore obsVec (_qTable $ _env s) cTable' (_player (_env s))
+  let exploreRate0 = _exploreRate $ _env s
+  cTable0 <- boltzmannCTable exploreRate0 qTable0 obsVec
+  maxed <- maxScore obsVec qTable0 cTable0 (_player (_env s))
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
       optimalAction = snd $  maxed
   return (optimalAction, "Exploitation w/o updates")
   where  obsVec = _obsAgent (_env s)
+         qTable0 =_qTable $ _env s
 
 -- | Choose the optimal action given the current state or explore; indicate whether exploration tool place (False) or randomization tool place (True)
 {-# INLINE chooseExploreAction #-}
@@ -380,17 +362,19 @@ chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLea
    State n o a -> m (a,ActionChoice)
 chooseExploreAction s = do
   -- NOTE: gen'' is not updated anywhere...!!!
-  let cTable' = _cTable $ _env s
+  let cTable0 = boltzmannCTable exploreRate qTable0 obsVec
       (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
     then do
       let !action' = samplePopulation_ cTable' gen'
       return (action',"Randomization")
     else do
-      maxed <- maxScore obsVec (_qTable $ _env s) cTable' (_player (_env s))
+      maxed <- maxScore obsVec (_qTable $ _env s) cTable0 (_player (_env s))
       let optimalAction = snd $  maxed
       return (optimalAction,"Exploitation")
   where  obsVec = _obsAgent (_env s)
+         qTable0 =_qTable $ _env s
+
 
 
 
@@ -403,16 +387,16 @@ chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMs
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
        let cTable0 = _cTable $ _env s
            exploreRate = _exploreRate $ _env s
-           table0  = _qTable $ _env s
+           qtable0  = _qTable $ _env s
            obsVec = _obsAgent (_env s)
        prediction    <- liftIO $ A.readArray table0 (obsVec, toIdx action)
-       maxed <- maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) table0 cTable0 (_player (_env s))
+       maxed <- maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) qTable0 cTable0 (_player (_env s))
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
        newCTable    <- updateProbabilityTable exploreRate obsVec table0 cTable0
-       recordingArray (_iteration (_env s)) (_player (_env s)) table0 (obsVec, toIdx action) newValue
-       ST.put $  updateAllNew decreaseFactorExplore newCTable obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
+       recordingArray (_iteration (_env s)) (_player (_env s)) qtable0 (obsVec, toIdx action) newValue
+       ST.put $  updateAllNew decreaseFactorExplore obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
 
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
@@ -604,4 +588,42 @@ updateProbabilityTable exploreRate obs qTable' cTable = do
    liftIO $ print newProbabilityV
    let newProbabilityTable = tableFromProbabilities newProbabilityV
    return (CTable newProbabilityTable actionLs)
+
+-- | Create a distribution condensed table on the basis
+-- of Boltzmann
+boltzmannCTable  ::
+     ( ToIdx a
+     , Ord a
+     , Functor o
+     , Ix (o (Idx a))
+     , Ix (Memory.Vector n (o (Idx a)))
+     , MonadIO m
+     , MonadReader r m
+     , HasGLogFunc r
+     , GMsg r ~ QLearningMsg n o a
+     , Show a -- FIXME remove when Boltzmann works
+     )
+  => V.Vector a
+  -> ExploreRate
+  -> QTable n o a
+  -> Memory.Vector n (o (Idx a))
+  -> m (CTable a)
+boltzmannCTable lsActions exploreRate qTable0 obs = do
+  ls  <-
+         liftIO
+            (V.mapM
+              (\action -> do
+                  let index = (obs, toIdx action)
+                  value <- A.readArray qTable0 index
+                  pure (action,value))
+             lsActions)
+  let 
+      --actionValue :: (Idx a,Double) -> (Idx a,Double)
+      actionValue = \(action,value) -> (action, ((exp 1.0) ** value / exploreRate))
+      denominator = sum (fmap (snd . actionValue) ls)
+      --updateProbability :: (a,Double) -> (a,Double)
+      updateProbability = \(action,value) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
+      newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
+      population =  fmap fst ls 
+  return $ CTable newProbabilityV population 
 
