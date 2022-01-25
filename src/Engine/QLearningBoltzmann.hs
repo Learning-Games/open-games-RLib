@@ -603,12 +603,12 @@ boltzmannCTable  ::
      , GMsg r ~ QLearningMsg n o a
      , Show a -- FIXME remove when Boltzmann works
      )
-  => V.Vector a
-  -> ExploreRate
+  => ExploreRate
   -> QTable n o a
   -> Memory.Vector n (o (Idx a))
+  -> CTable a
   -> m (CTable a)
-boltzmannCTable lsActions exploreRate qTable0 obs = do
+boltzmannCTable  exploreRate qTable0 obs cTable0 = do
   ls  <-
          liftIO
             (V.mapM
@@ -616,9 +616,8 @@ boltzmannCTable lsActions exploreRate qTable0 obs = do
                   let index = (obs, toIdx action)
                   value <- A.readArray qTable0 index
                   pure (action,value))
-             lsActions)
-  let 
-      --actionValue :: (Idx a,Double) -> (Idx a,Double)
+             (population cTable0))
+  let --actionValue :: (Idx a,Double) -> (Idx a,Double)
       actionValue = \(action,value) -> (action, ((exp 1.0) ** value / exploreRate))
       denominator = sum (fmap (snd . actionValue) ls)
       --updateProbability :: (a,Double) -> (a,Double)
