@@ -383,7 +383,7 @@ chooseExploreAction s = do
 -- 2.2. Different updates of the qmatrix depending on learning form
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseLearnDecrExploreQTable #-}
-chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
        let cTable0 = _cTable $ _env s
@@ -402,7 +402,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (ac
 
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseNoLearnDecrExploreQTable #-}
-chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
 chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
        let (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
@@ -563,6 +563,7 @@ updateProbabilityTable ::
      , MonadReader r m
      , HasGLogFunc r
      , GMsg r ~ QLearningMsg n o a
+     , Show a -- FIXME remove when Boltzmann works
      )
   => ExploreRate
   -> Memory.Vector n (o (Idx a))
@@ -585,6 +586,7 @@ updateProbabilityTable exploreRate obs qTable' cTable = do
        updateProbability :: (Double,a) -> (a,Double)
        updateProbability = \(value,action) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
        newProbabilityV   = fmap updateProbability valuesAndActions
-       newProbabilityTable = tableFromProbabilities newProbabilityV
+   liftIO $ print newProbabilityV
+   let newProbabilityTable = tableFromProbabilities newProbabilityV
    return (CTable newProbabilityTable actionLs)
 
