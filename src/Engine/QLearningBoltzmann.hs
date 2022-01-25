@@ -22,6 +22,7 @@ import           Control.Monad.Reader
 import qualified Control.Monad.Trans.State as ST
 import           Data.Aeson
 import qualified Data.Array.IO as A
+import qualified Data.Array.MArray as MA
 import           Data.Csv
 import           Data.Hashable
 import           Data.Ix
@@ -110,6 +111,20 @@ uniformCTable population =
     }
   where
     probability = 1 / fromIntegral (V.length population)
+
+-- | Create a distribution condensed table on the basis
+-- of Boltzmann
+boltzmannCTable exploreRate q obs = do
+  assocs <- MA.getAssocs q
+  let ls = [(action,value) | ((o,action),value) <- assocs, o == obs ]
+      --actionValue :: (Idx a,Double) -> (Idx a,Double)
+      actionValue = \(action,value) -> (action, ((exp 1.0) ** value / exploreRate))
+      denominator = sum (fmap (snd . actionValue) ls)
+      --updateProbability :: (a,Double) -> (a,Double)
+      updateProbability = \(action,value) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
+      newProbabilityV   = tableFromProbabilities $ V.fromList $ fmap updateProbability ls
+      population = V.fromList $ fmap fst ls 
+  return $ CTable newProbabilityV population 
 
 -- | Read the table at an index.
 readTable :: CTable a -> Idx a -> a

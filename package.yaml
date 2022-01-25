@@ -65,6 +65,7 @@ library:
     - Examples.QLearning.Cournot.Internal
     - Examples.QLearning.Cournot
     - Examples.QLearning.CournotBoltzmann
+    - Examples.QLearning.CournotBoltzmann.Internal
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
@@ -136,8 +137,8 @@ executables:
 tests:
   test-open-games:
     buildable: True
-    main: Spec
-    source-dirs: tests
+    main: Spec.hs
+    source-dirs: src/test
     dependencies:
       - open-games-hs
       - template-haskell

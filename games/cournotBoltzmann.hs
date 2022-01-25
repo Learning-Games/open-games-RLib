@@ -181,3 +181,6 @@ main = do
                     rematchIds
                     rematchIds)
            [1..numberOfRuns]
+
+
+--- FIXME testing updateProbabilityTable
