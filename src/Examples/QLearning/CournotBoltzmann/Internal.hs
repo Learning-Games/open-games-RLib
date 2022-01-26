@@ -249,7 +249,6 @@ lsZeros par = [(((x,y),z), 0)| (x,y) <- xs, (z,_) <- xs]
 initialEnv1 :: Parameters -> IO (QTable Player1N Observation QuantitySpace) -> Observation QuantitySpace -> M (Env Player1N Observation QuantitySpace)
 initialEnv1 par@Parameters {..} initialArray initialObs = do
   initialQTable <- liftIO initialArray
-  cTable' <- (updateProbabilityTable pInitialExploreRate1 obsAgent' initialQTable (actionSpace1 par))
   liftIO initialArray >>= \arr ->
     pure $
       Env
@@ -259,7 +258,6 @@ initialEnv1 par@Parameters {..} initialArray initialObs = do
          0
          pInitialExploreRate1
          pGeneratorEnv1
-         cTable'
          obsAgent'
          (5 * 0.999)
          "NothingHappenedYet"
@@ -271,7 +269,6 @@ initialEnv1 par@Parameters {..} initialArray initialObs = do
 initialEnv2 :: Parameters -> IO (QTable Player2N Observation QuantitySpace) -> Observation QuantitySpace -> M (Env Player2N Observation QuantitySpace)
 initialEnv2 par@Parameters {..} initialArray initialObs = do
   initialQTable <- liftIO initialArray
-  cTable' <- (updateProbabilityTable pInitialExploreRate2 obsAgent' initialQTable (actionSpace2 par))
   liftIO initialArray >>= \arr ->
     pure $
     Env
@@ -281,7 +278,6 @@ initialEnv2 par@Parameters {..} initialArray initialObs = do
       0
       pInitialExploreRate2
       pGeneratorEnv2
-      cTable'
       obsAgent'
       (5 * 0.999)
       "NothingHappenedYet"
@@ -372,13 +368,13 @@ stageSimple configQLearningSpec1 configQLearningSpec2 par@Parameters {..} = [ope
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : pureDecisionQStage (configQLearningSpec1 par)  "Player1" ;
+   operation : pureDecisionQStage (configQLearningSpec1 par) (actionSpace1 par) "Player1" ;
    outputs   :  q1 ;
    returns   :  (profit1 par q1 q2, Obs (q1,q2)) ;
 
    inputs    : state2     ;
    feedback  :      ;
-   operation : pureDecisionQStage (configQLearningSpec2 par)  "Player2"  ;
+   operation : pureDecisionQStage (configQLearningSpec2 par) (actionSpace1 par) "Player2"  ;
    outputs   :  q2 ;
    returns   :  (profit2 par q1 q2, Obs (q1,q2))    ;
    :-----------------:
