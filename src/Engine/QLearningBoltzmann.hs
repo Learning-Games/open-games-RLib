@@ -482,6 +482,7 @@ pureDecisionQStage ::
      , GMsg r ~ QLearningMsg n o a
      , Ix (Memory.Vector n (o (Idx a)))
      , ToIdx a
+     , Show a {--FIXME once Boltzmann works-}
      )
   => ConfigQLearning n o a m
   -> CTable a
@@ -515,6 +516,12 @@ pureDecisionQStage ConfigQLearning {..} cTable0 name = OpenGame {
                                 actionChoiceType
                                 (_exploreRate pdenv')
                                 reward)
+                   liftIO $ putStrLn "iteration"
+                   liftIO $ print (_iteration pdenv')
+                   liftIO $ putStrLn "player"
+                   liftIO $ print (_player pdenv')
+                   liftIO $ putStrLn "action"
+                   liftIO $ print action
                    (State env' _) <- ST.execStateT (updateFunction cTable0 (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
                                                    (State pdenv' obs)
                    return (action,env')
@@ -624,6 +631,10 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
       --updateProbability :: (a,Double) -> (a,Double)
       updateProbability = \(action,value) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
       newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
-      population =  fmap fst ls 
+      population =  fmap fst ls
+  liftIO $ putStrLn "denominator" -- FIXME  once Boltzmann works
+  liftIO $ print denominator  -- FIXME  once Boltzmann works                   
+--  liftIO $ putStrLn "new probability vector" -- FIXME  once Boltzmann works
+--  liftIO $ print newProbabilityV  -- FIXME  once Boltzmann works
   return $ CTable newProbabilityV population 
 
