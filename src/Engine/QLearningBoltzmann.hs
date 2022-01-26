@@ -174,6 +174,7 @@ data Env n o a = Env
   , _iteration  :: Int
   , _exploreRate :: ExploreRate
   , _randomGen :: Rand.StdGen
+  , _cTable :: CTable a
   , _obsAgent :: Memory.Vector n (o (Idx a))
   , _temperature :: Temperature
   , _actionChoice :: ActionChoice
@@ -286,6 +287,10 @@ updateNewValue value s = env % stageNewValue .~ value $ s
 updateActionChoice ::  ActionChoice -> State n o a -> State n o a
 updateActionChoice info s = env % actionChoice .~ info $ s
 
+-- Update ctable given qMatrix
+updateCTable :: CTable a -> State n o a -> State n o a
+updateCTable newCTable s = env % cTable .~ newCTable $ s
+
 
 
 
@@ -322,20 +327,20 @@ updateAll previousMemory value decreaseFactor obs s r  = updatePreviousObservati
 
 
 -- Update gen, agentObs, iteration
-updateAllNew ::  ExploreRate ->  Memory.Vector n (o (Idx a)) ->  Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
-updateAllNew decreaseFactor previousMemory value obs r s =
+updateAllNew ::  ExploreRate -> CTable a -> Memory.Vector n (o (Idx a)) ->  Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
+updateAllNew decreaseFactor cTable'  previousMemory value obs r s =
    updateExploreRate decreaseFactor $
-     updateNoLearning previousMemory value obs r s
+     updateNoLearning cTable' previousMemory value obs r s
 
 -- Update gen, agentObs, iteration, stage reward, previous memory
-updateNoLearning ::  Memory.Vector n (o (Idx a)) -> Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
-updateNoLearning  previousMemory value obs r s =
-  updatePreviousObservationAgent previousMemory $
-    updateNewValue value $
-      updateIteration $
-        updateObservationAgent obs $
-          updateRandomG s r
-
+updateNoLearning :: CTable a -> Memory.Vector n (o (Idx a)) -> Double -> Memory.Vector n (o (Idx a))  ->  Rand.StdGen -> State n o a -> State n o a
+updateNoLearning cTable' previousMemory value obs r s =
+  updateCTable cTable' $
+    updatePreviousObservationAgent previousMemory $
+      updateNewValue value $
+        updateIteration $
+          updateObservationAgent obs $
+            updateRandomG s r
 
 -----------------------------------
 -- 2 Implementation based on StateT
@@ -346,10 +351,10 @@ updateNoLearning  previousMemory value obs r s =
 -- Does _not_ update the matrix
 {-# INLINE chooseNoExploreAction  #-}
 chooseNoExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
- CTable a ->  State n o a -> m (a, ActionChoice)
-chooseNoExploreAction cTableConst s = do
+ State n o a -> m (a, ActionChoice)
+chooseNoExploreAction s = do
   let exploreRate0 = _exploreRate $ _env s
-  cTable0 <- boltzmannCTable exploreRate0 qTable0 obsVec cTableConst
+      cTable0 = _cTable $ _env s
   maxed <- maxScore obsVec qTable0 cTable0 (_player (_env s))
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
       optimalAction = snd $  maxed
@@ -360,11 +365,11 @@ chooseNoExploreAction cTableConst s = do
 -- | Choose the optimal action given the current state or explore; indicate whether exploration tool place (False) or randomization tool place (True)
 {-# INLINE chooseExploreAction #-}
 chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
-  CTable a ->  State n o a -> m (a,ActionChoice)
-chooseExploreAction cTableConst s = do
+ State n o a -> m (a,ActionChoice)
+chooseExploreAction s = do
   -- NOTE: gen'' is not updated anywhere...!!!
-  cTable0 <- boltzmannCTable exploreRate0 qTable0 obsVec cTableConst
-  let (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
+  let cTable0 = _cTable $ _env s
+      (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
   if exploreR < _exploreRate (_env s)
     then do
       let !action' = samplePopulation_ cTable0 gen'
@@ -385,34 +390,36 @@ chooseExploreAction cTableConst s = do
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseLearnDecrExploreQTable #-}
 chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a ->   State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
-chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore cTableConst s obs2 (action,info) reward  = do
-       let exploreRate = _exploreRate $ _env s
+                     LearningRate ->  DiscountFactor ->  ExploreRate ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
+chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
+       let exploreRate0 = _exploreRate $ _env s
            qTable0  = _qTable $ _env s
            obsVec = _obsAgent (_env s)
-       cTable0 <- boltzmannCTable exploreRate qTable0 obsVec cTableConst
+           cTable0 = _cTable $ _env s
        prediction    <- liftIO $ A.readArray qTable0 (obsVec, toIdx action)
        maxed <- maxScore (Memory.pushEnd obsVec (fmap toIdx obs2)) qTable0 cTable0 (_player (_env s))
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
+       newCTable <- boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
        recordingArray (_iteration (_env s)) (_player (_env s)) qTable0 (obsVec, toIdx action) newValue
-       ST.put $  updateAllNew decreaseFactorExplore obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
+       ST.put $  updateAllNew decreaseFactorExplore newCTable obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
 
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseNoLearnDecrExploreQTable #-}
 chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
-                     LearningRate ->  DiscountFactor ->  ExploreRate -> CTable a ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
-chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore cTableConst s obs2 (action,info) reward  = do
+                     LearningRate ->  DiscountFactor ->  ExploreRate ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
+chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
        let (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
            qTable0       = _qTable $ _env s
-           exploreRate = _exploreRate $ _env s
+           cTable0 = _cTable $ _env s
+           exploreRate0 = _exploreRate $ _env s
            obsVec = _obsAgent (_env s)
-       cTable0 <- boltzmannCTable exploreRate qTable0 obsVec cTableConst
+       newCTable <- boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
        prediction    <- liftIO $ A.readArray qTable0 (obsVec, toIdx action)
        recordingArray (_iteration (_env s)) (_player (_env s)) qTable0 (obsVec, toIdx action) prediction
-       ST.put $  updateNoLearning obsVec prediction (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
+       ST.put $  updateNoLearning newCTable obsVec prediction (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
 
 ----------------------------------------------------
@@ -467,8 +474,8 @@ exportRewards exportType player iteration stateAction stateActionIndex actionCho
 ----------------------------
 -- Define a Qlearning Config
 data ConfigQLearning n o a m = ConfigQLearning
-  { chooseActionFunction :: (CTable a -> State n o a ->  m (a,ActionChoice))
-  , updateFunction :: (CTable a -> State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m a)
+  { chooseActionFunction :: (State n o a ->  m (a,ActionChoice))
+  , updateFunction :: (State n o a -> o a -> (a,ActionChoice) -> Double -> ST.StateT (State n o a) m a)
   , exportType :: RewardExportType}
 
 -----------------
@@ -493,7 +500,7 @@ pureDecisionQStage ConfigQLearning {..} cTable0 name = OpenGame {
   play =  \(strat ::- Nil) -> let  v obs = do
                                            (_,env') <- strat
                                            let s obs = State env' obs
-                                           (action,_)   <- chooseActionFunction cTable0 (s obs)
+                                           (action,_)   <- chooseActionFunction (s obs)
                                            pure ((),action)
                                         in MonadOptic v (\_ -> (\_ -> pure ())),
   -- ^ This finds the optimal action or chooses randomly
@@ -503,7 +510,7 @@ pureDecisionQStage ConfigQLearning {..} cTable0 name = OpenGame {
                    (_,pdenv') <- strat
                    (z,obs) <- h
                    -- ^ Take the (old observation) from the context
-                   (action,actionChoiceType) <- chooseActionFunction cTable0 (State pdenv' obs)
+                   (action,actionChoiceType) <- chooseActionFunction (State pdenv' obs)
                    (reward,obsNew) <- k z action
                    let st = (_obsAgent pdenv')
                    bounds <- liftIO (A.getBounds (_qTable pdenv'))
@@ -522,7 +529,7 @@ pureDecisionQStage ConfigQLearning {..} cTable0 name = OpenGame {
                    liftIO $ print (_player pdenv')
                    liftIO $ putStrLn "action"
                    liftIO $ print action
-                   (State env' _) <- ST.execStateT (updateFunction cTable0 (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
+                   (State env' _) <- ST.execStateT (updateFunction (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
                                                    (State pdenv' obs)
                    return (action,env')
                 in (output ::- Nil)}
@@ -626,7 +633,7 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                   pure (action,value))
              (population cTable0))
   let --actionValue :: (Idx a,Double) -> (Idx a,Double)
-      actionValue = \(action,value) -> (action, ((exp 1.0) ** 1 / exploreRate))--  (action, ((exp 1.0) ** value / exploreRate))
+      actionValue = \(action,value) -> (action, ((exp 1.0) ** value / exploreRate))
       denominator = sum (fmap (snd . actionValue) ls)
       --updateProbability :: (a,Double) -> (a,Double)
       updateProbability = \(action,value) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
