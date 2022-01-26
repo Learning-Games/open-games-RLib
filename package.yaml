@@ -49,7 +49,6 @@ library:
     - Examples.Auctions.SequentialAuction
     - Examples.Auctions.SimultaneousBidAuction
     - Examples.Markov.RepeatedPD
-    - Examples.Markov.RepeatedPDNonState
     - Examples.Markov.TwoStageMarkov
     - Graphics
     - Examples.QLearning.OwnPriceObservation.Internal
@@ -120,6 +119,11 @@ dependencies:
     - utf8-string
     - hashmap
     - directory
+    - graphviz
+    - fgl
+    - lens
+    - typed-process
+    - extra
 
 executables:
   learning-exe:
