@@ -43,6 +43,15 @@ library:
     - Examples.Bayesian
     - Examples.Decision
     - Examples.SequentialMoves
+    - Examples.Auctions.AuctionSupportFunctions
+    - Examples.Auctions.ChooseReservePrice
+    - Examples.Auctions.DutchAuction
+    - Examples.Auctions.SequentialAuction
+    - Examples.Auctions.SimultaneousBidAuction
+    - Examples.Markov.RepeatedPD
+    - Examples.Markov.RepeatedPDNonState
+    - Examples.Markov.TwoStageMarkov
+    - Graphics
     - Examples.QLearning.OwnPriceObservation.Internal
     - Examples.QLearning.OwnPriceObservationExogAction
     - Examples.QLearning.OwnPriceObservation3Phases
@@ -130,6 +139,13 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
+  graphics:
+    main:                Main.hs
+    source-dirs:         graphics
+    dependencies:
+      - open-games-hs
+      - graphviz
+      - template-haskell
 
 tests:
   test-open-games:

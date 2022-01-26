@@ -60,7 +60,7 @@ class ContextAdd c where
 -------------------------------------------------------------
 --- replicate the old implementation of a stochastic context 
 type Stochastic = T Double
-type Vector = String -> Double
+type Vector = HM.Map String Double
 
 
 data StochasticStatefulOptic s t a b where

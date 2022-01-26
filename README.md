@@ -6,21 +6,28 @@
 
 If you have questions, drop me (Philipp) a [mail](mailto:philipp.zahn@unisg.ch)!
 
-# Run the code
+This repo is work in progress. Expect changes at any time!
 
-You can use `stack build` to compile the project, `stack test` will run the tests
-`stack ghci` and `stack ghci --test` will run ghci using the main target or the test
-targets respectively.
+# What are open games?
+
+_Open games_ are a mathematical structure allowing you to describe game-theoretical games. _Open-games-hs_
+is a framework to write those games in a programmatic way and analyze those games. The framework is
+written in Haskell and this allows Open Games to inherit a lot of features from the haskell ecosystem such
+as datatypes, functions and the large set of haskell libraries.
+
+_Open-games-hs_ is a framework implementing the theory of _Open games_ with which you can write a program that
+describes a game and its players. You can supply strategies for the game and test the game for equilibrium.
+If the game does not reach equilibrium, the list of deviations
+is printed and the reason why the player want to deviate is recorded. The biggest strength of open games
+is the ability to build your game from smaller modular components that you can
+swap out or parameterize.
+
+# Modelling in open games
+
+This [tutorial](https://github.com/philipp-zahn/open-games-hs/blob/master/Tutorial/TUTORIAL.md) shows how to use the software for modelling.
 
 
-# Usage
-
-There is a [tutorial](https://github.com/philipp-zahn/open-games-hs/blob/master/Tutorial/TUTORIAL.md) how to use the software for modelling.
-
-
-# Implementation details
-
-tbd
+# How to install and run open-games-hs
 
 # Running R
 

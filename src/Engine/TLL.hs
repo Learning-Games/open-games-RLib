@@ -138,7 +138,7 @@ instance (Applicative m, SequenceList m as bs) => SequenceList m (m a ': as) (a 
     sequenceListA (a ::- b) = liftA2 (::-) a (sequenceListA b)
 
 
--- Indexing on the list 
+-- Indexing on the list
 
 data Nat = Z | S Nat
 
