@@ -100,7 +100,7 @@ type ActionChoice = String
 data CTable a = CTable
   { ctable :: !(CondensedTableV a)
   , population :: !(V.Vector a)
-  }
+  } 
 
 -- | Create a uniform distribution condensed table.
 uniformCTable :: V.Vector a -> CTable a
@@ -187,7 +187,8 @@ instance Show (QTable n o a) where show _ = "QTable"
 instance NFData (QTable n o a) where rnf _ = ()
 instance Show (CTable a)
 instance NFData (CTable a)  where rnf _ = ()
-
+instance Show (CondensedTableV a)
+instance Eq (CondensedTableV a)
 
 type QLearningStageGame m a b x s y r = OpenGame (MonadOptic m) (MonadContext m) a b x s y r
 

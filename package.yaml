@@ -136,7 +136,6 @@ executables:
 
 tests:
   test-open-games:
-    buildable: True
     main: Spec.hs
     source-dirs: src/test
     dependencies:
