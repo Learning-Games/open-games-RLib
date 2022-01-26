@@ -110,6 +110,7 @@ dependencies:
     - splitmix
     - utf8-string
     - hashmap
+    - directory
 
 executables:
   learning-exe:
