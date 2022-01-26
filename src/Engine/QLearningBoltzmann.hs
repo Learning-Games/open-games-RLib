@@ -626,7 +626,7 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                   pure (action,value))
              (population cTable0))
   let --actionValue :: (Idx a,Double) -> (Idx a,Double)
-      actionValue = \(action,value) -> (action, ((exp 1.0) ** value / exploreRate))
+      actionValue = \(action,value) -> (action, ((exp 1.0) ** 1 / exploreRate))--  (action, ((exp 1.0) ** value / exploreRate))
       denominator = sum (fmap (snd . actionValue) ls)
       --updateProbability :: (a,Double) -> (a,Double)
       updateProbability = \(action,value) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
