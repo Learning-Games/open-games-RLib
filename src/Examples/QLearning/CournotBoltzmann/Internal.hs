@@ -249,6 +249,7 @@ lsZeros par = [(((x,y),z), 0)| (x,y) <- xs, (z,_) <- xs]
 initialEnv1 :: Parameters -> IO (QTable Player1N Observation QuantitySpace) -> Observation QuantitySpace -> M (Env Player1N Observation QuantitySpace)
 initialEnv1 par@Parameters {..} initialArray initialObs = do
   initialQTable <- liftIO initialArray
+  cTable' <- (boltzmannCTable pInitialExploreRate1 initialQTable obsAgent' (actionSpace1 par))
   liftIO initialArray >>= \arr ->
     pure $
       Env
@@ -258,6 +259,7 @@ initialEnv1 par@Parameters {..} initialArray initialObs = do
          0
          pInitialExploreRate1
          pGeneratorEnv1
+         cTable'
          obsAgent'
          (5 * 0.999)
          "NothingHappenedYet"
@@ -269,6 +271,7 @@ initialEnv1 par@Parameters {..} initialArray initialObs = do
 initialEnv2 :: Parameters -> IO (QTable Player2N Observation QuantitySpace) -> Observation QuantitySpace -> M (Env Player2N Observation QuantitySpace)
 initialEnv2 par@Parameters {..} initialArray initialObs = do
   initialQTable <- liftIO initialArray
+  cTable' <- (boltzmannCTable pInitialExploreRate2 initialQTable obsAgent' (actionSpace2 par))
   liftIO initialArray >>= \arr ->
     pure $
     Env
@@ -278,6 +281,7 @@ initialEnv2 par@Parameters {..} initialArray initialObs = do
       0
       pInitialExploreRate2
       pGeneratorEnv2
+      cTable'
       obsAgent'
       (5 * 0.999)
       "NothingHappenedYet"

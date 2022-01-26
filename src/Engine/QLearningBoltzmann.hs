@@ -369,8 +369,8 @@ chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLea
 chooseExploreAction s = do
   -- NOTE: gen'' is not updated anywhere...!!!
   let cTable0 = _cTable $ _env s
-      (exploreR, gen') = Rand.randomR (0.0, 1.0) (_randomGen $ _env s)
-  if exploreR < _exploreRate (_env s)
+      (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
+  if threshold < _exploreRate (_env s)
     then do
       let !action' = samplePopulation_ cTable0 gen'
       return (action',"Randomization")
@@ -381,7 +381,8 @@ chooseExploreAction s = do
   where  obsVec = _obsAgent (_env s)
          qTable0 =_qTable $ _env s
          exploreRate0 = _exploreRate (_env s)
-
+         threshold :: ExploreRate
+         threshold  = 0.01
 
 
 
@@ -633,10 +634,10 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                   pure (action,value))
              (population cTable0))
   let --actionValue :: (Idx a,Double) -> (Idx a,Double)
-      actionValue = \(action,value) -> (action, ((exp 1.0) ** value / exploreRate))
+      actionValue = \(action,value) -> (action, ((exp 1.0) ** (value / exploreRate)))
       denominator = sum (fmap (snd . actionValue) ls)
       --updateProbability :: (a,Double) -> (a,Double)
-      updateProbability = \(action,value) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
+      updateProbability = \(action,value) -> (action,(((exp 1.0) ** (value / exploreRate)) / denominator))
       newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
       population =  fmap fst ls
   liftIO $ putStrLn "denominator" -- FIXME  once Boltzmann works
