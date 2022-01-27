@@ -592,7 +592,7 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
         let newValue = ((exp 1.0) ** (value / exploreRate))
             in \(action,value) ->
                  if newValue > 0.000001 then (action, ((exp 1.0) ** (value / exploreRate)))
-                                        else  (action, 0.000001)
+                                        else  (action, 0.000001) -- FIXME hack; take care of precision issue 
       denominator = sum (fmap (snd . actionValue) ls)
       updateProbability = \(action,value) -> (action,(((exp 1.0) ** (value / exploreRate)) / denominator))
       newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
