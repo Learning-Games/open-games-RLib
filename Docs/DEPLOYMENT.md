@@ -264,6 +264,10 @@ need to use the `@sha256...` suffix.
 
 ## How to updgrade the python image
 
-    docker image build DataAnalysis/ -f python.Dockerfile -t ghcr.io/learning-games/r:2022-01-20
+* build the image
 
-   
+    docker image build DataAnalysis/ -f python.Dockerfile -t ghcr.io/learning-games/python:2022-01-20 
+
+* push the image
+
+    docker push ghcr.io/learning-games/python:2022-01-20
