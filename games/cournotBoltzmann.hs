@@ -58,7 +58,7 @@ expIds = keys parametersMap
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 1
+numberOfRuns = 50
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int

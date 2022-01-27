@@ -350,7 +350,7 @@ updateNoLearning cTable' previousMemory value obs r s =
 -- | Choose optimally given qmatrix; do not explore. This is for the play part
 -- Does _not_ update the matrix
 {-# INLINE chooseNoExploreAction  #-}
-chooseNoExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
+chooseNoExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
  State n o a -> m (a, ActionChoice)
 chooseNoExploreAction s = do
   let exploreRate0 = _exploreRate $ _env s
@@ -364,7 +364,7 @@ chooseNoExploreAction s = do
 
 -- | Choose the optimal action given the current state or explore; indicate whether exploration tool place (False) or randomization tool place (True)
 {-# INLINE chooseExploreAction #-}
-chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
+chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
  State n o a -> m (a,ActionChoice)
 chooseExploreAction s = do
   -- NOTE: gen'' is not updated anywhere...!!!
@@ -390,7 +390,7 @@ chooseExploreAction s = do
 -- 2.2. Different updates of the qmatrix depending on learning form
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseLearnDecrExploreQTable #-}
-chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
+chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
        let exploreRate0 = _exploreRate $ _env s
@@ -409,7 +409,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (ac
 
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseNoLearnDecrExploreQTable #-}
-chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {--FIXME once Boltzmann works-}) =>
+chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
 chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
        let (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
@@ -490,7 +490,6 @@ pureDecisionQStage ::
      , GMsg r ~ QLearningMsg n o a
      , Ix (Memory.Vector n (o (Idx a)))
      , ToIdx a
-     , Show a {--FIXME once Boltzmann works-}
      )
   => ConfigQLearning n o a m
   -> CTable a
@@ -524,12 +523,6 @@ pureDecisionQStage ConfigQLearning {..} cTable0 name = OpenGame {
                                 actionChoiceType
                                 (_exploreRate pdenv')
                                 reward)
-                   liftIO $ putStrLn "iteration"
-                   liftIO $ print (_iteration pdenv')
-                   liftIO $ putStrLn "player"
-                   liftIO $ print (_player pdenv')
-                   liftIO $ putStrLn "action"
-                   liftIO $ print action
                    (State env' _) <- ST.execStateT (updateFunction (State pdenv' obs) obsNew  (action,actionChoiceType) reward)
                                                    (State pdenv' obs)
                    return (action,env')
@@ -580,7 +573,6 @@ boltzmannCTable  ::
      , MonadReader r m
      , HasGLogFunc r
      , GMsg r ~ QLearningMsg n o a
-     , Show a -- FIXME remove when Boltzmann works
      )
   => ExploreRate
   -> QTable n o a
@@ -596,20 +588,10 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                   value <- A.readArray qTable0 index
                   pure (action,value))
              (population cTable0))
-  let --actionValue :: (Idx a,Double) -> (Idx a,Double)
-      actionValue = \(action,value) -> (action, ((exp 1.0) ** (value / exploreRate)))
+  let actionValue = \(action,value) -> (action, ((exp 1.0) ** (value / exploreRate)))
       denominator = sum (fmap (snd . actionValue) ls)
-      --updateProbability :: (a,Double) -> (a,Double)
       updateProbability = \(action,value) -> (action,(((exp 1.0) ** (value / exploreRate)) / denominator))
       newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
       population =  fmap fst ls
-  liftIO $ putStrLn "denominator" -- FIXME  once Boltzmann works
-  liftIO $ print denominator  -- FIXME  once Boltzmann works                   
-  liftIO $ putStrLn "value" -- FIXME  once Boltzmann works
-  liftIO $ print ls  -- FIXME  once Boltzmann works
-  liftIO $ putStrLn "exploreRate" -- FIXME  once Boltzmann works
-  liftIO $ print exploreRate  -- FIXME  once Boltzmann works
-  liftIO $ putStrLn "prob vector"
-  liftIO $ print (fmap updateProbability ls)
   return $ CTable newProbabilityV population 
 
