@@ -381,7 +381,7 @@ chooseExploreAction s = do
   where  obsVec = _obsAgent (_env s)
          qTable0 =_qTable $ _env s
          exploreRate0 = _exploreRate (_env s)
-         threshold :: ExploreRate
+         threshold :: ExploreRate -- FIXME Should be part of the game definition
          threshold  = 0.01
 
 
@@ -567,46 +567,9 @@ fromFunctions f g = fromLens f (const g)
 ---------------------------
 -- Udpate probability table
 -- according to Boltzmann
-{-# INLINE updateProbabilityTable #-}
-updateProbabilityTable ::
-     ( ToIdx a
-     , Ord a
-     , Functor o
-     , Ix (o (Idx a))
-     , Ix (Memory.Vector n (o (Idx a)))
-     , MonadIO m
-     , MonadReader r m
-     , HasGLogFunc r
-     , GMsg r ~ QLearningMsg n o a
-     , Show a -- FIXME remove when Boltzmann works
-     )
-  => ExploreRate
-  -> Memory.Vector n (o (Idx a))
-  -> QTable n o a
-  -> CTable a
-  -> m (CTable a)
-updateProbabilityTable exploreRate obs qTable' cTable = do
-   let actionLs          = population cTable
-   valuesAndActions  <-
-         liftIO
-            (V.mapM
-              (\action -> do
-                  let index = (obs, toIdx action)
-                  value <- A.readArray qTable' index
-                  pure (value, action))
-              actionLs)
-   let denominator       = V.foldl (+) 0 (fmap (fst . actionValue) valuesAndActions)
-       actionValue :: (Double,a) -> (Double,a)
-       actionValue       = \(value,action) -> (((exp 1.0) ** value / exploreRate),action)
-       updateProbability :: (Double,a) -> (a,Double)
-       updateProbability = \(value,action) -> (action,(((exp 1.0) ** value / exploreRate) / denominator))
-       newProbabilityV   = fmap updateProbability valuesAndActions
-   liftIO $ print newProbabilityV
-   let newProbabilityTable = tableFromProbabilities newProbabilityV
-   return (CTable newProbabilityTable actionLs)
-
 -- | Create a distribution condensed table on the basis
 -- of Boltzmann
+{-# INLINE boltzmannCTable #-}
 boltzmannCTable  ::
      ( ToIdx a
      , Ord a
@@ -642,7 +605,11 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
       population =  fmap fst ls
   liftIO $ putStrLn "denominator" -- FIXME  once Boltzmann works
   liftIO $ print denominator  -- FIXME  once Boltzmann works                   
---  liftIO $ putStrLn "new probability vector" -- FIXME  once Boltzmann works
---  liftIO $ print newProbabilityV  -- FIXME  once Boltzmann works
+  liftIO $ putStrLn "value" -- FIXME  once Boltzmann works
+  liftIO $ print ls  -- FIXME  once Boltzmann works
+  liftIO $ putStrLn "exploreRate" -- FIXME  once Boltzmann works
+  liftIO $ print exploreRate  -- FIXME  once Boltzmann works
+  liftIO $ putStrLn "prob vector"
+  liftIO $ print (fmap updateProbability ls)
   return $ CTable newProbabilityV population 
 
