@@ -588,11 +588,10 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                   value <- A.readArray qTable0 index
                   pure (action,value))
              (population cTable0))
-  let actionValue =
+  let actionValue = \(action,value) ->
         let newValue = ((exp 1.0) ** (value / exploreRate))
-            in \(action,value) ->
-                 if newValue > 0.000001 then (action, ((exp 1.0) ** (value / exploreRate)))
-                                        else  (action, 0.000001) -- FIXME hack; take care of precision issue 
+            in if newValue > 0.000001 then (action, newValue)
+                                      else  (action, 0.000001)
       denominator = sum (fmap (snd . actionValue) ls)
       updateProbability = \(action,value) -> (action,(((exp 1.0) ** (value / exploreRate)) / denominator))
       newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
