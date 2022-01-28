@@ -391,7 +391,7 @@ chooseExploreAction s = do
 -- 2.2. Different updates of the qmatrix depending on learning form
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseLearnDecrExploreQTable #-}
-chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {-FIXME -}) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
 chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
        let exploreRate0 = _exploreRate $ _env s
@@ -403,14 +403,20 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (ac
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-       newCTable <- boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
+       newCTable <- if exploreRate0 > threshold -- FIXME - ignore update if Ctable
+                       then boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
+                       else return cTable0
        recordingArray (_iteration (_env s)) (_player (_env s)) qTable0 (obsVec, toIdx action) newValue
        ST.put $  updateAllNew decreaseFactorExplore newCTable obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
+   where threshold :: ExploreRate -- FIXME Should be part of the game definition
+         threshold  = 0.01
+
+
 
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
 {-# INLINE chooseNoLearnDecrExploreQTable #-}
-chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
+chooseNoLearnDecrExploreQTable ::  (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a))), Show a {-FIXME -}) =>
                      LearningRate ->  DiscountFactor ->  ExploreRate ->  State n o a -> o a -> (a,ActionChoice) -> Double ->  ST.StateT (State n o a) m a
 chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (action,info) reward  = do
        let (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
@@ -418,11 +424,16 @@ chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (
            cTable0 = _cTable $ _env s
            exploreRate0 = _exploreRate $ _env s
            obsVec = _obsAgent (_env s)
-       newCTable <- boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
+       newCTable <- if exploreRate0 > threshold -- FIXME - ignore update if Ctable
+                       then boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
+                       else return cTable0
        prediction    <- liftIO $ A.readArray qTable0 (obsVec, toIdx action)
        recordingArray (_iteration (_env s)) (_player (_env s)) qTable0 (obsVec, toIdx action) prediction
        ST.put $  updateNoLearning newCTable obsVec prediction (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
+   where threshold :: ExploreRate -- FIXME Should be part of the game definition
+         threshold  = 0.01
+
 
 ----------------------------------------------------
 -- Helper function for logging qvalues incrementally
@@ -574,6 +585,7 @@ boltzmannCTable  ::
      , MonadReader r m
      , HasGLogFunc r
      , GMsg r ~ QLearningMsg n o a
+     , Show a -- FIXME
      )
   => ExploreRate
   -> QTable n o a
@@ -589,18 +601,34 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                   value <- A.readArray qTable0 index
                   pure (action,value))
              (population cTable0))
-  let actionValue = \(action,value) ->
+  let actionValue = \(action,value) ->(action, (exp 1.0) ** (value / exploreRate))
+      denominator = sum (fmap (snd . actionValue) ls)
+      updateProbability = \(action,value) ->
+         (action,((exp 1.0) ** (value / exploreRate)) / denominator)
+      newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
+      population =  fmap fst ls
+      ls' = V.toList $ fmap updateProbability ls -- FIXME
+  let printNaN []        = [] -- FIXME 
+      printNaN ((a,v):xs)=
+        if isNaN v 
+          then (a,v) : printNaN xs
+          else printNaN xs
+      testForNaN = printNaN ls' --FIXME
+  liftIO $ putStrLn "missing values?" -- FIXME
+  liftIO $ print testForNaN -- FIXME
+  liftIO $ putStrLn "denominator" -- FIXME
+  liftIO $ print denominator -- FIXME
+  return $ CTable newProbabilityV population 
+
+
+{-  let actionValue = \(action,value) ->
         let newValue = ((exp 1.0) ** (value / exploreRate))
             in if newValue > 0.000001 then (action, newValue)
                                       else  (action, 0.000001)
-      denominator = sum (fmap (snd . actionValue) ls)
+      denominator =
+        let d = sum (fmap (snd . actionValue) ls)
+        in if  d > 1e308
+              then 1e308
+              else d
       updateProbability = \(action,value) -> (action,(((exp 1.0) ** (value / exploreRate)) / denominator))
-      updateProbabilityFic = \(action,value) -> (((exp 1.0) ** (value / exploreRate)) / denominator) -- FIXME
-      newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
-      population =  fmap fst ls
-      ls' = V.toList $ fmap updateProbabilityFic ls -- FIXME
-  let testForNaN = any isNaN ls' --FIXME
-  liftIO $ putStrLn "missing values?" -- FIXME
-  liftIO $ print testForNaN -- FIXME
-  return $ CTable newProbabilityV population 
-
+-}
