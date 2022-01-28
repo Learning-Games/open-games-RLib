@@ -25,6 +25,7 @@ import qualified Data.Array.IO as A
 import qualified Data.Array.MArray as MA
 import           Data.Csv
 import           Data.Hashable
+import           Data.List -- FIXME
 import           Data.Ix
 import qualified Data.Ix as Ix
 import qualified Data.Vector as V
@@ -594,7 +595,12 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                                       else  (action, 0.000001)
       denominator = sum (fmap (snd . actionValue) ls)
       updateProbability = \(action,value) -> (action,(((exp 1.0) ** (value / exploreRate)) / denominator))
+      updateProbabilityFic = \(action,value) -> (((exp 1.0) ** (value / exploreRate)) / denominator) -- FIXME
       newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
       population =  fmap fst ls
+      ls' = V.toList $ fmap updateProbabilityFic ls -- FIXME
+  let testForNaN = any isNaN ls' --FIXME
+  liftIO $ putStrLn "missing values?" -- FIXME
+  liftIO $ print testForNaN -- FIXME
   return $ CTable newProbabilityV population 
 
