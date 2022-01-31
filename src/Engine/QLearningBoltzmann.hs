@@ -371,19 +371,11 @@ chooseExploreAction s = do
   -- NOTE: gen'' is not updated anywhere...!!!
   let cTable0 = _cTable $ _env s
       (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-  if threshold < _exploreRate (_env s)
-    then do
-      let !action' = samplePopulation_ cTable0 gen'
-      return (action',"Randomization")
-    else do
-      maxed <- maxScore obsVec qTable0 cTable0 (_player (_env s))
-      let optimalAction = snd $  maxed
-      return (optimalAction,"Exploitation")
-  where  obsVec = _obsAgent (_env s)
-         qTable0 =_qTable $ _env s
-         exploreRate0 = _exploreRate (_env s)
-         threshold :: ExploreRate -- FIXME Should be part of the game definition
-         threshold  = 0.01
+      !action' = samplePopulation_ cTable0 gen'
+  return (action',"Randomization")
+    where  obsVec = _obsAgent (_env s)
+           qTable0 =_qTable $ _env s
+           exploreRate0 = _exploreRate (_env s)
 
 
 
@@ -403,14 +395,10 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (ac
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-       newCTable <- if exploreRate0 > threshold -- FIXME - ignore update if Ctable
-                       then boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
-                       else return cTable0
+       newCTable <- boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
        recordingArray (_iteration (_env s)) (_player (_env s)) qTable0 (obsVec, toIdx action) newValue
        ST.put $  updateAllNew decreaseFactorExplore newCTable obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
-   where threshold :: ExploreRate -- FIXME Should be part of the game definition
-         threshold  = 0.01
 
 
 
@@ -424,15 +412,11 @@ chooseNoLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (
            cTable0 = _cTable $ _env s
            exploreRate0 = _exploreRate $ _env s
            obsVec = _obsAgent (_env s)
-       newCTable <- if exploreRate0 > threshold -- FIXME - ignore update if Ctable
-                       then boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
-                       else return cTable0
+       newCTable <- boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
        prediction    <- liftIO $ A.readArray qTable0 (obsVec, toIdx action)
        recordingArray (_iteration (_env s)) (_player (_env s)) qTable0 (obsVec, toIdx action) prediction
        ST.put $  updateNoLearning newCTable obsVec prediction (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
-   where threshold :: ExploreRate -- FIXME Should be part of the game definition
-         threshold  = 0.01
 
 
 ----------------------------------------------------
@@ -601,7 +585,11 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                   value <- A.readArray qTable0 index
                   pure (action,value))
              (population cTable0))
-  let actionValue = \(action,value) ->(action, (exp 1.0) ** (value / exploreRate))
+  let actionValue =  \(action,value) ->
+          let v =  (exp 1.0) ** (value / exploreRate)
+          in if v > 1e100
+                then (action,1e100)
+                else (action,v)
       denominator = sum (fmap (snd . actionValue) ls)
       updateProbability = \(action,value) ->
          (action,((exp 1.0) ** (value / exploreRate)) / denominator)
@@ -614,6 +602,7 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
           then (a,v) : printNaN xs
           else printNaN xs
       testForNaN = printNaN ls' --FIXME
+      testForNaN' = printNaN $ V.toList ls -- FIXME
   liftIO $ putStrLn "missing values?" -- FIXME
   liftIO $ print testForNaN -- FIXME
   liftIO $ putStrLn "denominator" -- FIXME
@@ -621,14 +610,3 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
   return $ CTable newProbabilityV population 
 
 
-{-  let actionValue = \(action,value) ->
-        let newValue = ((exp 1.0) ** (value / exploreRate))
-            in if newValue > 0.000001 then (action, newValue)
-                                      else  (action, 0.000001)
-      denominator =
-        let d = sum (fmap (snd . actionValue) ls)
-        in if  d > 1e308
-              then 1e308
-              else d
-      updateProbability = \(action,value) -> (action,(((exp 1.0) ** (value / exploreRate)) / denominator))
--}
