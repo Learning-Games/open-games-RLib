@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE NamedFieldPuns, PolyKinds #-}
 {-# LANGUAGE BangPatterns #-}
@@ -354,8 +355,7 @@ updateNoLearning cTable' previousMemory value obs r s =
 chooseNoExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLearningMsg n o a, Ord a, ToIdx a, Functor o, Ix (o (Idx a)), Memory n, Ix (Memory.Vector n (o (Idx a)))) =>
  State n o a -> m (a, ActionChoice)
 chooseNoExploreAction s = do
-  let exploreRate0 = _exploreRate $ _env s
-      cTable0 = _cTable $ _env s
+  let cTable0 = _cTable $ _env s
   maxed <- maxScore obsVec qTable0 cTable0 (_player (_env s))
   let (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
       optimalAction = snd $  maxed
@@ -369,13 +369,20 @@ chooseExploreAction :: (MonadIO m, MonadReader r m, HasGLogFunc r, GMsg r ~ QLea
  State n o a -> m (a,ActionChoice)
 chooseExploreAction s = do
   -- NOTE: gen'' is not updated anywhere...!!!
-  let cTable0 = _cTable $ _env s
+  let exploreRate0 = _exploreRate $ _env s
+      cTable0 = _cTable $ _env s
       (exploreR, gen') = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
-      !action' = samplePopulation_ cTable0 gen'
-  return (action',"Randomization")
-    where  obsVec = _obsAgent (_env s)
-           qTable0 =_qTable $ _env s
-           exploreRate0 = _exploreRate (_env s)
+  maxed <- maxScore obsVec qTable0 cTable0 (_player (_env s))
+  let optimalAction = snd maxed
+      !sampledAction = samplePopulation_ cTable0 gen'
+  if exploreRate0 < threshold
+    -- ^ if exploreRate becomes too small just pick on the basis of the best action
+    then return (optimalAction,"Exploitation")
+    else return (sampledAction,"Randomization")
+  where  obsVec = _obsAgent (_env s)
+         qTable0 =_qTable $ _env s
+         exploreRate0 = _exploreRate (_env s)
+         threshold = 0.01
 
 
 
@@ -395,11 +402,16 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (ac
        let  (_,gen')     = Rand.randomR (0.0 :: Double, 1.0 :: Double) (_randomGen $ _env s)
             updatedValue = reward + gamma * (fst $ maxed)
             newValue     = (1 - learningRate) * prediction + learningRate * updatedValue
-       newCTable <- boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
        recordingArray (_iteration (_env s)) (_player (_env s)) qTable0 (obsVec, toIdx action) newValue
-       ST.put $  updateAllNew decreaseFactorExplore newCTable obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
+       if exploreRate0 < threshold
+          then do
+              ST.put $  updateAllNew decreaseFactorExplore cTable0 obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s --FIXME change updating
+          else do
+              newCTable <- boltzmannCTable  exploreRate0 qTable0 obsVec cTable0 -- FIXME check timing
+              ST.put $  updateAllNew decreaseFactorExplore newCTable obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
-
+       where
+         threshold = 0.01
 
 
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
@@ -585,28 +597,16 @@ boltzmannCTable  exploreRate qTable0 obs cTable0 = do
                   value <- A.readArray qTable0 index
                   pure (action,value))
              (population cTable0))
-  let actionValue =  \(action,value) ->
+  let actionValue =  \(action,value) -> 
           let v =  (exp 1.0) ** (value / exploreRate)
-          in if v > 1e100
-                then (action,1e100)
-                else (action,v)
+              in (action,v)
       denominator = sum (fmap (snd . actionValue) ls)
       updateProbability = \(action,value) ->
          (action,((exp 1.0) ** (value / exploreRate)) / denominator)
       newProbabilityV   = tableFromProbabilities $  fmap updateProbability ls
       population =  fmap fst ls
-      ls' = V.toList $ fmap updateProbability ls -- FIXME
-  let printNaN []        = [] -- FIXME 
-      printNaN ((a,v):xs)=
-        if isNaN v 
-          then (a,v) : printNaN xs
-          else printNaN xs
-      testForNaN = printNaN ls' --FIXME
-      testForNaN' = printNaN $ V.toList ls -- FIXME
-  liftIO $ putStrLn "missing values?" -- FIXME
-  liftIO $ print testForNaN -- FIXME
-  liftIO $ putStrLn "denominator" -- FIXME
-  liftIO $ print denominator -- FIXME
-  return $ CTable newProbabilityV population 
+  if (isNaN denominator || isInfinite denominator)
+     then return cTable0
+     else return $ CTable newProbabilityV population
 
 
