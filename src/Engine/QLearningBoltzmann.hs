@@ -26,7 +26,6 @@ import qualified Data.Array.IO as A
 import qualified Data.Array.MArray as MA
 import           Data.Csv
 import           Data.Hashable
-import           Data.List -- FIXME
 import           Data.Ix
 import qualified Data.Ix as Ix
 import qualified Data.Vector as V
@@ -382,7 +381,7 @@ chooseExploreAction s = do
   where  obsVec = _obsAgent (_env s)
          qTable0 =_qTable $ _env s
          exploreRate0 = _exploreRate (_env s)
-         threshold = 0.01
+         threshold = 0.001
 
 
 
@@ -411,7 +410,7 @@ chooseLearnDecrExploreQTable learningRate gamma decreaseFactorExplore s obs2 (ac
               ST.put $  updateAllNew decreaseFactorExplore newCTable obsVec newValue  (Memory.pushEnd obsVec (fmap toIdx obs2)) gen' s
        return action
        where
-         threshold = 0.01
+         threshold = 0.001
 
 
 -- | Given an action, state, obs and a reward, update the qmatrix with decreasing exploration rate
