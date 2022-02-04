@@ -2207,7 +2207,7 @@ exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
 
 -- Configuration of run and export parameters for rematching phase
 exportConfigGameRematchingPhase2 name parameters arr1 arr2 obs = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000000000
+    { iterations = 1000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
