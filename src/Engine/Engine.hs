@@ -32,6 +32,8 @@ module Engine.Engine
   , Vector(..)
   , StochasticStatefulOptic(..)
   , StochasticStatefulContext(..)
+  , MonadOptic (..)
+  , MonadContext (..)
   , Optic(..)
   , Precontext(..)
   , Context(..)

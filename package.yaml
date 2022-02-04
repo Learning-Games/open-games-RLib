@@ -13,6 +13,7 @@ extra-source-files:
 library:
   source-dirs: src
   exposed-modules:
+    - Engine.AtomicGames
     - Engine.BayesianGames
     - Engine.Diagnostics
     - Engine.Engine
@@ -29,6 +30,7 @@ library:
     - Engine.QLearning.ExportAsymmetricLearnersLogReducedVerboseOutput
     - Engine.QLearning.ExportAsymmetricLearnersOwnPrice
     - Engine.QLearning.ExportVerbose
+    - Engine.InteractiveIO
     - Engine.QLearningSimple
     - Engine.QLearningBoltzmann.ExportAsymmetricLearnersLogReduced
     - Engine.QLearningBoltzmann
@@ -53,6 +55,7 @@ library:
     - Examples.Markov.RepeatedPD
     - Examples.Markov.TwoStageMarkov
     - Graphics
+    - Examples.InteractiveIO.InteractiveIO
     - Examples.QLearning.OwnPriceObservation.Internal
     - Examples.QLearning.OwnPriceObservationExogAction
     - Examples.QLearning.OwnPriceObservation3Phases
