@@ -65,3 +65,12 @@ fromQMatrixToStrategy table playerNo support =
       a <-  maxScore obs table support playerNo
       return $ certainly $ snd a
     fromIOToStoch obs table support playerNo = unsafePerformIO $ helper obs table support playerNo
+
+-- Constructs the strategy from a simpler list of associations between (state,action) pairs
+fromListToStrategy :: [((s,a),Double)] -> Kleisli Stochastic s a
+fromListToStrategy ls = Kleisli $ \state -> certainly $ findOptimalAction ls state
+  where
+    findOptimalAction :: [((s,a),Double)] -> s -> a
+    findOptimalAction ls state = fst $ maximumBy (comparing snd) ls'
+      where
+        ls' = [(action,value) | ((_,action),value) <- ls]

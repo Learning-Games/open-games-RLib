@@ -92,6 +92,8 @@ data ReMatchTypeExog = ReMatchTypeExog
 newtype Observation a = Obs
   { unObs :: (a, a)
   } deriving (Show,Generic,I.Ix,Ord, Eq, Functor, NFData, Aeson.ToJSON, Hashable)
+-- For re-importing information
+instance FromField a => FromField (Observation a)
 
 -- Action space
 -- Type is constructed as a product of actual price, _Double_, and an associated index, _Int_
@@ -112,6 +114,8 @@ instance ToField PriceSpace where
 -- Instance for creating an index
 instance ToIdx PriceSpace where
   toIdx PriceSpace {idx} = Idx idx
+-- Instance for re-import
+instance FromField PriceSpace
 
 ----------------------
 -- Define parameters needed to specify the game

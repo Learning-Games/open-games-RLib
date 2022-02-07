@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs, OverloadedStrings, MonadComprehensions #-}
@@ -21,6 +22,8 @@ module Engine.QLearning.ExportAsymmetricLearnersLogReduced
   , QMatrixExportMode (..)
   , ExportConfig(..)
   , RewardDiagnostics(..)
+  , StateActionIndex'(..)
+  , QValueRow(iteration,player,QValueRow)
   ) where
 
 import           Control.Monad
@@ -31,6 +34,7 @@ import           Data.Array.IO as A
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy.Builder as SB
+import           Data.Csv
 import           Data.Double.Conversion.ByteString
 import           Data.Foldable
 import           Data.HashMap.Strict (HashMap)
@@ -54,7 +58,7 @@ import           Path
 import           Path.IO
 import           Prelude hiding (putStrLn)
 import qualified RIO
-import           RIO (MonadUnliftIO, RIO, GLogFunc)
+import           RIO (MonadUnliftIO, RIO, GLogFunc, Generic)
 import           System.IO (hSetBuffering, BufferMode(..))
 
 --------------------------------------------------------------------------------
@@ -65,6 +69,10 @@ data StateActionIndex' state action = StateActionIndex'
   , action :: action
   , index :: Int
   }
+  deriving (Generic)
+
+-- For re-importing 
+instance (FromField s, FromField a) => FromNamedRecord (StateActionIndex' s a)
 
 instance BuildHeaders (StateActionIndex' a b) where
   buildHeaders _ = "state,action,action_index"
@@ -80,6 +88,10 @@ data QValueRow = QValueRow
   { iteration, player, state_action_index :: !Int
   , qvalue :: !Double
   }
+  deriving (Generic)
+
+-- For re-importing
+instance FromNamedRecord QValueRow
 
 instance BuildCsvRow QValueRow where
   buildCsvRow QValueRow{iteration,player,state_action_index,qvalue} =

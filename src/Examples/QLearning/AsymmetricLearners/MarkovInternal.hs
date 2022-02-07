@@ -23,72 +23,64 @@
 module Examples.QLearning.AsymmetricLearners.MarkovInternal
   where
 
-import           Control.DeepSeq
-import           Control.Monad.IO.Class
-import qualified Data.Aeson as Aeson
-import           Data.Array.IO as A
-import qualified Data.Array.MArray as MA
-import qualified Data.Array.IArray as IA
-import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Lazy.Builder as SB
-import           Data.Csv
-import           Data.Double.Conversion.ByteString
-import           Data.Foldable
-import           Data.Hashable
-import           Data.HashMap
-import qualified Data.Ix as I
-import qualified Data.Vector as V
-import qualified Data.Vector.Sized as SV
-import           Engine.Engine hiding (fromLens,Agent,fromFunctions,discount)
-import qualified Engine.Memory as Memory
+import           Examples.QLearning.AsymmetricLearners.Internal
+import           Engine.Diagnostics
+import           Engine.QLearning.ImportAsymmetricLearners
+import           Engine.QLearningToBayesian
 import           Engine.OpenGames
 import           Engine.OpticClass
+import           Engine.BayesianGames
 import           Engine.TLL
-import           Engine.IOGames
-import           Data.Utils
-import           FastCsv
-import           GHC.Generics
-import           Path
-import qualified Path.IO as IO
 import           Preprocessor.Compile
-import           RIO (RIO, GLogFunc, runRIO, when)
-import           System.Random.MWC.CondensedTable
-import           System.Random
-import qualified System.Random as Rand
-import           System.Process.Typed
-import           Examples.QLearning.AsymmetricLearners.Internal
 
-stageMC :: Int
-        -> [PriceSpace]
-        -> Int
-        -> [PriceSpace]
-        -> Parameters
-        -> Double
-        -> OpenGame
-              MonadOpticMarkov
-              MonadContextMarkov
-              '[ (Kleisli CondensedTableV (Observation PriceSpace) PriceSpace)
-               , (Kleisli CondensedTableV (Observation PriceSpace) PriceSpace)]
-              '[(IO (DiagnosticsMC PriceSpace))
-               ,(IO (DiagnosticsMC PriceSpace))]
-              (Observation PriceSpace, Observation PriceSpace)
-              ()
-              (Observation PriceSpace, Observation PriceSpace)
-              ()
-stageMC sample1 actionSpace1 sample2 actionSpace2 parameters discountFactor = [opengame|
+import           Control.Arrow (Kleisli)
+import           Control.Monad.State  hiding (state,void)
+import qualified Control.Monad.State  as ST
+import           Data.Csv
+
+
+-------------------------------------------------------
+-- Uses the learned policy to check standard equilibria
+-------------------------------------------------------
+
+
+----------------------------------------
+-- 0. Import strategies from the outside
+strategyImport :: (FromField s, FromField a, FromField s, FromField a)
+               => FilePath
+               -> FilePath
+               -> IO
+                    (Either
+                      String
+                      (List '[ Kleisli Stochastic s a
+                             , Kleisli Stochastic s a]))
+strategyImport filePathState filePathQMatrix = do
+  p1 <- importQMatrixAndStateIndex filePathState filePathQMatrix 1
+  p2 <- importQMatrixAndStateIndex filePathState filePathQMatrix 2
+  case p1 of
+    Left str -> return $ Left str
+    Right lsQValues1 ->
+      case p2 of
+        Left str' -> return $ Left str'
+        Right lsQValues2 ->
+           return $ Right (fromListToStrategy lsQValues1 ::- fromListToStrategy lsQValues2 ::- Nil)
+
+
+-- 1. The stage game 
+stageMC actionSpace1 actionSpace2 parameters discountFactor = [opengame|
    inputs    : (state1,state2) ;
    feedback  :      ;
 
    :-----------------:
    inputs    :  state1    ;
    feedback  :      ;
-   operation : dependentDecisionIO "Player1" sample1 actionSpace1 ;
+   operation : dependentDecision "Player1" (const actionSpace1) ;
    outputs   :  p1 ;
    returns   :  profit1 parameters p1 p2 ;
 
    inputs    : state2     ;
    feedback  :      ;
-   operation : dependentDecisionIO "Player2" sample2 actionSpace2  ;
+   operation : dependentDecision "Player2" (const actionSpace2)  ;
    outputs   :  p2 ;
    returns   :  profit2 parameters p1 p2    ;
 
@@ -102,3 +94,71 @@ stageMC sample1 actionSpace1 sample2 actionSpace2 parameters discountFactor = [o
    returns   :      ;
 
 |]
+
+
+-- 2. Evaluate the strategies one shot
+evaluateLearnedStrategiesOneShot :: (FromField b, Show b, Eq b)
+                                 => FilePath
+                                 -> FilePath
+                                 -> [PriceSpace]
+                                 -> [PriceSpace]
+                                 -> Parameters
+                                 -> Double
+                                 -> b
+                                 -> b
+                                 -> IO ()
+evaluateLearnedStrategiesOneShot filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters discountFactor initialState1 initialState2  = do
+  strat <- strategyImport filePathState filePathQMatrix
+  case strat of
+    Left str -> print str
+    Right strat' -> generateIsEq $ evaluate (stageMC actionSpace1 actionsSpace2 parameters discountFactor) strat' (StochasticStatefulContext (pure ((),(initialState1, initialState2))) (\_ _ -> pure ()))
+
+-- 3. Evaluate the strategies in the Markov game
+-- extract continuation
+extractContinuation :: StochasticStatefulOptic s () a () -> s -> StateT Vector Stochastic ()
+extractContinuation (StochasticStatefulOptic v u) x = do
+  (z,a) <- ST.lift (v x)
+  u z ()
+
+-- extract next state (action)
+extractNextState :: StochasticStatefulOptic s () a () -> s -> Stochastic a
+extractNextState (StochasticStatefulOptic v _) x = do
+  (z,a) <- v x
+  pure a
+
+
+-- determine continuation for iterator, with the same repeated strategy
+determineContinuationPayoffs :: Integer
+                             -> List
+                                '[Kleisli Stochastic (Observation PriceSpace) PriceSpace,
+                                  Kleisli Stochastic (Observation PriceSpace) PriceSpace]
+                             -> (Observation PriceSpace, Observation PriceSpace)
+                             -> [PriceSpace]
+                             -> [PriceSpace]
+                             -> Parameters
+                             -> Double
+                             -> StateT Vector Stochastic ()
+determineContinuationPayoffs 1        strat action actionSpace1 actionsSpace2 parameters discountFactor = pure ()
+determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 parameters discountFactor = do
+   extractContinuation executeStrat action
+   nextInput <- ST.lift $ extractNextState executeStrat action
+   determineContinuationPayoffs (pred iterator) strat nextInput actionSpace1 actionsSpace2 parameters discountFactor
+ where executeStrat =  play (stageMC actionSpace1 actionsSpace2 parameters discountFactor) strat
+
+
+-- Repeated game
+repeatedGameEq iterator strat initialAction actionSpace1 actionsSpace2 parameters discountFactor = evaluate (stageMC actionSpace1 actionsSpace2 parameters discountFactor) strat context
+  where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 parameters discountFactor)
+
+
+-- Eq output for the repeated game
+eqOutput iterator strat initialAction actionSpace1 actionsSpace2 parameters discountFactor = generateIsEq $ repeatedGameEq iterator strat initialAction actionSpace1 actionsSpace2 parameters discountFactor
+
+
+-- Evaluate the strategies as an approximation of the Markov game
+evaluateLearnedStrategiesMarkov iterator initialAction filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters discountFactor   = do
+  strat <- strategyImport filePathState filePathQMatrix
+  case strat of
+    Left str -> print str
+    Right strat' -> eqOutput iterator strat' initialAction actionSpace1 actionsSpace2 parameters discountFactor
+
