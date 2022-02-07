@@ -43,6 +43,8 @@ import           Data.Csv
 -- Uses the learned policy to check standard equilibria
 -------------------------------------------------------
 
+-- TODO test on concrete game result
+-- TODO adapt the import facility
 
 ----------------------------------------
 -- 0. Import strategies from the outside
@@ -68,17 +70,17 @@ strategyImport filePathState filePathQMatrix = do
 
 -- 1. The stage game 
 stageMC actionSpace1 actionSpace2 parameters discountFactor = [opengame|
-   inputs    : (state1,state2) ;
+   inputs    : state ;
    feedback  :      ;
 
    :-----------------:
-   inputs    :  state1    ;
+   inputs    :  state    ;
    feedback  :      ;
    operation : dependentDecision "Player1" (const actionSpace1) ;
    outputs   :  p1 ;
    returns   :  profit1 parameters p1 p2 ;
 
-   inputs    : state2     ;
+   inputs    : state     ;
    feedback  :      ;
    operation : dependentDecision "Player2" (const actionSpace2)  ;
    outputs   :  p2 ;
@@ -90,28 +92,26 @@ stageMC actionSpace1 actionSpace2 parameters discountFactor = [opengame|
 
    :-----------------:
 
-   outputs   :  (Obs (p1, p2), Obs (p1,p2))    ;
+   outputs   :  (Obs (p1, p2))    ;
    returns   :      ;
 
 |]
 
 
 -- 2. Evaluate the strategies one shot
-evaluateLearnedStrategiesOneShot :: (FromField b, Show b, Eq b)
-                                 => FilePath
+evaluateLearnedStrategiesOneShot :: FilePath
                                  -> FilePath
                                  -> [PriceSpace]
                                  -> [PriceSpace]
                                  -> Parameters
                                  -> Double
-                                 -> b
-                                 -> b
+                                 -> (Observation PriceSpace)
                                  -> IO ()
-evaluateLearnedStrategiesOneShot filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters discountFactor initialState1 initialState2  = do
+evaluateLearnedStrategiesOneShot filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters discountFactor initialState  = do
   strat <- strategyImport filePathState filePathQMatrix
   case strat of
     Left str -> print str
-    Right strat' -> generateIsEq $ evaluate (stageMC actionSpace1 actionsSpace2 parameters discountFactor) strat' (StochasticStatefulContext (pure ((),(initialState1, initialState2))) (\_ _ -> pure ()))
+    Right strat' -> generateIsEq $ evaluate (stageMC actionSpace1 actionsSpace2 parameters discountFactor) strat' (StochasticStatefulContext (pure ((),(initialState))) (\_ _ -> pure ()))
 
 -- 3. Evaluate the strategies in the Markov game
 -- extract continuation
@@ -132,7 +132,7 @@ determineContinuationPayoffs :: Integer
                              -> List
                                 '[Kleisli Stochastic (Observation PriceSpace) PriceSpace,
                                   Kleisli Stochastic (Observation PriceSpace) PriceSpace]
-                             -> (Observation PriceSpace, Observation PriceSpace)
+                             -> Observation PriceSpace
                              -> [PriceSpace]
                              -> [PriceSpace]
                              -> Parameters
