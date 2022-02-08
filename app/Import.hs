@@ -1,3 +1,9 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
+module Import
+  where
+
+
 import Examples.QLearning.AsymmetricLearners.MarkovInternal
 import Examples.QLearning.AsymmetricLearners3Phases (Parameters(..),actionSpace1,actionSpace2,randomInitialObservation)
 import Engine.QLearning (CTable(..))
@@ -50,31 +56,12 @@ lowerBound1,upperBound1 :: Parameters -> Double
 lowerBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pBertrandPrice1 - pKsi*(pMonopolyPrice1 - pBertrandPrice1)
 upperBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pMonopolyPrice1 + pKsi*(pMonopolyPrice1 - pBertrandPrice1)
 
-actionSpace  = [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]
-  where par = parametersGame
+actionSpace par = [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]
 
------------------------------------------------------
--- Transforming bounds into the array and environment
--- create the action space
-actionSpace1 :: Parameters -> CTable PriceSpace
-actionSpace1 par =
-  uniformCTable
-    (V.imap
-       (\idx value -> PriceSpace {value, idx})
-       -- ^ Uses the index of the vector and the price associated with it to map into _PriceSpace_
-       (V.fromList [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]))
-       -- ^ Creates a vector for the price grid
-
-
-
-actionSpace = [1.47,(1.47+0.25)..2.62]
-
-main = do
+importAndAnalyze = do
   gEnv1 <- newStdGen
   gEnv2 <- newStdGen
   gObs1 <- newStdGen
   gObs2 <- newStdGen
   let par = parametersGame gEnv1 gEnv2 gObs1 gObs2
-      actionSpace1' = V.toList $ population $ actionSpace1 par
-      actionSpace2' = V.toList $ population $ actionSpace2 par
-  evaluateLearnedStrategiesMarkov 10 (10,10) pathStateIndex pathQMatrix actionSpace actionSpace par (pGamma par)
+  evaluateLearnedStrategiesMarkov 10 (10,10) pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)

@@ -61,6 +61,7 @@ library:
     - Examples.QLearning.OwnPriceObservation3Phases
     - Examples.QLearning.AsymmetricLearners.Internal
     - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
+    - Examples.QLearning.AsymmetricLearners.MarkovInternal
     - Examples.QLearning.AsymmetricLearners
     - Examples.QLearning.AsymmetricLearners2PhasesExogAction
     - Examples.QLearning.AsymmetricLearners3Phases
