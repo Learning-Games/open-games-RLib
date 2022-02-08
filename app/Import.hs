@@ -34,9 +34,40 @@ parametersGame gEnv1 gEnv2 gObs1 gObs2 = Parameters
 
 sourcePath = "/Users/philippzahn/Documents/projects/learning/Software/results/cournotBoltzmannTest-b2471766a9f9a49511bed08159c5c9d03451ef9e/e11_phase1_run_1/"
 
-pathStateIndex = sourcePath ++ "state_action_index_1.csv"
+pathStateIndex = sourcePath ++ "state_action_index_1_new.csv"
 
 pathQMatrix = sourcePath ++ "qvalues.csv"
+
+
+initialObs = (10,10)
+
+dist1 :: Parameters -> Double
+dist1 par =  (upperBound1 par - lowerBound1 par) / pM1 par
+
+
+
+lowerBound1,upperBound1 :: Parameters -> Double
+lowerBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pBertrandPrice1 - pKsi*(pMonopolyPrice1 - pBertrandPrice1)
+upperBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pMonopolyPrice1 + pKsi*(pMonopolyPrice1 - pBertrandPrice1)
+
+actionSpace  = [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]
+  where par = parametersGame
+
+-----------------------------------------------------
+-- Transforming bounds into the array and environment
+-- create the action space
+actionSpace1 :: Parameters -> CTable PriceSpace
+actionSpace1 par =
+  uniformCTable
+    (V.imap
+       (\idx value -> PriceSpace {value, idx})
+       -- ^ Uses the index of the vector and the price associated with it to map into _PriceSpace_
+       (V.fromList [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]))
+       -- ^ Creates a vector for the price grid
+
+
+
+actionSpace = [1.47,(1.47+0.25)..2.62]
 
 main = do
   gEnv1 <- newStdGen
@@ -46,4 +77,4 @@ main = do
   let par = parametersGame gEnv1 gEnv2 gObs1 gObs2
       actionSpace1' = V.toList $ population $ actionSpace1 par
       actionSpace2' = V.toList $ population $ actionSpace2 par
-  evaluateLearnedStrategiesMarkov 10 (randomInitialObservation par) pathStateIndex pathQMatrix actionSpace1' actionSpace2' par (pGamma par)
+  evaluateLearnedStrategiesMarkov 10 (10,10) pathStateIndex pathQMatrix actionSpace actionSpace par (pGamma par)

@@ -23,9 +23,9 @@
 module Examples.QLearning.AsymmetricLearners.MarkovInternal
   where
 
-import           Examples.QLearning.AsymmetricLearners.Internal
 import           Engine.Diagnostics
 import           Engine.QLearning.ImportAsymmetricLearners
+import           Examples.QLearning.AsymmetricLearners.Internal (Parameters(..),demand1,demand2)
 import           Engine.QLearningToBayesian
 import           Engine.OpenGames
 import           Engine.OpticClass
@@ -46,6 +46,13 @@ import           Data.Csv
 -- TODO test on concrete game result
 -- TODO adapt the import facility
 
+profit1 :: Parameters -> Action -> Action -> Double
+profit1 par@Parameters {..} p1   p2 = (p1 - pC1)* (demand1 par p1 p2)
+
+-- profit player 2
+profit2 :: Parameters -> Action -> Action -> Double
+profit2 par@Parameters {..} p1  p2 = (p2 - pC2)* (demand2 par p1 p2)
+
 ----------------------------------------
 -- 0. Import strategies from the outside
 strategyImport :: FilePath
@@ -53,8 +60,8 @@ strategyImport :: FilePath
                -> IO
                     (Either
                       String
-                      (List '[ Kleisli Stochastic (Observation PriceSpace) PriceSpace
-                             , Kleisli Stochastic (Observation PriceSpace) PriceSpace]))
+                      (List '[ Kleisli Stochastic (Action,Action) Action
+                             , Kleisli Stochastic (Action,Action) Action]))
 strategyImport filePathState filePathQMatrix = do
   p1 <- importQMatrixAndStateIndex filePathState filePathQMatrix 1
   p2 <- importQMatrixAndStateIndex filePathState filePathQMatrix 2
@@ -91,7 +98,7 @@ stageMC actionSpace1 actionSpace2 parameters discountFactor = [opengame|
 
    :-----------------:
 
-   outputs   :  (Obs (p1, p2))    ;
+   outputs   :  (p1, p2)    ;
    returns   :      ;
 
 |]
@@ -100,11 +107,11 @@ stageMC actionSpace1 actionSpace2 parameters discountFactor = [opengame|
 -- 2. Evaluate the strategies one shot
 evaluateLearnedStrategiesOneShot :: FilePath
                                  -> FilePath
-                                 -> [PriceSpace]
-                                 -> [PriceSpace]
+                                 -> [Action]
+                                 -> [Action]
                                  -> Parameters
                                  -> Double
-                                 -> (Observation PriceSpace)
+                                 -> (Action,Action)
                                  -> IO ()
 evaluateLearnedStrategiesOneShot filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters discountFactor initialState  = do
   strat <- strategyImport filePathState filePathQMatrix
@@ -129,11 +136,11 @@ extractNextState (StochasticStatefulOptic v _) x = do
 -- determine continuation for iterator, with the same repeated strategy
 determineContinuationPayoffs :: Integer
                              -> List
-                                '[Kleisli Stochastic (Observation PriceSpace) PriceSpace,
-                                  Kleisli Stochastic (Observation PriceSpace) PriceSpace]
-                             -> Observation PriceSpace
-                             -> [PriceSpace]
-                             -> [PriceSpace]
+                                '[Kleisli Stochastic (Action,Action) Action,
+                                  Kleisli Stochastic (Action,Action) Action]
+                             -> (Action,Action)
+                             -> [Action]
+                             -> [Action]
                              -> Parameters
                              -> Double
                              -> StateT Vector Stochastic ()

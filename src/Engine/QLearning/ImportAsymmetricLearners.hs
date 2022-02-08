@@ -1,3 +1,6 @@
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs, OverloadedStrings, MonadComprehensions #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -10,68 +13,58 @@
 
 
 module Engine.QLearning.ImportAsymmetricLearners
-  ( --importQMatrixTarget
-   importQMatrixAndStateIndex
+  ( importQMatrixAndStateIndex
+  , Action
+
   ) where
 
-import Engine.QLearning.ExportAsymmetricLearnersLogReduced (iteration,player,QValueRow(iteration,player,QValueRow),StateActionIndex'(..))
-import qualified Engine.QLearning.ExportAsymmetricLearnersLogReduced as L
-import Examples.QLearning.AsymmetricLearners.Internal
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BC
 import Data.Csv
 import qualified Data.Vector as V
+import           GHC.Generics
 import System.Directory (doesFileExist)
 import Text.Printf
 
 ---------------------------------------------------------
 -- Imports the csv that is produced in a learning session
--- NOTE: This assumes that the data has been put into the
--- right shape.
--- NOTE: There is also functionality for reading the data
--- from the existing file shapes.
+-- NOTE: This ignores the reuse of the existing structure
+-- TODO: We should improve the export of the existing
+-- files to make our lives simpler
 ---------------------------------------------------------
 
 ----------
 -- 0 Types
+data StateActionInput = StateActionInput
+  { state1 :: Action
+  , state2 :: Action
+  , action :: Action
+  , action_index  :: Int
+  } deriving (Show,Generic)
+instance FromNamedRecord StateActionInput
 
--- FIXME Target for construction of policy
-type QValueMatrixTarget = ((Observation PriceSpace,PriceSpace),Double)
---instance FromNamedRecord QValueMatrixTarget
---instance FromField (Observation PriceSpace, PriceSpace)
+data QValueRow  = QValueRow
+  { iteration :: Int
+  , player :: Int
+  , state_action_index :: Int
+  , qvalue :: Value
+  } deriving (Show, Generic)
+instance FromNamedRecord QValueRow
 
-instance FromField PriceSpace where
- parseField s = do
-   s' <- parseField s
-   pure $ PriceSpace s' 1
-   -- ^ FIXME we keep the index undefined -- do not need it anymore
-   -- this is essentially just to keep the game intact as before
+type Action = Double
+type Value  = Double
 
-type StateActionInput = StateActionIndex' (Observation PriceSpace) PriceSpace
-instance FromField (Observation PriceSpace) where
-  parseField s = do 
-    let (s1,s2) = BC.break (== ' ') s
-    s1' <- parseField s1
-    s2' <- parseField s2
-    pure $ Obs (s1',s2')
 
--- instance FromNamedRecor  PriceSpace where
-
----------------------------------------------------
--- 1 Import prepared data that is already in shape
--- FIXME change this to a more convient type
---importQMatrixTarget  :: FilePath
---                     -> IO (Either String [QValueMatrixTarget])
---importQMatrixTarget filePath = do
---  fileExists <- doesFileExist filePath
---  if fileExists
---     then (fmap . fmap ) V.toList $ (fmap . fmap) snd $ fmap  decodeByName $ BL.readFile filePath
---     else return . Left $ printf "The file %s does not exist" filePath
+type QValueMatrixTarget = (Action,Action,Action, Value)
+instance FromNamedRecord QValueMatrixTarget
 
 ---------------------------------------------------
--- 2. Import data in the given state-index file and
+-- 1. Import data in the given state-index file and
 -- qmatrix file
+
+-- TODO fix parsing
+
 
 -- Import the index
 importStateIndexRow  :: FilePath
@@ -110,18 +103,18 @@ toStateActionQValues :: V.Vector StateActionInput -> V.Vector QValueRow -> [QVal
 toStateActionQValues vStateAction vQValues =
   transformIndexList lsStateActions lsQValues
   where
-     lsStateActions = [((st,ac),i)| (StateActionIndex' st ac i) <- V.toList vStateAction]
+     lsStateActions = [(st1,st2,ac,i)| (StateActionInput st1 st2 ac i) <- V.toList vStateAction]
      lsQValues      = [(saIndex,qv) | (QValueRow _ _ saIndex qv) <- V.toList vQValues]
-     transformIndexList :: PrintfArg i =>  [((Observation PriceSpace,PriceSpace),i)] -> [(i,Double)] -> [QValueMatrixTarget]
+     transformIndexList :: [(Action,Action,Action,Int)] -> [(Int,Value)] -> [QValueMatrixTarget]
      transformIndexList [] _  = []
      transformIndexList _  [] = []
      transformIndexList ls ((i,v):ivs) = case (findElement ls i) of
        Left _ -> transformIndexList ls ivs
-       Right (s1,a1) -> ((s1,a1),v) : transformIndexList ls ivs
-     findElement :: PrintfArg i => [((s,a),i)] -> i -> Either String (s,a)
+       Right (s11,s12,a1) -> (s11,s12,a1,v) : transformIndexList ls ivs
+     findElement :: PrintfArg i => [(Action,Action,Action,Int)] -> i -> Either String (Action,Action,Action)
      findElement [] i = Left $ printf "element %s not found" i
-     fineElement (((s1,a1),i1):xs) i
-       | i == i1   = Right (s1,a1)
+     fineElement ((s11,s12,a1,i1):xs) i
+       | i == i1   = Right (s11,s12,a1)
        | otherwise = findElement xs i 
 
 -- TransformFileInput for a player from the given data structure
