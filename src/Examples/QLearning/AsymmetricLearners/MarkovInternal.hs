@@ -48,14 +48,13 @@ import           Data.Csv
 
 ----------------------------------------
 -- 0. Import strategies from the outside
-strategyImport :: (FromField s, FromField a, FromField s, FromField a)
-               => FilePath
+strategyImport :: FilePath
                -> FilePath
                -> IO
                     (Either
                       String
-                      (List '[ Kleisli Stochastic s a
-                             , Kleisli Stochastic s a]))
+                      (List '[ Kleisli Stochastic (Observation PriceSpace) PriceSpace
+                             , Kleisli Stochastic (Observation PriceSpace) PriceSpace]))
 strategyImport filePathState filePathQMatrix = do
   p1 <- importQMatrixAndStateIndex filePathState filePathQMatrix 1
   p2 <- importQMatrixAndStateIndex filePathState filePathQMatrix 2
