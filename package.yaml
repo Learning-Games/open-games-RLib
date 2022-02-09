@@ -30,6 +30,7 @@ library:
     - Engine.QLearning.ExportAsymmetricLearnersLogReducedVerboseOutput
     - Engine.QLearning.ExportAsymmetricLearnersOwnPrice
     - Engine.QLearning.ExportVerbose
+    - Engine.QLearning.ImportAsymmetricLearners
     - Engine.InteractiveIO
     - Engine.QLearningSimple
     - Engine.QLearningBoltzmann.ExportAsymmetricLearnersLogReduced
@@ -132,6 +133,7 @@ dependencies:
     - lens
     - typed-process
     - extra
+    - text
 
 executables:
   learning-exe:

@@ -13,20 +13,22 @@
 
 
 module Engine.QLearning.ImportAsymmetricLearners
-  ( importQMatrixAndStateIndex
-  , Action
-
-  ) where
+ -- ( importQMatrixAndStateIndex
+ -- , Action
+-- )
+   where
 
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BC
 import Data.Csv
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Builder as TLB
 import qualified Data.Vector as V
+import           Formatting
 import           GHC.Generics
 import System.Directory (doesFileExist)
-import Text.Printf
-
 ---------------------------------------------------------
 -- Imports the csv that is produced in a learning session
 -- NOTE: This ignores the reuse of the existing structure
@@ -73,7 +75,7 @@ importStateIndexRow filePath = do
   fileExists <- doesFileExist filePath
   if fileExists
      then decodeByName <$> BL.readFile filePath
-     else return . Left $ printf "The file %s does not exist" filePath
+     else return . Left $ formatToString ("The file " % string % " does not exist") filePath
 
 -- Import the qvalues
 importQMatrix  :: FilePath -> IO (Either String (Header, V.Vector QValueRow))
@@ -81,7 +83,7 @@ importQMatrix filePath = do
   fileExists <- doesFileExist filePath
   if fileExists
      then decodeByName <$> BL.readFile filePath
-     else return . Left $ printf "The file %s does not exist" filePath
+     else return . Left $ formatToString ("The file " % string % " does not exist") filePath
 
 -- Extract the last row
 lastIteration :: V.Vector QValueRow -> V.Vector QValueRow
@@ -104,18 +106,21 @@ toStateActionQValues vStateAction vQValues =
   transformIndexList lsStateActions lsQValues
   where
      lsStateActions = [(st1,st2,ac,i)| (StateActionInput st1 st2 ac i) <- V.toList vStateAction]
-     lsQValues      = [(saIndex,qv) | (QValueRow _ _ saIndex qv) <- V.toList vQValues]
-     transformIndexList :: [(Action,Action,Action,Int)] -> [(Int,Value)] -> [QValueMatrixTarget]
-     transformIndexList [] _  = []
-     transformIndexList _  [] = []
-     transformIndexList ls ((i,v):ivs) = case (findElement ls i) of
-       Left _ -> transformIndexList ls ivs
-       Right (s11,s12,a1) -> (s11,s12,a1,v) : transformIndexList ls ivs
-     findElement :: PrintfArg i => [(Action,Action,Action,Int)] -> i -> Either String (Action,Action,Action)
-     findElement [] i = Left $ printf "element %s not found" i
-     fineElement ((s11,s12,a1,i1):xs) i
-       | i == i1   = Right (s11,s12,a1)
-       | otherwise = findElement xs i 
+     lsQValues      = [(i,qv) | (QValueRow _ _ i qv) <- V.toList vQValues]
+
+-- Merges the two lists into the target for the strategies
+transformIndexList :: [(Action,Action,Action,Int)] -> [(Int,Value)] -> [QValueMatrixTarget]
+transformIndexList [] _  = []
+transformIndexList _  [] = []
+transformIndexList ls ((i,v):ivs) = case (findElement ls i) of
+  Left _ -> transformIndexList ls ivs
+  Right (s11,s12,a1) -> (s11,s12,a1,v) : transformIndexList ls ivs
+
+findElement :: [(Action,Action,Action,Int)] -> Int -> Either String (Action,Action,Action)
+findElement [] i = Left $ formatToString ("Element " % int % " was not found") i 
+findElement ((s11,s12,a1,i1):xs) i =
+  if  i == i1 then  Right (s11,s12,a1)
+              else  findElement xs i 
 
 -- TransformFileInput for a player from the given data structure
 importQMatrixAndStateIndex :: FilePath

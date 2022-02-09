@@ -12,6 +12,12 @@ import qualified Data.Vector as V
 import System.Random
 
 
+------------------------------------------------
+-- This is recreating the game used for learning
+-- without _PriceSpace_. This is an interface to
+-- the existing runs.
+------------------------------------------------
+
 parametersGame :: StdGen -> StdGen -> StdGen -> StdGen -> Parameters
 parametersGame gEnv1 gEnv2 gObs1 gObs2 = Parameters
   { pKsi = 0.1
@@ -38,9 +44,9 @@ parametersGame gEnv1 gEnv2 gObs1 gObs2 = Parameters
   , pGeneratorObs2 = gObs2
   }
 
-sourcePath = "/Users/philippzahn/Documents/projects/learning/Software/results/cournotBoltzmannTest-b2471766a9f9a49511bed08159c5c9d03451ef9e/e11_phase1_run_1/"
+sourcePath = "/Users/philippzahn/Documents/projects/learning/Software/results/e1_phase1_run_1/"
 
-pathStateIndex = sourcePath ++ "state_action_index_1_new.csv"
+pathStateIndex = sourcePath ++ "state_action_index_1.csv"
 
 pathQMatrix = sourcePath ++ "qvalues.csv"
 
@@ -64,4 +70,4 @@ importAndAnalyze = do
   gObs1 <- newStdGen
   gObs2 <- newStdGen
   let par = parametersGame gEnv1 gEnv2 gObs1 gObs2
-  evaluateLearnedStrategiesMarkov 10 (10,10) pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)
+  evaluateLearnedStrategiesMarkov 10 (1.355,1.355) pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)
