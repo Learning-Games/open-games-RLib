@@ -18,23 +18,37 @@ module Engine.QLearning.ImportAsymmetricLearners
 -- )
    where
 
-
+import           Control.Applicative hiding (many)
+import           Control.Monad.Identity (Identity)
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Char8 as BC
-import Data.Csv
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Builder as BB
+import           Data.Csv
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TLB
 import qualified Data.Vector as V
-import           Formatting
+import           Data.Void (Void(..))
+import           Data.Word (Word8)
+import qualified Formatting as F
 import           GHC.Generics
-import System.Directory (doesFileExist)
+import           System.Directory (doesFileExist)
+import           System.IO (openFile, hGetContents,IOMode(..),hClose)
+import qualified Text.Parsec as Parsec
+import           Text.Megaparsec
+import           Text.Megaparsec.Char (char, string, space, digitChar, newline)
+import           Text.Megaparsec 
+
+
 ---------------------------------------------------------
 -- Imports the csv that is produced in a learning session
 -- NOTE: This ignores the reuse of the existing structure
 -- TODO: We should improve the export of the existing
 -- files to make our lives simpler
 ---------------------------------------------------------
+
+-- TODO: Integrate parser output with external data type
+
 
 ----------
 -- 0 Types
@@ -61,21 +75,101 @@ type Value  = Double
 type QValueMatrixTarget = (Action,Action,Action, Value)
 instance FromNamedRecord QValueMatrixTarget
 
+
+type MParser = Parsec Void String
+
 ---------------------------------------------------
 -- 1. Import data in the given state-index file and
 -- qmatrix file
+-- The import of the qmatrix file needs some cooking
+-- as the file shape has to be transformed. 
 
--- TODO fix parsing
+-- Parse csv
+--parseCsv1 :: MParser [String]
+parseCsv ::  MParser (String,[StateActionInput])
+parseCsv = do
+  header <- parseHeader
+  ls <- sepBy parseQValueRow newline
+  return (header,ls)
 
+-- Parse the header of the file
+parseHeader :: MParser String
+parseHeader = do
+  fst <- parseState
+  _ <- char ','
+  snd <- headerWords
+  _ <- char ','
+  thrd <-headerWords
+  _    <- newline
+  return $ fst ++ "," ++ snd ++ "," ++ thrd
+
+headerWords :: MParser String
+headerWords = choice
+    [ string "action_index"
+    , string "action"]
+
+-- Parse the state into new variables
+parseState = do
+  str <- string "state" 
+  return ("state1,state2")
+
+parseDouble :: MParser Char
+parseDouble = do
+  digitChar
+
+-- Parse a single QValueRow
+--parseQValueRow :: MParser QValueRow
+parseQValueRow :: MParser StateActionInput
+parseQValueRow = do
+  state1 <- many digitChar
+  _      <- parseWhiteSpace
+  state2 <- many digitChar
+  _      <- mySeparator
+  action <- many digitChar
+  _      <- mySeparator
+  index  <- many digitChar
+  _      <- newline
+  return $ StateActionInput (read state1) (read state2) (read action) (read index)
+
+--mySeparators :: Parsec.Parsec String () String
+mySeparator :: MParser Char
+mySeparator = char ','
+  <|> char '\n'
+
+-- Replace whitespace with ","
+parseWhiteSpace :: MParser String
+parseWhiteSpace = do
+  _ <- char ' '
+  return (",")
+
+
+
+
+--importStateIndexRowOwnParser  :: FilePath
+--                     -> IO (Either String (Header, V.Vector StateActionInput))
+--importStateIndexRowOwnParser filePath = do
+--    contents <- readFile filePath
+--    return $ decodeByName <$> BB.toLazyByteString <$> BB.string7 <$> parseCsv contents "parse error"
+
+
+
+-- transform each row with separator into (,,,)
+
+-- transform each (,,,,) into one more by transforming the string
+
+
+-- Alternatively, the transformation should happen in one go.
+
+-- Probably use unpack to do the transformation
 
 -- Import the index
 importStateIndexRow  :: FilePath
-                     -> IO (Either String (Header, V.Vector StateActionInput))
+                     -> IO (Either String (Header,V.Vector StateActionInput))
 importStateIndexRow filePath = do
   fileExists <- doesFileExist filePath
   if fileExists
      then decodeByName <$> BL.readFile filePath
-     else return . Left $ formatToString ("The file " % string % " does not exist") filePath
+     else return . Left $ F.formatToString ("The file " F.% F.string F.% " does not exist") filePath
 
 -- Import the qvalues
 importQMatrix  :: FilePath -> IO (Either String (Header, V.Vector QValueRow))
@@ -83,7 +177,7 @@ importQMatrix filePath = do
   fileExists <- doesFileExist filePath
   if fileExists
      then decodeByName <$> BL.readFile filePath
-     else return . Left $ formatToString ("The file " % string % " does not exist") filePath
+     else return . Left $ F.formatToString ("The file " F.% F.string F.% " does not exist") filePath
 
 -- Extract the last row
 lastIteration :: V.Vector QValueRow -> V.Vector QValueRow
@@ -117,7 +211,7 @@ transformIndexList ls ((i,v):ivs) = case (findElement ls i) of
   Right (s11,s12,a1) -> (s11,s12,a1,v) : transformIndexList ls ivs
 
 findElement :: [(Action,Action,Action,Int)] -> Int -> Either String (Action,Action,Action)
-findElement [] i = Left $ formatToString ("Element " % int % " was not found") i 
+findElement [] i = Left $ F.formatToString ("Element " F.% F.int F.% " was not found") i 
 findElement ((s11,s12,a1,i1):xs) i =
   if  i == i1 then  Right (s11,s12,a1)
               else  findElement xs i 

@@ -18,6 +18,21 @@ import System.Random
 -- the existing runs.
 ------------------------------------------------
 
+{--
+TODO
+* import file paths for a range of results
+* do the transformation of the state indices for different files within the import step
+* 
+* test for all starting conditions? 
+
+MAYBE
+* think about an approximate criterion? 
+
+
+-}
+
+
+
 parametersGame :: StdGen -> StdGen -> StdGen -> StdGen -> Parameters
 parametersGame gEnv1 gEnv2 gObs1 gObs2 = Parameters
   { pKsi = 0.1
@@ -44,7 +59,7 @@ parametersGame gEnv1 gEnv2 gObs1 gObs2 = Parameters
   , pGeneratorObs2 = gObs2
   }
 
-sourcePath = "/Users/philippzahn/Documents/projects/learning/Software/results/e1_phase1_run_1/"
+sourcePath = "/Users/philippzahn/Documents/projects/learning/Software/results/p1e1p2e1_phase2_run_1/"
 
 pathStateIndex = sourcePath ++ "state_action_index_1.csv"
 
@@ -70,4 +85,4 @@ importAndAnalyze = do
   gObs1 <- newStdGen
   gObs2 <- newStdGen
   let par = parametersGame gEnv1 gEnv2 gObs1 gObs2
-  evaluateLearnedStrategiesMarkov 10 (1.355,1.355) pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)
+  evaluateLearnedStrategiesMarkov 100 (1.355,1.355) pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)

@@ -134,6 +134,7 @@ dependencies:
     - typed-process
     - extra
     - text
+    - megaparsec
 
 executables:
   learning-exe:
