@@ -26,7 +26,6 @@ TODO
 MAYBE
 * think about an approximate criterion? 
 
-
 -}
 
 
