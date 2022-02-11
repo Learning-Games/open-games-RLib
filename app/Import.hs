@@ -21,8 +21,6 @@ import System.Random
 {--
 TODO
 * import file paths for a range of results
-* do the transformation of the state indices for different files within the import step
-* 
 * test for all starting conditions? 
 
 MAYBE
@@ -61,7 +59,7 @@ parametersGame gEnv1 gEnv2 gObs1 gObs2 = Parameters
 
 sourcePath = "/Users/philippzahn/Documents/projects/learning/Software/results/p1e1p2e1_phase2_run_1/"
 
-pathStateIndex = sourcePath ++ "state_action_index_1.csv"
+pathStateIndex = sourcePath ++ "state_action_index_2.csv"
 
 pathQMatrix = sourcePath ++ "qvalues.csv"
 

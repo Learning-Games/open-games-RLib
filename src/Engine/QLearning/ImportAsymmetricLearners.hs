@@ -23,7 +23,6 @@ import           Control.Monad.Identity (Identity)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Builder as BB
-import           Data.Csv
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TLB
@@ -36,8 +35,7 @@ import           System.Directory (doesFileExist)
 import           System.IO (openFile, hGetContents,IOMode(..),hClose)
 import qualified Text.Parsec as Parsec
 import           Text.Megaparsec
-import           Text.Megaparsec.Char (char, string, space, digitChar, newline)
-import           Text.Megaparsec 
+import           Text.Megaparsec.Char (char, string, space, digitChar, newline, punctuationChar)
 
 
 ---------------------------------------------------------
@@ -58,7 +56,7 @@ data StateActionInput = StateActionInput
   , action :: Action
   , action_index  :: Int
   } deriving (Show,Generic)
-instance FromNamedRecord StateActionInput
+--instance FromNamedRecord StateActionInput
 
 data QValueRow  = QValueRow
   { iteration :: Int
@@ -66,14 +64,14 @@ data QValueRow  = QValueRow
   , state_action_index :: Int
   , qvalue :: Value
   } deriving (Show, Generic)
-instance FromNamedRecord QValueRow
+--instance FromNamedRecord QValueRow
 
 type Action = Double
 type Value  = Double
 
 
 type QValueMatrixTarget = (Action,Action,Action, Value)
-instance FromNamedRecord QValueMatrixTarget
+--instance FromNamedRecord QValueMatrixTarget
 
 
 type MParser = Parsec Void String
@@ -84,13 +82,17 @@ type MParser = Parsec Void String
 -- The import of the qmatrix file needs some cooking
 -- as the file shape has to be transformed. 
 
--- Parse csv
+------------------------------
+-- Parse state action csv
 --parseCsv1 :: MParser [String]
-parseCsv ::  MParser (String,[StateActionInput])
-parseCsv = do
+parseStateAction ::  MParser (String,V.Vector StateActionInput)
+parseStateAction = do
   header <- parseHeader
-  ls <- sepBy parseQValueRow newline
-  return (header,ls)
+  ls <- endBy parseStateActionRow newline
+  return (header,V.fromList $ ls)
+
+testParser = do
+  sepBy parseStateActionRow newline
 
 -- Parse the header of the file
 parseHeader :: MParser String
@@ -113,22 +115,17 @@ parseState = do
   str <- string "state" 
   return ("state1,state2")
 
-parseDouble :: MParser Char
-parseDouble = do
-  digitChar
-
 -- Parse a single QValueRow
 --parseQValueRow :: MParser QValueRow
-parseQValueRow :: MParser StateActionInput
-parseQValueRow = do
-  state1 <- many digitChar
+parseStateActionRow :: MParser StateActionInput
+parseStateActionRow = do
+  state1 <- many $ digitChar <|> char '.'
   _      <- parseWhiteSpace
-  state2 <- many digitChar
+  state2 <- many $ digitChar <|> char '.'
   _      <- mySeparator
-  action <- many digitChar
+  action <- many $ digitChar <|> char '.'
   _      <- mySeparator
-  index  <- many digitChar
-  _      <- newline
+  index  <- many $ digitChar <|> char '.'
   return $ StateActionInput (read state1) (read state2) (read action) (read index)
 
 --mySeparators :: Parsec.Parsec String () String
@@ -142,42 +139,54 @@ parseWhiteSpace = do
   _ <- char ' '
   return (",")
 
+--------------------
+-- Parse q value csv
+parseQValues :: MParser (String, V.Vector QValueRow)
+parseQValues = do
+  str <- parseHeaderQM
+  ls <- endBy parseQValueRow newline
+  return (str,V.fromList ls)
+
+-- Parse the header of the file
+parseHeaderQM :: MParser String
+parseHeaderQM = do
+  str <- string "iteration,player,state_action_index,qvalue"
+  _   <- newline
+  return $ str
 
 
+-- Parse one row
+parseQValueRow :: MParser QValueRow
+parseQValueRow = do 
+  iteration          <- many $ digitChar
+  _                  <- mySeparator
+  player             <- many $ digitChar
+  _                  <- mySeparator
+  state_action_value <- many $ digitChar 
+  _                  <- mySeparator
+  value              <- many $ digitChar <|> char '.'
+  return $ QValueRow (read iteration) (read player) (read state_action_value) (read value)
 
---importStateIndexRowOwnParser  :: FilePath
---                     -> IO (Either String (Header, V.Vector StateActionInput))
---importStateIndexRowOwnParser filePath = do
---    contents <- readFile filePath
---    return $ decodeByName <$> BB.toLazyByteString <$> BB.string7 <$> parseCsv contents "parse error"
+---------------
+-- Import files
 
-
-
--- transform each row with separator into (,,,)
-
--- transform each (,,,,) into one more by transforming the string
-
-
--- Alternatively, the transformation should happen in one go.
-
--- Probably use unpack to do the transformation
-
--- Import the index
-importStateIndexRow  :: FilePath
-                     -> IO (Either String (Header,V.Vector StateActionInput))
+importStateIndexRow :: FilePath
+                    -> IO (Either
+                            (ParseErrorBundle String Void) (String, V.Vector StateActionInput))
 importStateIndexRow filePath = do
-  fileExists <- doesFileExist filePath
-  if fileExists
-     then decodeByName <$> BL.readFile filePath
-     else return . Left $ F.formatToString ("The file " F.% F.string F.% " does not exist") filePath
+  contents <- readFile filePath
+  return $ parse parseStateAction filePath contents
 
--- Import the qvalues
-importQMatrix  :: FilePath -> IO (Either String (Header, V.Vector QValueRow))
+importQMatrix :: FilePath
+                    -> IO (Either
+                            (ParseErrorBundle String Void) (String, V.Vector QValueRow))
 importQMatrix filePath = do
-  fileExists <- doesFileExist filePath
-  if fileExists
-     then decodeByName <$> BL.readFile filePath
-     else return . Left $ F.formatToString ("The file " F.% F.string F.% " does not exist") filePath
+  contents <- readFile filePath
+  return $ parse parseQValues filePath contents
+
+
+-------------------------------
+-- Extract relevant information 
 
 -- Extract the last row
 lastIteration :: V.Vector QValueRow -> V.Vector QValueRow
@@ -217,19 +226,20 @@ findElement ((s11,s12,a1,i1):xs) i =
               else  findElement xs i 
 
 -- TransformFileInput for a player from the given data structure
-importQMatrixAndStateIndex :: FilePath
-                           -> FilePath
+importQMatrixAndStateIndex :: String
+                           -> String
                            -> Int
-                           -> IO (Either String [QValueMatrixTarget])
+                           -> IO (Either (ParseErrorBundle String Void) [QValueMatrixTarget])
 importQMatrixAndStateIndex filePathStateIndex filePathQMatrix player' = do
   stateIndex <- importStateIndexRow filePathStateIndex
   qMatrix    <- importQMatrix filePathQMatrix
   case stateIndex of
-    Left str -> return $ Left str
-    Right (h,stateAction) -> case qMatrix of
-       Left str' -> return $ Left str'
-       Right (h',qValue) ->
-         let preparedQValue = extractPlayer (lastIteration qValue) player'
-             in return $ Right $ toStateActionQValues stateAction preparedQValue
+        Left str -> return $ Left str
+        Right (h,stateAction) -> case qMatrix of
+          Left str' -> return $ Left str'
+          Right (h',qValue) -> 
+            let preparedQValue = extractPlayer (lastIteration qValue) player'
+                in return $ Right $ toStateActionQValues stateAction preparedQValue
+
 
 

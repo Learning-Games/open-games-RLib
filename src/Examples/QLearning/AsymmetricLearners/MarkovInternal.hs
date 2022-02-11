@@ -37,6 +37,9 @@ import           Control.Arrow (Kleisli)
 import           Control.Monad.State  hiding (state,void)
 import qualified Control.Monad.State  as ST
 import           Data.Csv
+import           Data.Void (Void(..))
+import           Text.Megaparsec
+import           Text.Megaparsec.Char (char, string, space, digitChar, newline)
 
 
 -------------------------------------------------------
@@ -59,7 +62,7 @@ strategyImport :: FilePath
                -> FilePath
                -> IO
                     (Either
-                      String
+                      (ParseErrorBundle String Data.Void.Void)
                       (List '[ Kleisli Stochastic (Action,Action) Action
                              , Kleisli Stochastic (Action,Action) Action]))
 strategyImport filePathState filePathQMatrix = do
@@ -71,7 +74,7 @@ strategyImport filePathState filePathQMatrix = do
       case p2 of
         Left str' -> return $ Left str'
         Right lsQValues2 ->
-           return $ Right (fromListToStrategy lsQValues1 ::- fromListToStrategy lsQValues2 ::- Nil)
+           return $ Right (fromListToStrategy lsQValues1 ::- fromListToStrategy lsQValues2 ::- Nil) 
 
 
 -- 1. The stage game 
@@ -164,7 +167,12 @@ eqOutput iterator strat initialAction actionSpace1 actionsSpace2 parameters disc
 -- Evaluate the strategies as an approximation of the Markov game
 evaluateLearnedStrategiesMarkov iterator initialAction filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters discountFactor   = do
   strat <- strategyImport filePathState filePathQMatrix
+  
   case strat of
     Left str -> print str
     Right strat' -> eqOutput iterator strat' initialAction actionSpace1 actionsSpace2 parameters discountFactor
+
+
+
+
 
