@@ -35,8 +35,8 @@ import           Numeric.Probability.Distribution hiding (map, lift, filter)
 discountFactor = 1.0
 
 prisonersDilemmaCont :: OpenGame
-                          MonadOptic
-                          MonadContext
+                          MonadOpticMarkov
+                          MonadContextMarkov
                           ('[Kleisli CondensedTableV (ActionPD, ActionPD) ActionPD,
                              Kleisli CondensedTableV (ActionPD, ActionPD) ActionPD])
                           ('[IO (DiagnosticsMC ActionPD), IO (DiagnosticsMC ActionPD)])
@@ -97,14 +97,14 @@ transformStratTuple (x ::- y ::- Nil) =
 
 
 -- extract continuation
-extractContinuation :: MonadOptic s () a () -> s -> StateT Vector IO ()
-extractContinuation (MonadOptic v u) x = do
+extractContinuation :: MonadOpticMarkov s () a () -> s -> StateT Vector IO ()
+extractContinuation (MonadOpticMarkov v u) x = do
   (z,a) <- ST.lift (v x)
   u z ()
 
 -- extract next state (action)
-extractNextState :: MonadOptic s () a () -> s -> IO a
-extractNextState (MonadOptic v _) x = do
+extractNextState :: MonadOpticMarkov s () a () -> s -> IO a
+extractNextState (MonadOpticMarkov v _) x = do
   (z,a) <- v x
   pure a
 
@@ -181,7 +181,7 @@ determineContinuationPayoffsIO iterator strat action = do
 
 
 -- fix context used for the evaluation
-contextCont  iterator strat initialAction = MonadContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffsIO iterator strat action)
+contextCont  iterator strat initialAction = MonadContextMarkov (pure ((),initialAction)) (\_ action -> determineContinuationPayoffsIO iterator strat action)
 
 
 
