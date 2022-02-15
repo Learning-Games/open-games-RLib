@@ -24,6 +24,7 @@ module Engine.IOGames
 import           Debug.Trace
 
 import           Control.Arrow                      hiding ((+:+))
+import           Control.Monad.Bayes.Weighted
 import           Control.Monad.State                hiding (state)
 import           Control.Monad.Trans.Class
 import           Data.Foldable
