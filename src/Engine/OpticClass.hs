@@ -27,7 +27,12 @@ module Engine.OpticClass
 
 import           Control.Monad.State                hiding (state)
 import           Data.HashMap                       as HM hiding (null,map,mapMaybe)
+import           Data.Maybe
+import qualified Data.Vector as V
 import           Numeric.Probability.Distribution   hiding (lift)
+import           System.Random.MWC.CondensedTable
+import           System.Random.Stateful
+
 
 import qualified Optics.Getter as G
 import qualified Optics.Lens as L
@@ -410,4 +415,3 @@ instance Context MonadContextMarkov MonadOpticMarkov where
             = let h' = do {(z, (s1, s2)) <- h; return ((z, s2), s1)}
                   k' (z, s2) a1 = do {(_, a2) <- lift (v s2); (b1, _) <- k z (a1, a2); return b1}
                in MonadContextMarkov h' k'
-

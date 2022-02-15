@@ -55,6 +55,8 @@ library:
     - Examples.Auctions.SimultaneousBidAuction
     - Examples.Markov.RepeatedPD
     - Examples.Markov.TwoStageMarkov
+    - Examples.Markov.TestSimpleMonteCarlo
+    - Examples.Markov.TestSimpleMonteCarlo.Continuation
     - Graphics
     - Examples.InteractiveIO.InteractiveIO
     - Examples.QLearning.OwnPriceObservation.Internal
@@ -133,8 +135,16 @@ dependencies:
     - lens
     - typed-process
     - extra
+    - mwc-random
+    - random
+    - vector
+    - monad-bayes
+    - criterion
     - text
     - megaparsec
+
+
+
 
 executables:
   learning-exe:
