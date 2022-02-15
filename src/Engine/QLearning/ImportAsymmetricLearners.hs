@@ -23,6 +23,7 @@ import           Control.Monad.Identity (Identity)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Builder as BB
+import           Data.Csv
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TLB
@@ -50,31 +51,36 @@ import           Text.Megaparsec.Char (char, string, space, digitChar, newline, 
 
 ----------
 -- 0 Types
+-- Import type for state action index
 data StateActionInput = StateActionInput
   { state1 :: Action
   , state2 :: Action
   , action :: Action
   , action_index  :: Int
   } deriving (Show,Generic)
---instance FromNamedRecord StateActionInput
 
+-- Import type for qvalue matrix
 data QValueRow  = QValueRow
   { iteration :: Int
   , player :: Int
   , state_action_index :: Int
   , qvalue :: Value
   } deriving (Show, Generic)
---instance FromNamedRecord QValueRow
 
+-- Aliases
 type Action = Double
 type Value  = Double
-
-
 type QValueMatrixTarget = (Action,Action,Action, Value)
---instance FromNamedRecord QValueMatrixTarget
-
-
 type MParser = Parsec Void String
+
+-- Export type for data storage
+data ExportEqAnalysis = ExportEquAnalysis
+   { filePath :: FilePath
+   ,  equilibrium :: Bool
+   } deriving (Generic)
+
+instance ToField Bool
+instance ToRecord ExportEqAnalysis 
 
 ---------------------------------------------------
 -- 1. Import data in the given state-index file and
@@ -240,6 +246,5 @@ importQMatrixAndStateIndex filePathStateIndex filePathQMatrix player' = do
           Right (h',qValue) -> 
             let preparedQValue = extractPlayer (lastIteration qValue) player'
                 in return $ Right $ toStateActionQValues stateAction preparedQValue
-
 
 

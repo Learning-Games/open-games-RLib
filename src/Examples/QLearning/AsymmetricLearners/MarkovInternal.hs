@@ -56,6 +56,25 @@ profit1 par@Parameters {..} p1   p2 = (p1 - pC1)* (demand1 par p1 p2)
 profit2 :: Parameters -> Action -> Action -> Double
 profit2 par@Parameters {..} p1  p2 = (p2 - pC2)* (demand2 par p1 p2)
 
+dist1 :: Parameters -> Double
+dist1 par =  (upperBound1 par - lowerBound1 par) / pM1 par
+
+lowerBound1,upperBound1 :: Parameters -> Double
+lowerBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pBertrandPrice1 - pKsi*(pMonopolyPrice1 - pBertrandPrice1)
+upperBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pMonopolyPrice1 + pKsi*(pMonopolyPrice1 - pBertrandPrice1)
+
+actionSpace par = [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]
+
+
+-- Data type for importing relevant game information to test for equilibrium
+data ImportParameters = ImportParameters
+  { parametersGame     :: Parameters
+  , initialObservation :: (Action,Action)
+  , filePathStateIndex :: FilePath
+  , filePathQMatrix    :: FilePath
+  , iterations         :: Integer
+  }
+
 ----------------------------------------
 -- 0. Import strategies from the outside
 strategyImport :: FilePath
@@ -78,7 +97,7 @@ strategyImport filePathState filePathQMatrix = do
 
 
 -- 1. The stage game 
-stageMC actionSpace1 actionSpace2 parameters discountFactor = [opengame|
+stageMC actionSpace1 actionSpace2 parameters = [opengame|
    inputs    : state ;
    feedback  :      ;
 
@@ -95,9 +114,9 @@ stageMC actionSpace1 actionSpace2 parameters discountFactor = [opengame|
    outputs   :  p2 ;
    returns   :  profit2 parameters p1 p2    ;
 
-   operation : discount "player1" (\x -> x * discountFactor) ;
+   operation : discount "player1" (\x -> x * (pGamma parameters)) ;
 
-   operation : discount "player2" (\x -> x * discountFactor) ;
+   operation : discount "player2" (\x -> x * (pGamma parameters)) ;
 
    :-----------------:
 
@@ -113,14 +132,13 @@ evaluateLearnedStrategiesOneShot :: FilePath
                                  -> [Action]
                                  -> [Action]
                                  -> Parameters
-                                 -> Double
                                  -> (Action,Action)
                                  -> IO ()
-evaluateLearnedStrategiesOneShot filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters discountFactor initialState  = do
+evaluateLearnedStrategiesOneShot filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters initialState  = do
   strat <- strategyImport filePathState filePathQMatrix
   case strat of
     Left str -> print str
-    Right strat' -> generateIsEq $ evaluate (stageMC actionSpace1 actionsSpace2 parameters discountFactor) strat' (StochasticStatefulContext (pure ((),(initialState))) (\_ _ -> pure ()))
+    Right strat' -> generateIsEq $ evaluate (stageMC actionSpace1 actionsSpace2 parameters) strat' (StochasticStatefulContext (pure ((),(initialState))) (\_ _ -> pure ()))
 
 -- 3. Evaluate the strategies in the Markov game
 -- extract continuation
@@ -145,33 +163,53 @@ determineContinuationPayoffs :: Integer
                              -> [Action]
                              -> [Action]
                              -> Parameters
-                             -> Double
                              -> StateT Vector Stochastic ()
-determineContinuationPayoffs 1        strat action actionSpace1 actionsSpace2 parameters discountFactor = pure ()
-determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 parameters discountFactor = do
+determineContinuationPayoffs 1        strat action actionSpace1 actionsSpace2 parameters = pure ()
+determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 parameters = do
    extractContinuation executeStrat action
    nextInput <- ST.lift $ extractNextState executeStrat action
-   determineContinuationPayoffs (pred iterator) strat nextInput actionSpace1 actionsSpace2 parameters discountFactor
- where executeStrat =  play (stageMC actionSpace1 actionsSpace2 parameters discountFactor) strat
+   determineContinuationPayoffs (pred iterator) strat nextInput actionSpace1 actionsSpace2 parameters
+ where executeStrat =  play (stageMC actionSpace1 actionsSpace2 parameters) strat
 
 
 -- Repeated game
-repeatedGameEq iterator strat initialAction actionSpace1 actionsSpace2 parameters discountFactor = evaluate (stageMC actionSpace1 actionsSpace2 parameters discountFactor) strat context
-  where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 parameters discountFactor)
+repeatedGameEq iterator strat initialAction actionSpace1 actionsSpace2 parameters = evaluate (stageMC actionSpace1 actionsSpace2 parameters) strat context
+  where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 parameters)
 
 
 -- Eq output for the repeated game
-eqOutput iterator strat initialAction actionSpace1 actionsSpace2 parameters discountFactor = generateIsEq $ repeatedGameEq iterator strat initialAction actionSpace1 actionsSpace2 parameters discountFactor
+eqOutput iterator strat initialAction actionSpace1 actionsSpace2 parameters = generateIsEq $ repeatedGameEq iterator strat initialAction actionSpace1 actionsSpace2 parameters 
 
 
 -- Evaluate the strategies as an approximation of the Markov game
-evaluateLearnedStrategiesMarkov iterator initialAction filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters discountFactor   = do
+evaluateLearnedStrategiesMarkov iterator initialAction filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters = do
   strat <- strategyImport filePathState filePathQMatrix
   
   case strat of
     Left str -> print str
-    Right strat' -> eqOutput iterator strat' initialAction actionSpace1 actionsSpace2 parameters discountFactor
+    Right strat' -> eqOutput iterator strat' initialAction actionSpace1 actionsSpace2 parameters
 
+-- TODO turn into Either case; and then write to file afterwards
+-- Evaluate the strategies as an approximation of the Markov game
+
+-- Repeated game
+repeatedGameEq2 iterator strat initialAction parameters = evaluate (stageMC actionSpace1 actionSpace2 parameters) strat context
+  where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpace1 actionSpace2 parameters)
+        actionSpace1 = actionSpace parameters
+        actionSpace2 = actionSpace parameters
+
+
+
+
+-- Eq output for the repeated game
+eqOutput2 iterator strat initialAction parameters = generateIsEq $ repeatedGameEq2 iterator strat initialAction parameters
+
+
+evaluateLearnedStrategiesMarkov2 ImportParameters{..} = do
+  strat <- strategyImport filePathStateIndex filePathQMatrix
+  case strat of
+    Left str -> print str
+    Right strat' -> eqOutput2 iterations strat' initialObservation parametersGame
 
 
 

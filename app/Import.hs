@@ -5,6 +5,7 @@ module Import
 
 
 import Examples.QLearning.AsymmetricLearners.MarkovInternal
+import Engine.QLearning.ImportAsymmetricLearners (Action)
 import Examples.QLearning.AsymmetricLearners3Phases (Parameters(..),actionSpace1,actionSpace2,randomInitialObservation)
 import Engine.QLearning (CTable(..))
 
@@ -28,10 +29,8 @@ MAYBE
 
 -}
 
-
-
-parametersGame :: StdGen -> StdGen -> StdGen -> StdGen -> Parameters
-parametersGame gEnv1 gEnv2 gObs1 gObs2 = Parameters
+parametersGame1 :: StdGen -> StdGen -> StdGen -> StdGen -> Parameters
+parametersGame1 gEnv1 gEnv2 gObs1 gObs2 = Parameters
   { pKsi = 0.1
   , pBeta =  0.000004
   , pInitialExploreRate1 = ((exp 1) ** 0)
@@ -81,5 +80,27 @@ importAndAnalyze = do
   gEnv2 <- newStdGen
   gObs1 <- newStdGen
   gObs2 <- newStdGen
-  let par = parametersGame gEnv1 gEnv2 gObs1 gObs2
+  let par = parametersGame1 gEnv1 gEnv2 gObs1 gObs2
   evaluateLearnedStrategiesMarkov 100 (1.355,1.355) pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)
+
+
+---------------------------------------
+-- Export relevant functionality to the
+-- outside world
+importAndAnalyze2 :: (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
+                  -> FilePath
+                  -> FilePath
+                  -> Integer
+                  -> (Action,Action)
+                  -> IO ()
+importAndAnalyze2 parametersGame pathStateIndex pathQMatrix iterations initialObs = do
+  gEnv1 <- newStdGen
+  gEnv2 <- newStdGen
+  gObs1 <- newStdGen
+  gObs2 <- newStdGen
+  let par = parametersGame gEnv1 gEnv2 gObs1 gObs2
+  evaluateLearnedStrategiesMarkov iterations initialObs pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)
+
+
+  
+
