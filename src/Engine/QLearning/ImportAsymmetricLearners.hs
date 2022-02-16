@@ -73,15 +73,6 @@ type Value  = Double
 type QValueMatrixTarget = (Action,Action,Action, Value)
 type MParser = Parsec Void String
 
--- Export type for data storage
-data ExportEqAnalysis = ExportEquAnalysis
-   { filePath :: FilePath
-   ,  equilibrium :: Bool
-   } deriving (Generic)
-
-instance ToField Bool
-instance ToRecord ExportEqAnalysis 
-
 ---------------------------------------------------
 -- 1. Import data in the given state-index file and
 -- qmatrix file

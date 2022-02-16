@@ -38,8 +38,10 @@ import           Control.Monad.State  hiding (state,void)
 import qualified Control.Monad.State  as ST
 import           Data.Csv
 import           Data.Void (Void(..))
+import           GHC.Generics
 import           Text.Megaparsec
 import           Text.Megaparsec.Char (char, string, space, digitChar, newline)
+import           System.Random (StdGen)
 
 
 -------------------------------------------------------
@@ -74,6 +76,17 @@ data ImportParameters = ImportParameters
   , filePathQMatrix    :: FilePath
   , iterations         :: Integer
   }
+
+-- Export type for data storage
+data ExportEqAnalysis = ExportEquAnalysis
+   { filePath :: FilePath
+   , equilibrium :: Bool
+   } deriving (Generic)
+
+instance ToField Bool
+instance ToRecord ExportEqAnalysis 
+
+
 
 ----------------------------------------
 -- 0. Import strategies from the outside
@@ -173,44 +186,33 @@ determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 pa
 
 
 -- Repeated game
-repeatedGameEq iterator strat initialAction actionSpace1 actionsSpace2 parameters = evaluate (stageMC actionSpace1 actionsSpace2 parameters) strat context
-  where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 parameters)
-
-
--- Eq output for the repeated game
-eqOutput iterator strat initialAction actionSpace1 actionsSpace2 parameters = generateIsEq $ repeatedGameEq iterator strat initialAction actionSpace1 actionsSpace2 parameters 
-
-
--- Evaluate the strategies as an approximation of the Markov game
-evaluateLearnedStrategiesMarkov iterator initialAction filePathState filePathQMatrix actionSpace1 actionsSpace2 parameters = do
-  strat <- strategyImport filePathState filePathQMatrix
-  
-  case strat of
-    Left str -> print str
-    Right strat' -> eqOutput iterator strat' initialAction actionSpace1 actionsSpace2 parameters
-
--- TODO turn into Either case; and then write to file afterwards
--- Evaluate the strategies as an approximation of the Markov game
-
--- Repeated game
-repeatedGameEq2 iterator strat initialAction parameters = evaluate (stageMC actionSpace1 actionSpace2 parameters) strat context
+repeatedGameEq iterator strat initialAction parameters = evaluate (stageMC actionSpace1 actionSpace2 parameters) strat context
   where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpace1 actionSpace2 parameters)
         actionSpace1 = actionSpace parameters
         actionSpace2 = actionSpace parameters
 
-
-
-
 -- Eq output for the repeated game
-eqOutput2 iterator strat initialAction parameters = generateIsEq $ repeatedGameEq2 iterator strat initialAction parameters
+eqOutput iterator strat initialAction parameters = generateIsEq $ repeatedGameEq iterator strat initialAction parameters
 
-
-evaluateLearnedStrategiesMarkov2 ImportParameters{..} = do
+-- Expose to the outside 
+evaluateLearnedStrategiesMarkov ImportParameters{..} = do
   strat <- strategyImport filePathStateIndex filePathQMatrix
   case strat of
     Left str -> print str
-    Right strat' -> eqOutput2 iterations strat' initialObservation parametersGame
+    Right strat' -> eqOutput iterations strat' initialObservation parametersGame
 
+-- Eq output for the repeated game
+eqOutput2 iterator strat initialAction parameters = generateEquilibrium $ repeatedGameEq iterator strat initialAction parameters
+
+-- Expose to the outside 
+evaluateLearnedStrategiesMarkov2 ImportParameters{..} = do
+  strat <- strategyImport filePathStateIndex filePathQMatrix
+  return $ fmap (\strat -> eqOutput2 iterations strat initialObservation parametersGame) strat
+  --case strat of
+  --  Left str -> return $ Left str
+  --  Right strat' -> return $ Right $ eqOutput iterations strat' initialObservation parametersGame
+
+-- TODO write the bundle for a list of importParameters and export it to the same csv
 
 
 

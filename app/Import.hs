@@ -19,16 +19,7 @@ import System.Random
 -- the existing runs.
 ------------------------------------------------
 
-{--
-TODO
-* import file paths for a range of results
-* test for all starting conditions? 
-
-MAYBE
-* think about an approximate criterion? 
-
--}
-
+-- Setting up parameters
 parametersGame1 :: StdGen -> StdGen -> StdGen -> StdGen -> Parameters
 parametersGame1 gEnv1 gEnv2 gObs1 gObs2 = Parameters
   { pKsi = 0.1
@@ -61,45 +52,30 @@ pathStateIndex = sourcePath ++ "state_action_index_2.csv"
 
 pathQMatrix = sourcePath ++ "qvalues.csv"
 
-
 initialObs = (10,10)
 
-dist1 :: Parameters -> Double
-dist1 par =  (upperBound1 par - lowerBound1 par) / pM1 par
+iterationsGame = 100
 
-
-
-lowerBound1,upperBound1 :: Parameters -> Double
-lowerBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pBertrandPrice1 - pKsi*(pMonopolyPrice1 - pBertrandPrice1)
-upperBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pMonopolyPrice1 + pKsi*(pMonopolyPrice1 - pBertrandPrice1)
-
-actionSpace par = [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]
-
-importAndAnalyze = do
-  gEnv1 <- newStdGen
-  gEnv2 <- newStdGen
-  gObs1 <- newStdGen
-  gObs2 <- newStdGen
+importParameters gEnv1 gEnv2 gObs1 gObs2 =
   let par = parametersGame1 gEnv1 gEnv2 gObs1 gObs2
-  evaluateLearnedStrategiesMarkov 100 (1.355,1.355) pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)
-
+      in ImportParameters 
+            { parametersGame = par
+            , initialObservation = initialObs
+            , filePathStateIndex = pathStateIndex
+            , filePathQMatrix = pathQMatrix
+            , iterations = iterationsGame}
+ 
 
 ---------------------------------------
 -- Export relevant functionality to the
 -- outside world
-importAndAnalyze2 :: (StdGen -> StdGen -> StdGen -> StdGen -> Parameters)
-                  -> FilePath
-                  -> FilePath
-                  -> Integer
-                  -> (Action,Action)
-                  -> IO ()
-importAndAnalyze2 parametersGame pathStateIndex pathQMatrix iterations initialObs = do
+importAndAnalyze  = do
   gEnv1 <- newStdGen
   gEnv2 <- newStdGen
   gObs1 <- newStdGen
   gObs2 <- newStdGen
-  let par = parametersGame gEnv1 gEnv2 gObs1 gObs2
-  evaluateLearnedStrategiesMarkov iterations initialObs pathStateIndex pathQMatrix (actionSpace par) (actionSpace par) par (pGamma par)
+  let par = importParameters gEnv1 gEnv2 gObs1 gObs2
+  evaluateLearnedStrategiesMarkov par
 
 
   
