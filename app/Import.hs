@@ -52,6 +52,8 @@ pathStateIndex = sourcePath ++ "state_action_index_2.csv"
 
 pathQMatrix = sourcePath ++ "qvalues.csv"
 
+outputPath = "/Users/philippzahn/Documents/projects/learning/Software/results/test.csv"
+
 initialObs = (10,10)
 
 iterationsGame = 100
@@ -77,6 +79,11 @@ importAndAnalyze  = do
   let par = importParameters gEnv1 gEnv2 gObs1 gObs2
   evaluateLearnedStrategiesMarkov par
 
-
-  
+importAndAnalyze2 = do
+  gEnv1 <- newStdGen
+  gEnv2 <- newStdGen
+  gObs1 <- newStdGen
+  gObs2 <- newStdGen
+  let par = importParameters gEnv1 gEnv2 gObs1 gObs2
+  importAndAnalyzeEquilibria par 10 outputPath pathStateIndex [pathQMatrix] 
 

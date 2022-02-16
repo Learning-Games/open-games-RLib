@@ -33,6 +33,7 @@ import           Engine.BayesianGames
 import           Engine.TLL
 import           Preprocessor.Compile
 
+import qualified Data.ByteString.Lazy as L
 import           Control.Arrow (Kleisli)
 import           Control.Monad.State  hiding (state,void)
 import qualified Control.Monad.State  as ST
@@ -58,15 +59,25 @@ profit1 par@Parameters {..} p1   p2 = (p1 - pC1)* (demand1 par p1 p2)
 profit2 :: Parameters -> Action -> Action -> Double
 profit2 par@Parameters {..} p1  p2 = (p2 - pC2)* (demand2 par p1 p2)
 
-dist1 :: Parameters -> Double
+-- Grid distance
+dist1,dist2 :: Parameters -> Double
 dist1 par =  (upperBound1 par - lowerBound1 par) / pM1 par
+dist2 par =  (upperBound2 par - lowerBound2 par) / pM2 par
 
-lowerBound1,upperBound1 :: Parameters -> Double
+-- Bounds on grid
+lowerBound1,upperBound1,lowerBound2,upperBound2 :: Parameters -> Double
 lowerBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pBertrandPrice1 - pKsi*(pMonopolyPrice1 - pBertrandPrice1)
 upperBound1 Parameters{pBertrandPrice1,pKsi,pMonopolyPrice1} = pMonopolyPrice1 + pKsi*(pMonopolyPrice1 - pBertrandPrice1)
+lowerBound2 Parameters{pBertrandPrice2,pKsi,pMonopolyPrice2} = pBertrandPrice2 - pKsi*(pMonopolyPrice2 - pBertrandPrice2)
+upperBound2 Parameters{pBertrandPrice2,pKsi,pMonopolyPrice2} = pMonopolyPrice2 + pKsi*(pMonopolyPrice2 - pBertrandPrice2)
 
-actionSpace par = [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]
+-- Grid for player 1 and player 2
+actionSpace1 par = [lowerBound1 par,lowerBound1 par + dist1 par .. upperBound1 par]
+actionSpace2 par = [lowerBound2 par,lowerBound2 par + dist2 par .. upperBound2 par]
 
+-- All possible observations
+lsObservations :: Parameters -> [(Action,Action)]
+lsObservations par = [(x,y) | x <- actionSpace1 par, y <- actionSpace2 par]
 
 -- Data type for importing relevant game information to test for equilibrium
 data ImportParameters = ImportParameters
@@ -78,20 +89,27 @@ data ImportParameters = ImportParameters
   }
 
 -- Export type for data storage
-data ExportEqAnalysis = ExportEquAnalysis
+data ExportEqAnalysis = ExportEqAnalysis
    { filePath :: FilePath
+   , initialObs1 :: Action
+   , initialObs2 :: Action
    , equilibrium :: Bool
    } deriving (Generic)
 
-instance ToField Bool
+headerExport = "file_path,initial_observation_1,intial_observation_2,equilibrium"
+
+instance ToField Bool where
+  toField True = "T"
+  toField False = "F"
 instance ToRecord ExportEqAnalysis 
 
-
+type ImportFilePath = FilePath
+type ExportFilePath = FilePath
 
 ----------------------------------------
 -- 0. Import strategies from the outside
-strategyImport :: FilePath
-               -> FilePath
+strategyImport :: ImportFilePath
+               -> ImportFilePath
                -> IO
                     (Either
                       (ParseErrorBundle String Data.Void.Void)
@@ -140,8 +158,8 @@ stageMC actionSpace1 actionSpace2 parameters = [opengame|
 
 
 -- 2. Evaluate the strategies one shot
-evaluateLearnedStrategiesOneShot :: FilePath
-                                 -> FilePath
+evaluateLearnedStrategiesOneShot :: ImportFilePath
+                                 -> ImportFilePath
                                  -> [Action]
                                  -> [Action]
                                  -> Parameters
@@ -186,10 +204,10 @@ determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 pa
 
 
 -- Repeated game
-repeatedGameEq iterator strat initialAction parameters = evaluate (stageMC actionSpace1 actionSpace2 parameters) strat context
-  where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpace1 actionSpace2 parameters)
-        actionSpace1 = actionSpace parameters
-        actionSpace2 = actionSpace parameters
+repeatedGameEq iterator strat initialAction parameters = evaluate (stageMC actionSpaceP1 actionSpaceP2 parameters) strat context
+  where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpaceP1 actionSpaceP2 parameters)
+        actionSpaceP1 = actionSpace1 parameters
+        actionSpaceP2 = actionSpace2 parameters
 
 -- Eq output for the repeated game
 eqOutput iterator strat initialAction parameters = generateIsEq $ repeatedGameEq iterator strat initialAction parameters
@@ -202,17 +220,55 @@ evaluateLearnedStrategiesMarkov ImportParameters{..} = do
     Right strat' -> eqOutput iterations strat' initialObservation parametersGame
 
 -- Eq output for the repeated game
-eqOutput2 iterator strat initialAction parameters = generateEquilibrium $ repeatedGameEq iterator strat initialAction parameters
+eqOutput2 iterator strat parameters initialAction = generateEquilibrium $ repeatedGameEq iterator strat initialAction parameters
 
--- Expose to the outside 
+-- Given the initial parameters, the relevant file paths and the iterations produce the bool whether an equilibrium is approximated or not.
+evaluateLearnedStrategiesMarkov2
+    :: ImportParameters
+    -> IO (Either (ParseErrorBundle String Void) Bool)
 evaluateLearnedStrategiesMarkov2 ImportParameters{..} = do
   strat <- strategyImport filePathStateIndex filePathQMatrix
-  return $ fmap (\strat -> eqOutput2 iterations strat initialObservation parametersGame) strat
-  --case strat of
-  --  Left str -> return $ Left str
-  --  Right strat' -> return $ Right $ eqOutput iterations strat' initialObservation parametersGame
+  return $ fmap (\strat -> eqOutput2 iterations strat parametersGame initialObservation) strat
 
--- TODO write the bundle for a list of importParameters and export it to the same csv
+-- For one given estimation, check the equilibria for all possible initial conditions.
+evaluateLearnedStrategiesMarkovLs
+    :: ImportParameters
+    -> Integer
+    -> ImportFilePath
+    -> ImportFilePath
+    -> IO (Either (ParseErrorBundle String Void) [(FilePath, Action,Action,Bool)])
+evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex filePathQMatrix = do
+  strat <- strategyImport filePathStateIndex filePathQMatrix
+  let  parametersGame' = parametersGame parameters
+       lsInitialObservations = lsObservations parametersGame'
+  return $
+    fmap (\strat ->
+            fmap (\(initialObs1,initialObs2) ->
+                        ( filePathQMatrix
+                        , initialObs1
+                        , initialObs2
+                        , eqOutput2 iterations strat parametersGame' (initialObs1,initialObs2)))
+                 lsInitialObservations)
+         strat
 
+------------------------------
+-- Expose to the outside world
 
+-- Given the parameters for a given run, the number of iterations to run, the file path to the state index, the list of paths to the qvaluematrices, compute the equilibria for each possible starting condition for each run, and export it to a .csv in the provided filepath 
+importAndAnalyzeEquilibria :: ImportParameters
+                           -> Integer
+                           -> ExportFilePath
+                           -> ImportFilePath
+                           -> [ImportFilePath]
+                           -> IO ()
+importAndAnalyzeEquilibria parameters iterations exportFilePath filePathStateIndex lsFilePathQMatrix = do
+   ls <- mapM  (evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex) lsFilePathQMatrix
+   L.writeFile exportFilePath headerExport
+   mapM_ (appendToCsv exportFilePath) ls  
+   where
+    appendToCsv :: ExportFilePath -> (Either (ParseErrorBundle String Void) [(FilePath, Action,Action,Bool)]) -> IO ()
+    appendToCsv exportFilePath result = do
+      case result of
+        Left str  -> print str
+        Right ls -> L.appendFile exportFilePath  (encode $ fmap (\(fp,ac1,ac2,b) -> ExportEqAnalysis fp ac1 ac2 b) ls)
 
