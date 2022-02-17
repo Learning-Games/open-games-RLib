@@ -36,7 +36,7 @@ jobs:
           echo Workflow was run with input: learn-run-id=$LEARN_RUNID
 
           # Grab experiment outputs
-          LEARN_FILENAME=$LEARN_RUNID-learn.tar.gz
+          LEARN_FILENAME=$LEARN_RUNID-equilibrium_phase1.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
 
           # Setup directories
