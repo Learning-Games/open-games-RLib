@@ -79,15 +79,6 @@ actionSpace2 par = [lowerBound2 par,lowerBound2 par + dist2 par .. upperBound2 p
 lsObservations :: Parameters -> [(Action,Action)]
 lsObservations par = [(x,y) | x <- actionSpace1 par, y <- actionSpace2 par]
 
--- Data type for importing relevant game information to test for equilibrium
-data ImportParameters = ImportParameters
-  { parametersGame     :: Parameters
-  , initialObservation :: (Action,Action)
-  , filePathStateIndex :: FilePath
-  , filePathQMatrix    :: FilePath
-  , iterations         :: Integer
-  }
-
 -- Export type for data storage
 data ExportEqAnalysis = ExportEqAnalysis
    { filePath :: FilePath
@@ -209,45 +200,27 @@ repeatedGameEq iterator strat initialAction parameters = evaluate (stageMC actio
         actionSpaceP1 = actionSpace1 parameters
         actionSpaceP2 = actionSpace2 parameters
 
--- Eq output for the repeated game
-eqOutput iterator strat initialAction parameters = generateIsEq $ repeatedGameEq iterator strat initialAction parameters
-
--- Expose to the outside 
-evaluateLearnedStrategiesMarkov ImportParameters{..} = do
-  strat <- strategyImport filePathStateIndex filePathQMatrix
-  case strat of
-    Left str -> print str
-    Right strat' -> eqOutput iterations strat' initialObservation parametersGame
 
 -- Eq output for the repeated game
-eqOutput2 iterator strat parameters initialAction = generateEquilibrium $ repeatedGameEq iterator strat initialAction parameters
-
--- Given the initial parameters, the relevant file paths and the iterations produce the bool whether an equilibrium is approximated or not.
-evaluateLearnedStrategiesMarkov2
-    :: ImportParameters
-    -> IO (Either (ParseErrorBundle String Void) Bool)
-evaluateLearnedStrategiesMarkov2 ImportParameters{..} = do
-  strat <- strategyImport filePathStateIndex filePathQMatrix
-  return $ fmap (\strat -> eqOutput2 iterations strat parametersGame initialObservation) strat
+eqOutput iterator strat parameters initialAction = generateEquilibrium $ repeatedGameEq iterator strat initialAction parameters
 
 -- For one given estimation, check the equilibria for all possible initial conditions.
 evaluateLearnedStrategiesMarkovLs
-    :: ImportParameters
+    :: Parameters
     -> Integer
     -> ImportFilePath
     -> ImportFilePath
     -> IO (Either (ParseErrorBundle String Void) [(FilePath, Action,Action,Bool)])
 evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex filePathQMatrix = do
   strat <- strategyImport filePathStateIndex filePathQMatrix
-  let  parametersGame' = parametersGame parameters
-       lsInitialObservations = lsObservations parametersGame'
+  let  lsInitialObservations = lsObservations parameters
   return $
     fmap (\strat ->
             fmap (\(initialObs1,initialObs2) ->
                         ( filePathQMatrix
                         , initialObs1
                         , initialObs2
-                        , eqOutput2 iterations strat parametersGame' (initialObs1,initialObs2)))
+                        , eqOutput iterations strat parameters (initialObs1,initialObs2)))
                  lsInitialObservations)
          strat
 
@@ -255,7 +228,7 @@ evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex fileP
 -- Expose to the outside world
 
 -- Given the parameters for a given run, the number of iterations to run, the file path to the state index, the list of paths to the qvaluematrices, compute the equilibria for each possible starting condition for each run, and export it to a .csv in the provided filepath 
-importAndAnalyzeEquilibria :: ImportParameters
+importAndAnalyzeEquilibria :: Parameters
                            -> Integer
                            -> ExportFilePath
                            -> ImportFilePath
