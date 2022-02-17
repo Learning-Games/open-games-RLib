@@ -49,7 +49,7 @@ jobs:
           cd extraction
           tar xzf $ARCHIVE_LEARN
           cd ..
-          mv extraction/*/*/ experiment/
+          mv extraction/* experiment/
           rm -r extraction
           # End of experiment extraction
 
