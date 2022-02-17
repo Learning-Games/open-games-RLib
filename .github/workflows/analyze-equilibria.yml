@@ -15,14 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Try to login to docker hub registry
-        run: |
-          docker logout ghcr.io
-          echo "${{ secrets.THE_GITHUB_ACCESS_TOKEN }}" | docker login ghcr.io -u ${{ secrets.THE_GITHUB_USERNAME }} --password-stdin
-      # Remember to update this hash whenever you update your R dependencies in any way
-      - name: Pull down image
-        run: |
-          time docker pull ghcr.io/learning-games/python:2022-01-20v2
       # Docker creates files as owner root (0). That means when the
       # runner, running as github, tries to delete the artifacts, it
       # fails. So we create a fresh copy of the current directory

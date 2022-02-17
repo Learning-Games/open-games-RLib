@@ -1,9 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Import
-  where
-
-
 import Examples.QLearning.AsymmetricLearners.MarkovInternal
 import Engine.QLearning.ImportAsymmetricLearners (Action)
 import Examples.QLearning.AsymmetricLearners3Phases (Parameters(..),actionSpace1,actionSpace2,randomInitialObservation)
