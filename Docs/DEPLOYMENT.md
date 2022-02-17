@@ -229,6 +229,18 @@ Command to benchmark a specific game inside that folder:
    2. NOTE: both yaml files may need to be updated
 
 
+## How to update the haskell image
+
+The image only needs to be udpated on an irregular basis. It is often just needed to reduce the compilation time
+
+Build the docker image 
+
+    docker image build -f pzahn/learning/haskellbase.Dockerfile -t ghcr.io/philipp-zahn/learning/haskellbase:2022-02-17 pzahn/
+
+Push the image to the remote repo
+
+    docker push ghcr.io/philipp-zahn/learning/haskellbase:2022-02-17
+
 ## How to update the R image
 
 NOTE: There is a convenience script running the steps below
