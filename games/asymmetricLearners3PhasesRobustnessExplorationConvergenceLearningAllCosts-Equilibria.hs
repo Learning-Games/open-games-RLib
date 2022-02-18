@@ -263,10 +263,10 @@ experimentParameters 81 = parametersGame8
 experimentParameters 82 = parametersGame8
 
 -- source path for all runs of a given experiment
-sourcePath exp = fmap (\runNo -> "e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..250] 
+sourcePath exp = fmap (\runNo -> "experiment/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..250] 
 
 -- path to state index for a given experiment
-pathStateIndex exp = "e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv" 
+pathStateIndex exp = "experiment/e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv" 
 
 -- path to qmatrix for a given experiment
 pathQMatrix exp = fmap (\x -> x ++ "qvalues.csv") (sourcePath exp)
