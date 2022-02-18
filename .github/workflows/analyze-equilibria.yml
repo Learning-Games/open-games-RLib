@@ -58,7 +58,7 @@ jobs:
              -v$WORKDIR/outputs:/outputs \
              --rm \
              ghcr.io/learning-games/base:2021-11-01 \
-             sh -c "stack build -j1 --exec eq-analysis"
+             sh -c "stack build -j1 --exec 'eq-analysis'"
 
           # Archive output
           PW=$(pwd)
