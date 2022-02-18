@@ -271,7 +271,7 @@ pathStateIndex exp = "/e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.c
 pathQMatrix exp = fmap (\x -> x ++ "qvalues.csv") (sourcePath exp)
 
 -- path to output for given experiment
-outputPath exp = "/outputs/equilibria" ++ (show exp) ++ ".csv"
+outputPath exp = "/outputs/equilibria_" ++ (show exp) ++ ".csv"
 
 iterationsGame = 100
 
