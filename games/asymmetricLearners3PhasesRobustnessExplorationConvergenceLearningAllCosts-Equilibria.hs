@@ -263,18 +263,18 @@ experimentParameters 81 = parametersGame8
 experimentParameters 82 = parametersGame8
 
 -- source path for all runs of a given experiment
-sourcePath exp = fmap (\runNo -> "test/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..2] -- ..250] --FIXME
+sourcePath exp = fmap (\runNo -> "e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..250] 
 
 -- path to state index for a given experiment
-pathStateIndex exp = "test/e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv" --FIXME
+pathStateIndex exp = "e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv" 
 
 -- path to qmatrix for a given experiment
 pathQMatrix exp = fmap (\x -> x ++ "qvalues.csv") (sourcePath exp)
 
 -- path to output for given experiment
-outputPath exp = "test/outputs/equilibria_" ++ (show exp) ++ ".csv" --FIXME
+outputPath exp = "outputs/equilibria_" ++ (show exp) ++ ".csv" 
 
-iterationsGame = 100
+iterationsGame = 2 
 
 -------------------------------------------
 -- Run a single analysis for one experiment
@@ -294,4 +294,3 @@ runAnalysis exp = do
 main :: IO ()
 main = mapM_ runAnalysis listExperimentIds
 
-testWrite = L.writeFile "test/test.txt" "1,2,3,4"
