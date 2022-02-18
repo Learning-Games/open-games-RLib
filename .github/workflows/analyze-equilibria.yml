@@ -54,6 +54,7 @@ jobs:
           # Run job
           time docker run --privileged \
              -v$WORKDIR:$WORKDIR -w$WORKDIR \
+             -v$WORKDIR/experiment:/experiment \
              -v$WORKDIR/outputs:/outputs \
              --rm \
              ghcr.io/learning-games/base:2021-11-01 \

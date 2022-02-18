@@ -292,5 +292,7 @@ runAnalysis exp = do
     (pathQMatrix exp)
 
 main :: IO ()
-main = mapM_ runAnalysis listExperimentIds
+main = do
+  L.writeFile "testFile.txt" "1,2,3"
+  mapM_ runAnalysis listExperimentIds
 
