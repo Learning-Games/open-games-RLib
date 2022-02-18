@@ -33,6 +33,7 @@ import           Engine.BayesianGames
 import           Engine.TLL
 import           Preprocessor.Compile
 
+import           Debug.Trace -- FIXME
 import qualified Data.ByteString.Lazy as L
 import           Control.Arrow (Kleisli)
 import           Control.Monad.State  hiding (state,void)
@@ -87,7 +88,7 @@ data ExportEqAnalysis = ExportEqAnalysis
    , equilibrium :: Bool
    } deriving (Generic)
 
-headerExport = "file_path,initial_observation_1,intial_observation_2,equilibrium"
+headerExport = "file_path,initial_observation_1,intial_observation_2,equilibrium\n"
 
 instance ToField Bool where
   toField True = "T"
@@ -99,6 +100,7 @@ type ExportFilePath = FilePath
 
 ----------------------------------------
 -- 0. Import strategies from the outside
+{-# INLINE strategyImport #-}
 strategyImport :: ImportFilePath
                -> ImportFilePath
                -> IO
@@ -164,12 +166,14 @@ evaluateLearnedStrategiesOneShot filePathState filePathQMatrix actionSpace1 acti
 
 -- 3. Evaluate the strategies in the Markov game
 -- extract continuation
+{-# INLINE extractContinuation #-}
 extractContinuation :: StochasticStatefulOptic s () a () -> s -> StateT Vector Stochastic ()
 extractContinuation (StochasticStatefulOptic v u) x = do
   (z,a) <- ST.lift (v x)
   u z ()
 
 -- extract next state (action)
+{-# INLINE extractNextState #-}
 extractNextState :: StochasticStatefulOptic s () a () -> s -> Stochastic a
 extractNextState (StochasticStatefulOptic v _) x = do
   (z,a) <- v x
@@ -177,6 +181,7 @@ extractNextState (StochasticStatefulOptic v _) x = do
 
 
 -- determine continuation for iterator, with the same repeated strategy
+{-# INLINE determineContinuationPayoffs #-}
 determineContinuationPayoffs :: Integer
                              -> List
                                 '[Kleisli Stochastic (Action,Action) Action,
@@ -195,6 +200,7 @@ determineContinuationPayoffs iterator strat action actionSpace1 actionsSpace2 pa
 
 
 -- Repeated game
+{-# INLINE repeatedGameEq #-}
 repeatedGameEq iterator strat initialAction parameters = evaluate (stageMC actionSpaceP1 actionSpaceP2 parameters) strat context
   where context  = StochasticStatefulContext (pure ((),initialAction)) (\_ action -> determineContinuationPayoffs iterator strat action actionSpaceP1 actionSpaceP2 parameters)
         actionSpaceP1 = actionSpace1 parameters
@@ -202,9 +208,11 @@ repeatedGameEq iterator strat initialAction parameters = evaluate (stageMC actio
 
 
 -- Eq output for the repeated game
+{-# INLINE eqOutput #-}
 eqOutput iterator strat parameters initialAction = generateEquilibrium $ repeatedGameEq iterator strat initialAction parameters
 
 -- For one given estimation, check the equilibria for all possible initial conditions.
+{-# INLINE evaluateLearnedStrategiesMarkovLs #-}
 evaluateLearnedStrategiesMarkovLs
     :: Parameters
     -> Integer
@@ -228,6 +236,7 @@ evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex fileP
 -- Expose to the outside world
 
 -- Given the parameters for a given run, the number of iterations to run, the file path to the state index, the list of paths to the qvaluematrices, compute the equilibria for each possible starting condition for each run, and export it to a .csv in the provided filepath 
+{-# INLINE importAndAnalyzeEquilibria #-}
 importAndAnalyzeEquilibria :: Parameters
                            -> Integer
                            -> ExportFilePath
@@ -236,12 +245,12 @@ importAndAnalyzeEquilibria :: Parameters
                            -> IO ()
 importAndAnalyzeEquilibria parameters iterations exportFilePath filePathStateIndex lsFilePathQMatrix = do
    ls <- mapM  (evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex) lsFilePathQMatrix
-   L.writeFile exportFilePath headerExport
+   L.writeFile exportFilePath headerExport 
    mapM_ (appendToCsv exportFilePath) ls  
    where
     appendToCsv :: ExportFilePath -> (Either (ParseErrorBundle String Void) [(FilePath, Action,Action,Bool)]) -> IO ()
     appendToCsv exportFilePath result = do
       case result of
         Left str  -> print str
-        Right ls -> L.appendFile exportFilePath  (encode $ fmap (\(fp,ac1,ac2,b) -> ExportEqAnalysis fp ac1 ac2 b) ls)
+        Right ls -> L.appendFile exportFilePath  (encode $ fmap (\(fp,ac1,ac2,b) ->  ExportEqAnalysis fp ac1 ac2 b) ls)
 
