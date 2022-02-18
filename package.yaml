@@ -156,6 +156,17 @@ executables:
     - -with-rtsopts=-N
     dependencies:
       - open-games-hs
+
+  eq-analysis:
+    main:                Main.hs
+    source-dirs:         analysis
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+      - open-games-hs
+
   game:
     main:                Main.hs
     source-dirs:         game
