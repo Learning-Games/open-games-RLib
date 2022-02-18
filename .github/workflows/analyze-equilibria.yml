@@ -10,7 +10,7 @@ on:
 
 jobs:
   analyze:
-    runs-on: self-hosted
+    runs-on: [self-hosted, cpu]
 
     steps:
       - uses: actions/checkout@v2
