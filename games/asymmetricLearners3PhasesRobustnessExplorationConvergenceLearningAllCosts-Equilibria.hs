@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 import Examples.QLearning.AsymmetricLearners.MarkovInternal
@@ -5,7 +6,6 @@ import Engine.QLearning.ImportAsymmetricLearners (Action)
 import Examples.QLearning.AsymmetricLearners3Phases (Parameters(..),actionSpace1,actionSpace2,randomInitialObservation)
 import Engine.QLearning (CTable(..))
 
-import qualified Data.Vector as V
 import System.Random
 
 
@@ -262,16 +262,16 @@ experimentParameters 81 = parametersGame8
 experimentParameters 82 = parametersGame8
 
 -- source path for all runs of a given experiment
-sourcePath exp = fmap (\runNo -> "/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..250]
+sourcePath exp = fmap (\runNo -> "e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..250] 
 
 -- path to state index for a given experiment
-pathStateIndex exp = "/e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv"
+pathStateIndex exp = "e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv" 
 
 -- path to qmatrix for a given experiment
 pathQMatrix exp = fmap (\x -> x ++ "qvalues.csv") (sourcePath exp)
 
 -- path to output for given experiment
-outputPath exp = "/outputs/equilibria_" ++ (show exp) ++ ".csv"
+outputPath exp = "outputs/equilibria_" ++ (show exp) ++ ".csv" 
 
 iterationsGame = 100
 
@@ -292,3 +292,4 @@ runAnalysis exp = do
 
 main :: IO ()
 main = mapM_ runAnalysis listExperimentIds
+
