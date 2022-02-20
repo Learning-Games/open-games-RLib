@@ -242,7 +242,7 @@ parametersGame8 gEnv1 gEnv2 gObs1 gObs2 = Parameters
   }
 
 -- Create the relevant keys for the experiments and their specifications
-listExperimentIds = [11]-- FIXME,12,21,22,31,32,41,42,51,52,61,62,71,72,81,82]
+listExperimentIds = [11,12,21,22,31,32,41,42,51,52,61,62,71,72,81,82]
 
 -- map ids to parameters
 experimentParameters 11 = parametersGame1
@@ -263,10 +263,10 @@ experimentParameters 81 = parametersGame8
 experimentParameters 82 = parametersGame8
 
 -- source path for all runs of a given experiment
-sourcePath exp = fmap (\runNo -> "experiment/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1,2] -- ..250] 
+sourcePath exp = fmap (\runNo -> "experiment/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..250]
 
 -- path to state index for a given experiment
-pathStateIndex exp = "experiment/e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv" 
+pathStateIndex exp = "experiment/e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv"
 
 -- path to qmatrix for a given experiment
 pathQMatrix exp = fmap (\x -> x ++ "qvalues.csv") (sourcePath exp)
@@ -274,7 +274,7 @@ pathQMatrix exp = fmap (\x -> x ++ "qvalues.csv") (sourcePath exp)
 -- path to output for given experiment
 outputPath exp = "outputs/equilibria_" ++ (show exp) ++ ".csv" 
 
-iterationsGame = 2 
+iterationsGame = 100
 
 -------------------------------------------
 -- Run a single analysis for one experiment
