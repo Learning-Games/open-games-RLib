@@ -12,5 +12,7 @@ import System.Random
 
 
 main :: IO ()
-main = print "test docker execution"
+main = do
+  print "test docker execution"
+  L.writeFile "testFile.txt" "1,2,3"
 
