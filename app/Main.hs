@@ -249,7 +249,7 @@ parametersGame8 gEnv1 gEnv2 gObs1 gObs2 = Parameters
   }
 
 -- Create the relevant keys for the experiments and their specifications
-listExperimentIds = [11,12,21,22,31,32,41,42,51,52,61,62,71,72,81,82]
+listExperimentIds = [11,12,21,22,31,32,41] --42,51,52,61,62,71,72,81,82]
 
 -- map ids to parameters
 experimentParameters 11 = parametersGame1
