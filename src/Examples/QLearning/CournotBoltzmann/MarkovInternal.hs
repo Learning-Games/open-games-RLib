@@ -20,7 +20,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Examples.QLearning.CournoBoltzmann.MarkovInternal
+module Examples.QLearning.CournotBoltzmann.MarkovInternal
   where
 
 import           Engine.Diagnostics

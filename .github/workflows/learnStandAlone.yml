@@ -27,7 +27,7 @@ jobs:
       - name: Run learning process
         run: |
           # Setup working directory
-          LEARN_FILENAME=$GITHUB_RUN_ID-learn.tar.gz
+          LEARN_FILENAME=$GITHUB_RUN_ID-learn-cournot.tar.gz
           ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
           WORKDIR=~/run/$GITHUB_RUN_ID
           JOBDIR=$WORKDIR/results
