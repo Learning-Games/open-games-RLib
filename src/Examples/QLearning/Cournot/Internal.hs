@@ -176,11 +176,11 @@ demand Parameters {..} q1 q2 = pA - pB*(q1 + q2)
 
 -- profit player 1
 profit1 :: Parameters -> QuantitySpace -> QuantitySpace -> Double
-profit1 par@Parameters {..} (QuantitySpace q1 _) (QuantitySpace q2 _) = (q1 - pC1)* (demand par q1 q2)
+profit1 par@Parameters {..} (QuantitySpace q1 _) (QuantitySpace q2 _) = ((demand par q1 q2) - pC1) * q1
 
 -- profit player 2
 profit2 :: Parameters -> QuantitySpace -> QuantitySpace -> Double
-profit2 par@Parameters {..} (QuantitySpace q1 _) (QuantitySpace q2 _) = (q2 - pC2)* (demand par q1 q2)
+profit2 par@Parameters {..} (QuantitySpace q1 _) (QuantitySpace q2 _) = ((demand par q1 q2) - pC2) * q2
 
 
 ------------------------------------------------------
