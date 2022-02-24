@@ -235,11 +235,11 @@ The image only needs to be udpated on an irregular basis. It is often just neede
 
 Build the docker image 
 
-    docker image build -f pzahn/learning/haskellbase.Dockerfile -t ghcr.io/philipp-zahn/learning/haskellbase:2022-02-17 pzahn/
+    docker image build -f pzahn/learning/haskellbase.Dockerfile -t ghcr.io/learning-games/haskellbase:2022-02-17 .
 
 Push the image to the remote repo
 
-    docker push ghcr.io/philipp-zahn/learning/haskellbase:2022-02-17
+    docker push ghcr.io/learning-games/haskellbase:2022-02-17
 
 ## How to update the R image
 
