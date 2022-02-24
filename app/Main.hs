@@ -270,7 +270,7 @@ experimentParameters 81 = parametersGame8
 experimentParameters 82 = parametersGame8
 
 -- source path for all runs of a given experiment
-sourcePath exp = fmap (\runNo -> "experiment/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..250] -- ..250]
+sourcePath exp = fmap (\runNo -> "experiment/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..99] -- ..250]
 
 -- path to state index for a given experiment
 pathStateIndex exp = "experiment/e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv"
