@@ -58,7 +58,7 @@ jobs:
              -v$WORKDIR/outputs:/outputs \
              --rm \
              ghcr.io/learning-games/haskellbase:2022-02-17 \
-             sh -c "stack build -j1 --exec 'learning-exe'"
+             sh -c "stack build -j1 --exec 'eq-analysis'"
 
           # Archive output
           PW=$(pwd)
