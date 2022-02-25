@@ -26,7 +26,7 @@ module Examples.QLearning.AsymmetricLearners.MarkovInternal
 import           Engine.Diagnostics
 import           Engine.QLearning.ImportAsymmetricLearners
 import           Examples.QLearning.AsymmetricLearners.Internal (Parameters(..),demand1,demand2)
-import           Engine.QLearningToBayesian
+import           Examples.QLearning.AsymmetricLearners.QLearningToBayesian
 import           Engine.OpenGames
 import           Engine.OpticClass
 import           Engine.BayesianGames
@@ -82,8 +82,7 @@ lsObservations par = [(x,y) | x <- actionSpace1 par, y <- actionSpace2 par]
 
 -- Export type for data storage
 data ExportEqAnalysis = ExportEqAnalysis
-   { filePath :: FilePath
-   , initialObs1 :: Action
+   { initialObs1 :: Action
    , initialObs2 :: Action
    , equilibrium :: Bool
    } deriving (Generic)
@@ -218,15 +217,14 @@ evaluateLearnedStrategiesMarkovLs
     -> Integer
     -> ImportFilePath
     -> ImportFilePath
-    -> IO (Either (ParseErrorBundle String Void) [(FilePath, Action,Action,Bool)])
+    -> IO (Either (ParseErrorBundle String Void) [(Action,Action,Bool)])
 evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex filePathQMatrix = do
   strat <- strategyImport filePathStateIndex filePathQMatrix
   let  lsInitialObservations = lsObservations parameters
   return $
     fmap (\strat ->
             fmap (\(initialObs1,initialObs2) ->
-                        ( filePathQMatrix
-                        , initialObs1
+                        ( initialObs1
                         , initialObs2
                         , eqOutput iterations strat parameters (initialObs1,initialObs2)))
                  lsInitialObservations)
@@ -235,22 +233,22 @@ evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex fileP
 ------------------------------
 -- Expose to the outside world
 
--- Given the parameters for a given run, the number of iterations to run, the file path to the state index, the list of paths to the qvaluematrices, compute the equilibria for each possible starting condition for each run, and export it to a .csv in the provided filepath 
+-- Given the parameters for a given run, the number of iterations to run, the file path to the state index, the path to the qvaluematrice, compute the equilibria for each possible starting condition for each run, and export it to a .csv in the provided filepath 
 {-# INLINE importAndAnalyzeEquilibria #-}
 importAndAnalyzeEquilibria :: Parameters
                            -> Integer
                            -> ExportFilePath
                            -> ImportFilePath
-                           -> [ImportFilePath]
+                           -> ImportFilePath
                            -> IO ()
-importAndAnalyzeEquilibria parameters iterations exportFilePath filePathStateIndex lsFilePathQMatrix = do
-   ls <- mapM  (evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex) lsFilePathQMatrix
+importAndAnalyzeEquilibria parameters iterations exportFilePath filePathStateIndex filePathQMatrix = do
+   analysis <- evaluateLearnedStrategiesMarkovLs parameters iterations filePathStateIndex filePathQMatrix
    L.writeFile exportFilePath headerExport 
-   mapM_ (appendToCsv exportFilePath) ls  
+   appendToCsv exportFilePath analysis
    where
-    appendToCsv :: ExportFilePath -> (Either (ParseErrorBundle String Void) [(FilePath, Action,Action,Bool)]) -> IO ()
+    appendToCsv :: ExportFilePath -> (Either (ParseErrorBundle String Void) [(Action,Action,Bool)]) -> IO ()
     appendToCsv exportFilePath result = do
       case result of
         Left str  -> print str
-        Right ls -> L.appendFile exportFilePath  (encode $ fmap (\(fp,ac1,ac2,b) ->  ExportEqAnalysis fp ac1 ac2 b) ls)
+        Right ls -> L.appendFile exportFilePath  (encode $ fmap (\(ac1,ac2,b) ->  ExportEqAnalysis ac1 ac2 b) ls)
 

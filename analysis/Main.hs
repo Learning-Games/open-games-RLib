@@ -1,13 +1,20 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE NamedFieldPuns #-}
-
 import Examples.QLearning.AsymmetricLearners.MarkovInternal
 import Engine.QLearning.ImportAsymmetricLearners (Action)
 import Examples.QLearning.AsymmetricLearners3Phases (Parameters(..),actionSpace1,actionSpace2,randomInitialObservation)
 import Engine.QLearning (CTable(..))
 
 import qualified Data.ByteString.Lazy as L -- FIXME
+import qualified Formatting.Clock as F
+import qualified Formatting.Time as F
+import           Path
+import qualified Path.IO as IO
 import System.Random
+import           System.Clock
+import           System.Environment
+import           System.Exit
+import           System.IO hiding (putStrLn)
+import           System.Process.Typed
+import           UnliftIO.Async
 
 
 ------------------------------------------------
@@ -242,7 +249,16 @@ parametersGame8 gEnv1 gEnv2 gObs1 gObs2 = Parameters
   }
 
 -- Create the relevant keys for the experiments and their specifications
-listExperimentIds = [11,12,21,22,31,32,41,42,51,52,61,62,71,72,81,82]
+listExperimentIds = [11,12] --12,21,22,31,32,41,42,51,52,61,62,71,72,81,82]
+
+-- Create list of runs
+listRuns = [1..10]
+
+-- Iterations per Markov approximation
+iterationsGame = 2
+
+-- Combine scenarios
+listScenarios = [(exp,runNo) | exp <- listExperimentIds, runNo <- listRuns]
 
 -- map ids to parameters
 experimentParameters 11 = parametersGame1
@@ -263,36 +279,34 @@ experimentParameters 81 = parametersGame8
 experimentParameters 82 = parametersGame8
 
 -- source path for all runs of a given experiment
-sourcePath exp = fmap (\runNo -> "experiment/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/") [1..250]
+sourcePath exp runNo = "experiment/e" ++ (show exp) ++ "_phase1_run_" ++ (show runNo) ++ "/"
 
 -- path to state index for a given experiment
 pathStateIndex exp = "experiment/e" ++ (show exp) ++ "_phase1_run_1/state_action_index_1.csv"
 
 -- path to qmatrix for a given experiment
-pathQMatrix exp = fmap (\x -> x ++ "qvalues.csv") (sourcePath exp)
+pathQMatrix exp runNo =  (sourcePath exp runNo) ++ "qvalues.csv"
 
 -- path to output for given experiment
-outputPath exp = "outputs/equilibria_" ++ (show exp) ++ ".csv" 
+outputPath exp runNo = "outputs/equilibria_" ++ (show exp) ++ "_run_" ++ (show runNo) ++ ".csv" 
 
-iterationsGame = 100
 
 -------------------------------------------
 -- Run a single analysis for one experiment
-runAnalysis exp = do
+runAnalysis (exp,runNo) = do
   gEnv1 <- newStdGen
   gEnv2 <- newStdGen
   gObs1 <- newStdGen
   gObs2 <- newStdGen
   let par = experimentParameters exp
   importAndAnalyzeEquilibria
-    (par gEnv1 gEnv2 gObs1 gObs2)
-    iterationsGame
-    (outputPath exp)
-    (pathStateIndex exp)
-    (pathQMatrix exp)
+      (par gEnv1 gEnv2 gObs1 gObs2)
+      iterationsGame
+      (outputPath exp runNo)
+      (pathStateIndex exp)
+      (pathQMatrix exp runNo)
 
 main :: IO ()
 main = do
-  L.writeFile "testFile.txt" "1,2,3"
-  mapM_ runAnalysis listExperimentIds
+  mapM_ runAnalysis listScenarios
 
