@@ -23,18 +23,18 @@ parametersGame gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   , pBeta =  0.000004
   , pInitialExploreRate1 = ((exp 1) ** 0)
   , pInitialExploreRate2 = ((exp 1) ** 0)
-  , pLowerQuantity1 = 1
-  , pUpperQuantity1 = 10
-  , pLowerQuantity2 = 1
-  , pUpperQuantity2 = 10
+  , pLowerQuantity1 = 0
+  , pUpperQuantity1 = 40
+  , pLowerQuantity2 = 0
+  , pUpperQuantity2 = 40
   , pGamma = 0.95
   , pLearningRate = 0.15
-  , pA = 41
-  , pB = 4
-  , pC1 = 1
-  , pC2 = 1
-  , pM1 = 9 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
-  , pM2 = 9 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pA = 40
+  , pB = 1
+  , pC1 = 4
+  , pC2 = 4
+  , pM1 = 40 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 40 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
   , pGeneratorEnv1 = gEnv1
   , pGeneratorEnv2 = gEnv2
   , pGeneratorObs1 = gObs1
@@ -60,18 +60,18 @@ p1e1p2e1 explore1 explore2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   , pBeta =  0.000004
   , pInitialExploreRate1 = explore1
   , pInitialExploreRate2 = explore2
-  , pLowerQuantity1 = 1
-  , pUpperQuantity1 = 10
-  , pLowerQuantity2 = 1
-  , pUpperQuantity2 = 10
+  , pLowerQuantity1 = 0
+  , pUpperQuantity1 = 40
+  , pLowerQuantity2 = 0
+  , pUpperQuantity2 = 40
   , pGamma = 0.95
   , pLearningRate = 0.15
-  , pA = 41
-  , pB = 4
-  , pC1 = 1
-  , pC2 = 1
-  , pM1 = 9 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
-  , pM2 = 9 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pA = 40
+  , pB = 1
+  , pC1 = 4
+  , pC2 = 4
+  , pM1 = 40 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
+  , pM2 = 40 -- NOTE: Due to the construction, we need to take the orginial value of Calvano and take -1
   , pGeneratorEnv1 = gEnv1
   , pGeneratorEnv2 = gEnv2
   , pGeneratorObs1 = gObs1
@@ -99,7 +99,7 @@ rematchIds = [ Scenario.ReMatchType "e11" "e12" True
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 250
+numberOfRuns = 20
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int
