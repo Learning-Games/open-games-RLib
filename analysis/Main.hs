@@ -249,13 +249,13 @@ parametersGame8 gEnv1 gEnv2 gObs1 gObs2 = Parameters
   }
 
 -- Create the relevant keys for the experiments and their specifications
-listExperimentIds = [11,12] --12,21,22,31,32,41,42,51,52,61,62,71,72,81,82]
+listExperimentIds = [11,12,21,22,31,32,41,42,51,52,61,62,71,72,81,82]
 
 -- Create list of runs
-listRuns = [1..10]
+listRuns = [1..250]
 
 -- Iterations per Markov approximation
-iterationsGame = 2
+iterationsGame = 100
 
 -- Combine scenarios
 listScenarios = [(exp,runNo) | exp <- listExperimentIds, runNo <- listRuns]
