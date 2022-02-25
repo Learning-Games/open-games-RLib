@@ -1,0 +1,52 @@
+name: learn-stand-alone-cournot
+
+on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Do not change'
+        required: true
+        default: 'dummy input'
+      tags:
+        description: 'dummy input, ignore'
+
+jobs:
+  learn:
+    runs-on: [self-hosted]
+    timeout-minutes: 13000
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # Docker creates files as owner root (0). That means when the
+      # runner, running as github, tries to delete the artifacts, it
+      # fails. So we create a fresh copy of the current directory
+      # under ~/run/$job_id and then remove that later with sudo. The
+      # github user is a sudoer. That's not ideal, but the self-hosted
+      # runner is private anyway.
+      - name: Run learning process
+        run: |
+          # Setup working directory
+          LEARN_FILENAME=$GITHUB_RUN_ID-learn-cournot.tar.gz
+          ARCHIVE_LEARN=$(pwd)/$LEARN_FILENAME
+          WORKDIR=~/run/$GITHUB_RUN_ID
+          JOBDIR=$WORKDIR/results
+          sudo mkdir -p $WORKDIR $JOBDIR
+          sudo cp -r . $WORKDIR/
+
+          # Run job
+          # NOTE Update information on game here
+          time docker run --privileged -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01 sh -c "stack build -j1 --exec 'game local cournot --skip-git'"
+
+          # Archive output
+          PW=$(pwd)
+          cd $JOBDIR
+          time tar czf $ARCHIVE_LEARN .
+          cd $PW
+          sudo rm -rf $JOBDIR
+
+          # Upload output
+          time s3cmd put $ARCHIVE_LEARN s3://pricing-game/
+
+          # Wipe working directory
+          sudo rm -rf $WORKDIR
