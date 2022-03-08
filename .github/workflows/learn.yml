@@ -13,7 +13,7 @@ on:
 jobs:
   learn:
     runs-on: self-hosted-fast
-    timeout-minutes: 1440
+    timeout-minutes: 2880
 
     steps:
       - uses: actions/checkout@v2
@@ -36,7 +36,7 @@ jobs:
 
           # Run job
           # NOTE Update information on game here
-          time docker run --privileged -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/base:2021-11-01 sh -c "stack build -j1 --exec 'game local asymmetricLearners3PhasesRobustnessExplorationConvergence --skip-git'"
+          time docker run --privileged -v$WORKDIR:$WORKDIR -w$WORKDIR --rm ghcr.io/learning-games/haskellbase:2022-02-17 sh -c "stack build -j1 --exec 'game local asymmetricLearnersNoObsAllCostsLearning --skip-git'"
 
           # Archive output
           PW=$(pwd)
