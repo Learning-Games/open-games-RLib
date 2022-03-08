@@ -11,7 +11,7 @@ on:
 jobs:
   analyze:
     runs-on: [self-hosted]
-    timeout-minutes: 3600
+    timeout-minutes: 12000
 
     steps:
       - uses: actions/checkout@v2
