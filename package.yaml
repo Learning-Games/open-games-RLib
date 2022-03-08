@@ -59,6 +59,8 @@ library:
     - Examples.Markov.TestSimpleMonteCarlo.Continuation
     - Graphics
     - Examples.InteractiveIO.InteractiveIO
+    - Examples.QLearning.NoObservation.Internal
+    - Examples.QLearning.NoObservation3Phases
     - Examples.QLearning.OwnPriceObservation.Internal
     - Examples.QLearning.OwnPriceObservationExogAction
     - Examples.QLearning.OwnPriceObservation3Phases
