@@ -22,6 +22,7 @@ library:
     - Engine.OpticClass
     - Engine.QLearning
     - Engine.QLearningVerboseOutput
+    - Engine.QLearningNoMemory.Export
     - Engine.QLearning.Export
     - Engine.QLearning.ExportAsymmetric
     - Engine.QLearning.ExportAsymmetricLearners
@@ -59,6 +60,8 @@ library:
     - Examples.Markov.TestSimpleMonteCarlo.Continuation
     - Graphics
     - Examples.InteractiveIO.InteractiveIO
+    - Examples.QLearning.NoMemory.Internal
+    - Examples.QLearning.NoMemory3Phases
     - Examples.QLearning.NoObservation.Internal
     - Examples.QLearning.NoObservation3Phases
     - Examples.QLearning.OwnPriceObservation.Internal

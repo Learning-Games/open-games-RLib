@@ -45,7 +45,7 @@ import           Engine.OpticClass
 import           Engine.QLearningNoMemory
 import qualified Engine.QLearningNoMemory.Export as Export
 import           Engine.TLL
-import           FastCsv
+import           FastCsvNoMemory
 import           GHC.Generics
 import           Path
 import qualified Path.IO as IO
@@ -155,13 +155,7 @@ configQLNoLearning Parameters {..} = ConfigQLearning
 ---------------
 -- Export types
 
-instance FastCsv.BuildCsvField (PriceSpace, PriceSpace) where
-  {-# INLINE buildCsvField #-}
-  buildCsvField (PriceSpace {value=p1},PriceSpace {value=p2}) =
-    SB.byteString (toShortest p1) <> " " <>
-    SB.byteString (toShortest p2)
-
-instance FastCsv.BuildCsvField PriceSpace where
+instance FastCsvNoMemory.BuildCsvField PriceSpace where
   buildCsvField (PriceSpace {value=p1}) =
     SB.byteString (toShortest p1)
   {-# INLINE buildCsvField #-}
@@ -243,16 +237,16 @@ pricePairs par =
 
 -- initiate a first fixed list of values at average for player 1
 -- this assumes that player 2 randomizes uniformly
-lsValues1 :: Parameters -> [((PriceSpace, PriceSpace), Double)]
-lsValues1 par@Parameters{pGamma} = [((x,z),value z)| x <- xs, z <- xs]
+lsValues1 :: Parameters -> [(PriceSpace, Double)]
+lsValues1 par@Parameters{pGamma} = [(x,value x)| x <- xs]
   where  xs = pricePairs par
          value p1 = (sum  $ fmap (\p2 -> profit2 par p1 p2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
          priceLs = V.toList (population $ actionSpace2 par)
 
 -- initiate a first fixed list of values at average for player 2
 -- this assumes that player 1 randomizes uniformly
-lsValues2 :: Parameters -> [((PriceSpace, PriceSpace), Double)]
-lsValues2 par@Parameters{pGamma} = [((x,z),value z)| x <- xs, z <- xs]
+lsValues2 :: Parameters -> [(PriceSpace, Double)]
+lsValues2 par@Parameters{pGamma} = [(x,value x)| x <- xs]
   where  xs = pricePairs par
          value p2 = (sum  $ fmap (\p1 -> profit1 par p1 p2) priceLs) / ((1 - pGamma) * (fromIntegral $ length priceLs))
          priceLs = V.toList (population $ actionSpace1 par)
@@ -296,14 +290,13 @@ initialEnv2 par@Parameters{pInitialExploreRate2,pGeneratorEnv2} initialArray=
 initialArray1 :: Parameters -> IO (QTable PriceSpace)
 initialArray1 par = do
   arr <- newArray_ (asIdx l, asIdx u)
-  traverse_ (\(k, v) -> writeArray arr ( (asIdx k)) v) lsValues'
+  traverse_ (\(k, v) -> writeArray arr ((asIdx k)) v) lsValues'
   pure arr
   where
     lsValues' = lsValues1 par
     l = minimum $ fmap fst lsValues'
     u = maximum $ fmap fst lsValues'
-    asIdx (x, z) = (Memory.fromSV (SV.replicate (Obs (toIdx x))), toIdx z)
-
+    asIdx x = toIdx x 
 -- Create an initial qTable from the default values and parameters for player 2
 -- Typical usage is when the env is created from scratch (and not reinitiated)
 initialArray2 :: Parameters -> IO (QTable PriceSpace)
@@ -315,8 +308,7 @@ initialArray2 par = do
         lsValues' = lsValues2 par
         l = minimum $ fmap fst lsValues'
         u = maximum $ fmap fst lsValues'
-        asIdx (x, z) = (Memory.fromSV (SV.replicate (Obs (toIdx x))), toIdx z)
-
+        asIdx x = toIdx x
 -----------------------------
 -- 4. Constructing initial state
 
@@ -324,14 +316,18 @@ initialArray2 par = do
 initialStrat :: Parameters
              -> IO (QTable PriceSpace)
              -> IO (QTable PriceSpace)
-             ->  M (List '[M (PriceSpace,  PriceSpace), M (PriceSpace,  PriceSpace)])
-initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2} initialArr1 initialArr2 (initialObs1, initialObs2)= do
-  e1 <- initialEnv1 par initialArr1 initialObs1
-  e2 <- initialEnv2 par initialArr2 initialObs2
+             ->  M (List '[M (PriceSpace, Env PriceSpace), M (PriceSpace, Env PriceSpace)])
+initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2} initialArr1 initialArr2 = do
+  e1 <- initialEnv1 par initialArr1 
+  e2 <- initialEnv2 par initialArr2 
   pure
     (pure (samplePopulation_ (actionSpace1 par) pGeneratorObs1, e1) ::-
      pure (samplePopulation_ (actionSpace2 par) pGeneratorObs2, e2) ::-
      Nil)
+
+-- Constant empty context
+constantContext :: Monad m => MonadContext  m () () () ()
+constantContext = MonadContext (pure ((),())) (\_ -> (\_ -> pure ()))
 
 
 
@@ -340,7 +336,7 @@ initialStrat par@Parameters{pGeneratorObs1,pGeneratorObs2} initialArr1 initialAr
 stageSimple :: (Parameters -> ConfigQLearning PriceSpace M)
             -> (Parameters -> ConfigQLearning PriceSpace M)
             -> Parameters
-            -> OpenGame (MonadOptic M) (MonadContext M) ('[M (PriceSpace,  PriceSpace), M (PriceSpace,  PriceSpace)] +:+ '[]) ('[M (PriceSpace,  PriceSpace), M (PriceSpace,  PriceSpace)] +:+ '[]) () () () ()
+            -> OpenGame (MonadOptic M) (MonadContext M) ('[M (PriceSpace, Env PriceSpace), M (PriceSpace, Env PriceSpace)] +:+ '[]) ('[M (PriceSpace, Env PriceSpace), M (PriceSpace, Env PriceSpace)] +:+ '[]) () () () ()
 stageSimple configQLearningSpec1 configQLearningSpec2 par@Parameters {..} = [opengame|
    inputs    : ;
    feedback  :      ;
@@ -364,27 +360,25 @@ stageSimple configQLearningSpec1 configQLearningSpec2 par@Parameters {..} = [ope
 
 |]
 
-constObs = Obs $ PriceSpace 0 0
-  
+
 ----------------------------------
 -- Defining the iterator structure
 -- Given a strategy and a context, evaluate the simple game
 evalStage :: (Parameters -> ConfigQLearning PriceSpace M)
           -> (Parameters -> ConfigQLearning PriceSpace M)
           -> Parameters
-          -> List '[ M (PriceSpace,  PriceSpace), M ( PriceSpace ,  PriceSpace)]
-          -> MonadContext M () () ( PriceSpace , PriceSpace) ()
-          -> List '[ M (PriceSpace,  PriceSpace), M ( PriceSpace
-                                                                              ,  PriceSpace)]
-evalStage configQLearningSpec1 configQLearningSpec2 par = evaluate (stageSimple configQLearningSpec1 configQLearningSpec2 par (constObs,constObs))
+          -> List '[ M (PriceSpace, Env PriceSpace), M ( PriceSpace , Env PriceSpace)]
+          -> MonadContext M () () () ()
+          -> List '[ M (PriceSpace, Env PriceSpace), M ( PriceSpace, Env PriceSpace)]
+evalStage configQLearningSpec1 configQLearningSpec2 par = evaluate (stageSimple configQLearningSpec1 configQLearningSpec2 par) 
+
 
 {-# INLINE mapStagesM_ #-}
 mapStagesM_ :: (Parameters -> ConfigQLearning PriceSpace M)
             -> (Parameters -> ConfigQLearning PriceSpace M)
             -> Parameters
-            -> (s ->  List '[ (PriceSpace,  PriceSpace), ( PriceSpace,  PriceSpace)] -> M (Decision s))
-            -> List '[ (PriceSpace,  PriceSpace), ( PriceSpace
-                                                                          ,  PriceSpace)]
+            -> (s ->  List '[(PriceSpace, Env PriceSpace), (PriceSpace, Env PriceSpace)] -> M (Decision s))
+            -> List '[ (PriceSpace, Env  PriceSpace), ( PriceSpace , Env PriceSpace)]
             -> Int
             -> s
             -> M ()
@@ -392,7 +386,7 @@ mapStagesM_ configQLearningSpec1 configQLearningSpec2 par f startValue n0 s0 = g
   where
      goInitial s value n0 = do
       newStrat <-
-        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) constantContext)
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n0)
@@ -400,18 +394,16 @@ mapStagesM_ configQLearningSpec1 configQLearningSpec2 par f startValue n0 s0 = g
      go _ _ 0 = pure ()
      go s value !n = do
       let ((p1,env1) ::- (p2,env2) ::- Nil) = value
-          mem1      = (_obsAgentPrevious env1)
-          index1    = (mem1, toIdx p1)
+          index1    = toIdx p1
           table1    = _qTable env1
           newValue1 = _stageNewValue env1
-          mem2      = (_obsAgentPrevious env2)
-          index2    = (mem2, toIdx p2)
+          index2    = toIdx p2
           table2    = _qTable env2
           newValue2 = _stageNewValue env2
       liftIO $ A.writeArray table1 index1 newValue1
       liftIO $ A.writeArray table2 index2 newValue2
       newStrat <-
-        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) constantContext)
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n)
@@ -423,19 +415,16 @@ mapStagesM_ configQLearningSpec1 configQLearningSpec2 par f startValue n0 s0 = g
 mapStagesMFinalResult :: (Parameters -> ConfigQLearning PriceSpace M)
                       -> (Parameters -> ConfigQLearning PriceSpace M)
                       -> Parameters
-                      -> (s ->  List '[ (PriceSpace,  PriceSpace), ( PriceSpace
-                                                                                            ,  PriceSpace)] -> M (Decision s))
-                      -> List '[ (PriceSpace,  PriceSpace), ( PriceSpace
-                                                                                    ,  PriceSpace)]
+                      -> (s ->  List '[ (PriceSpace, Env PriceSpace), ( PriceSpace, Env PriceSpace)] -> M (Decision s))
+                      -> List '[ (PriceSpace, Env PriceSpace), ( PriceSpace, Env PriceSpace)]
                       -> Int
                       -> s
-                      -> M (List '[ (PriceSpace,  PriceSpace), ( PriceSpace
-                                                                                            ,  PriceSpace)])
+                      -> M (List '[(PriceSpace, Env PriceSpace), ( PriceSpace, Env PriceSpace)])
 mapStagesMFinalResult configQLearningSpec1 configQLearningSpec2 par f startValue n0 s0 = go s0 startValue n0
   where
      goInitial s value n0 = do
       newStrat <-
-        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) constantContext)
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n0)
@@ -443,18 +432,16 @@ mapStagesMFinalResult configQLearningSpec1 configQLearningSpec2 par f startValue
      go _ value 0 = pure value
      go s value !n = do
       let ((p1,env1) ::- (p2,env2) ::- Nil) = value
-          mem1      = (_obsAgentPrevious env1)
-          index1    = (mem1, toIdx p1)
+          index1    = toIdx p1
           table1    = _qTable env1
           newValue1 = _stageNewValue env1
-          mem2      = (_obsAgentPrevious env2)
-          index2    = (mem2, toIdx p2)
+          index2    = toIdx p2
           table2    = _qTable env2
           newValue2 = _stageNewValue env2
       liftIO $ A.writeArray table1 index1 newValue1
       liftIO $ A.writeArray table2 index2 newValue2
       newStrat <-
-        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) (fromEvalToContext (hoist value)))
+        sequenceL (evalStage configQLearningSpec1 configQLearningSpec2 par (hoist value) constantContext)
       decision <- f s newStrat
       case decision of
         Continue s' -> go s' newStrat (pred n)
@@ -464,16 +451,14 @@ mapStagesMFinalResult configQLearningSpec1 configQLearningSpec2 par f startValue
 
 hoist ::
      Applicative f
-  => List '[ (PriceSpace,  PriceSpace), ( PriceSpace
-                                                                ,  PriceSpace)]
-  -> List '[ f (PriceSpace,  PriceSpace), f ( PriceSpace
-                                                                    ,  PriceSpace)]
+  => List '[ (PriceSpace, Env PriceSpace), ( PriceSpace, Env PriceSpace)]
+  -> List '[ f (PriceSpace, Env PriceSpace), f ( PriceSpace, Env PriceSpace)]
 hoist (x ::- y ::- Nil) = pure x ::- pure y ::- Nil
 
 sequenceL ::
      Monad m
-  => List '[ m (PriceSpace,  PriceSpace), m (PriceSpace,  PriceSpace)]
-  -> m (List '[ (PriceSpace,  PriceSpace), (PriceSpace,  PriceSpace)])
+  => List '[ m (PriceSpace, Env PriceSpace), m (PriceSpace, Env PriceSpace)]
+  -> m (List '[ (PriceSpace, Env PriceSpace), (PriceSpace, Env PriceSpace)])
 sequenceL (x ::- y ::- Nil) = do
   v <- x
   v' <- y
@@ -518,8 +503,8 @@ firstStageLearningMap :: String
                       -> IO (Map String (QTable PriceSpace), Map String (QTable PriceSpace))
 firstStageLearningMap name runNo keepOnlyNLastIterations exportConfigFunction parametersMap exp= do
    let parametersFunction = parametersMap ! exp
-   ((q1,q2),(lastObs1,lastObs2)) <- firstStageLearning (exp ++ name) runNo keepOnlyNLastIterations exportConfigFunction parametersFunction
-   pure $ (fromList [(exp,(q1,lastObs1))],fromList [(exp,(q2,lastObs2))])
+   (q1,q2) <- firstStageLearning (exp ++ name) runNo keepOnlyNLastIterations exportConfigFunction parametersFunction
+   pure $ (fromList [(exp,q1)],fromList [(exp,q2)])
 
 
 
@@ -580,9 +565,7 @@ firstStageLearning name runNo keepOnlyNLastIterations exportConfigFunction param
       (p2,env2) = x2
       q1       = _qTable env1
       q2       = _qTable env2
-      lastObs1      = Obs p1
-      lastObs2      = Obs p2
-  liftIO $ pure ((q1,q2),(lastObs1,lastObs2))
+  liftIO $ pure (q1,q2)
 
 ----------------------------------
 -- Single rematched Learning stage
@@ -615,20 +598,19 @@ rematchedLearningWithName :: String
                     -> IO (Map String (QTable PriceSpace), Map String (QTable PriceSpace))
 rematchedLearningWithName name runNo keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) targetName rematchType@ReMatchType{..}  = do
   let parametersGameRematching = parametersGameRematchingMap ! (experiment1,experiment2)
-      (x1,lastObs1)            = qTablesMap1 ! experiment1
-      (x2,lastObs2)            = qTablesMap2 ! experiment2
+      x1            = qTablesMap1 ! experiment1
+      x2            = qTablesMap2 ! experiment2
       newNameExp               = experiment1 ++ experiment2
-  ((q1New,q2New),lastObs) <- rematchedLearningSingleRun
-                                 name
-                                 runNo
-                                 keepOnlyNLastIterations
-                                 rematchType
-                                 parametersGameRematching
-                                 exportConfigGameRematching
-                                 x1
-                                 x2
-                                 (lastObs1,lastObs2)
-  pure $ (fromList [(targetName,(q1New,lastObs1))],fromList [(targetName,(q2New,lastObs2))])
+  (q1New,q2New) <- rematchedLearningSingleRun
+                        name
+                        runNo
+                        keepOnlyNLastIterations
+                        rematchType
+                        parametersGameRematching
+                        exportConfigGameRematching
+                        x1
+                        x2
+  pure $ (fromList [(targetName,q1New)],fromList [(targetName,q2New)])
   -- ^ Format: e1e2 ; e1e2
 
 
@@ -657,20 +639,19 @@ rematchedLearning :: String
                     -> IO (Map String (QTable PriceSpace), Map String (QTable PriceSpace))
 rematchedLearning name runNo keepOnlyNLastIterations parametersGameRematchingMap exportConfigGameRematching (qTablesMap1,qTablesMap2) rematchType@ReMatchType{..} = do
   let parametersGameRematching = parametersGameRematchingMap ! (experiment1,experiment2)
-      (x1,lastObs1)            = qTablesMap1 ! experiment1
-      (x2,lastObs2)            = qTablesMap2 ! experiment2
+      x1            = qTablesMap1 ! experiment1
+      x2            = qTablesMap2 ! experiment2
       newNameExp               = experiment1 ++ experiment2
-  ((q1New,q2New),lastObs) <- rematchedLearningSingleRun
-                                 name
-                                 runNo
-                                 keepOnlyNLastIterations
-                                 rematchType
-                                 parametersGameRematching
-                                 exportConfigGameRematching
-                                 x1
-                                 x2
-                                 (lastObs1, lastObs2)
-  pure $ (fromList [(newNameExp,(q1New,lastObs1))],fromList [(newNameExp,(q2New,lastObs2))])
+  (q1New,q2New) <- rematchedLearningSingleRun
+                      name
+                      runNo
+                      keepOnlyNLastIterations
+                      rematchType
+                      parametersGameRematching
+                      exportConfigGameRematching
+                      x1
+                      x2
+  pure $ (fromList [(newNameExp,q1New)],fromList [(newNameExp,q2New)])
 
 
 
@@ -699,7 +680,7 @@ rematchedLearningSingleRun :: String
                            -> QTable PriceSpace
                            -> IO (QTable PriceSpace, QTable PriceSpace)
 
-rematchedLearningSingleRun name runNo keepOnlyNLastIterations ReMatchType{..} parametersGameRematching exportConfigGameRematching x1 x2 lastObs = do
+rematchedLearningSingleRun name runNo keepOnlyNLastIterations ReMatchType{..} parametersGameRematching exportConfigGameRematching x1 x2  = do
   x1'      <- copyArrayP1 x1
   x2'      <- copyArrayP2 x2
   if randomMatch
@@ -710,7 +691,7 @@ rematchedLearningSingleRun name runNo keepOnlyNLastIterations ReMatchType{..} pa
              keepOnlyNLastIterations
              parametersGameRematching
              exportConfigGameRematching
-             (x1',x2') randomInitialObservation
+             (x1',x2') 
     else
          pairing2
              ("p1" ++ experiment1 ++ "p2" ++ experiment2 ++ name)
@@ -718,20 +699,20 @@ rematchedLearningSingleRun name runNo keepOnlyNLastIterations ReMatchType{..} pa
              keepOnlyNLastIterations
              parametersGameRematching
              exportConfigGameRematching
-             (x1',x2') (\_ -> lastObs)
+             (x1',x2') 
 
 
 -- Copy original array for player 1 to a new location so that we do not affect the original array when computing on the copy
 copyArrayP1 :: QTable PriceSpace -> IO (QTable PriceSpace)
 copyArrayP1 x = do
-   x' <- MA.freeze x :: IO (QTableIm Player1N Observation PriceSpace)
+   x' <- MA.freeze x :: IO (QTableIm PriceSpace)
    MA.thaw x'
 
 
 -- Copy original array for player 2 to a new location so that we do not affect the original array when computing on the copy
 copyArrayP2 :: QTable PriceSpace -> IO (QTable PriceSpace)
 copyArrayP2 x = do
-   x' <- MA.freeze x :: IO (QTableIm Player2N Observation PriceSpace)
+   x' <- MA.freeze x :: IO (QTableIm PriceSpace)
    MA.thaw x'
 
 -- Reinitiates the exploitation phase for the starting conditions of two players
@@ -752,17 +733,17 @@ pairing2 :: String
                     (RIO.GLogFunc
                         (QLearningMsg PriceSpace))))
          -- ^ Parameters for the rematched runs
-         -> (QTable PriceSpace, QTable)
+         -> (QTable PriceSpace, QTable PriceSpace)
          -- ^ Relevant restarting conditions for players
          -- Two uses: Randomly created or constant from outside
          ->  IO (QTable PriceSpace, QTable PriceSpace)
-pairing2 name runNo keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction (qt1,qt2) newObsF = do
+pairing2 name runNo keepOnlyNLastIterations parametersGameRematchingFunction exportConfigGameRematchingFunction (qt1,qt2) = do
   gEnv1   <- newStdGen
   gEnv2   <- newStdGen
   gObs1   <- newStdGen
   gObs2   <- newStdGen
   let newParameters = parametersGameRematchingFunction gEnv1 gEnv2 gObs1 gObs2
-      newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2) (newObsF newParameters)
+      newExportConfig = exportConfigGameRematchingFunction name newParameters (pure qt1) (pure qt2) 
   dirResultIteration <- parseRelDir name
   IO.createDirIfMissing True dirResultIteration
   L.writeFile (fromRelDir  (dirResultIteration </> seedsFile)) (csvSeeds newParameters)
@@ -794,9 +775,7 @@ pairing2 name runNo keepOnlyNLastIterations parametersGameRematchingFunction exp
       (p2,env2) = x2
       q1       = _qTable env1
       q2       = _qTable env2
-      lastObs1      = Obs p1
-      lastObs2      = Obs p2
-  liftIO $ pure ((q1,q2),(lastObs1,lastObs2))
+  liftIO $ pure (q1,q2)
   -- ^ FIXME the last observation construction should be made more robust
 
 
