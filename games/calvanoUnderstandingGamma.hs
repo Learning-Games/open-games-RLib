@@ -278,16 +278,15 @@ exportConfigGameRematchingPhase3 name parameters arr1 arr2  = ExportAsymmetricLe
 -- Main run file
 ----------------
 
-main :: IO ()
-main = mapM_ run [0.1,0.2..1.0]
+lsGammas = [(0.1,0),(0.2,250),(0.3,500),(0.4,750),(0.5,1000),(0.6,1250),(0.7,1500),(0.8,1750),(0.9,2000),(1.0,2250)]
 
+lsRuns = [(x,y,z)|(x,y) <- lsGammas, z <- [1..numberOfRuns]]
 
-
-run :: Double ->  IO ()
-run gamma = do
+main ::  IO ()
+main  = do
   sequence_ $
-    fmap (\name -> Scenario.executeAndRematchSingleRun
-                    name
+    fmap (\(gamma,shifter,name) -> Scenario.executeAndRematchSingleRun
+                    (name + shifter)
                     exportConfigGameLearning
                     (parametersMap gamma)
                     keepOnlyNLastIterations
@@ -298,4 +297,4 @@ run gamma = do
                     (expIds gamma)
                     rematchIds
                     rematchIds)
-           [1..numberOfRuns]
+           lsRuns
