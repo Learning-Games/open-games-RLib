@@ -16,8 +16,8 @@ import qualified Examples.QLearning.NoMemory3Phases as Scenario
 -- Player parameters for learning phase
 -- Game with low costs
 -- Denoted as e1
-parametersGame1 :: StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
-parametersGame1 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+parametersGame1 :: Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+parametersGame1 gamma gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   { pKsi = 0
   , pBeta =  0.000004
   , pInitialExploreRate1 = ((exp 1) ** 0)
@@ -26,7 +26,7 @@ parametersGame1 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   , pBertrandPrice2 = 1.47
   , pMonopolyPrice1 = 1.92
   , pMonopolyPrice2 = 1.92
-  , pGamma = 0
+  , pGamma = gamma
   , pLearningRate = 0.15
   , pMu = 0.25
   , pA1 = 2
@@ -43,8 +43,8 @@ parametersGame1 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   }
 
 -- Denoted as e2
-parametersGame2 :: StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
-parametersGame2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+parametersGame2 :: Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+parametersGame2 gamma gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   { pKsi = 0
   , pBeta =  0.000004
   , pInitialExploreRate1 = ((exp 1) ** 0)
@@ -53,7 +53,7 @@ parametersGame2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   , pBertrandPrice2 = 1.47
   , pMonopolyPrice1 = 2.52
   , pMonopolyPrice2 = 2.52
-  , pGamma = 0
+  , pGamma = gamma
   , pLearningRate = 0.15
   , pMu = 0.25
   , pA1 = 2.3
@@ -71,8 +71,8 @@ parametersGame2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
 
 
 -- Denoted as e3
-parametersGame3 :: StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
-parametersGame3 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+parametersGame3 :: Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+parametersGame3 gamma gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   { pKsi = 0
   , pBeta =  0.000004
   , pInitialExploreRate1 = ((exp 1) ** 0)
@@ -81,7 +81,7 @@ parametersGame3 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   , pBertrandPrice2 = 1.47
   , pMonopolyPrice1 = 2.52
   , pMonopolyPrice2 = 2.52
-  , pGamma = 0
+  , pGamma = gamma
   , pLearningRate = 0.15
   , pMu = 0.25
   , pA1 = 2.6
@@ -99,11 +99,11 @@ parametersGame3 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
 
 -- Create rematching map
 -- NOTE Keys have to follow the pattern ei
-parametersMap = fromList [ ("e1",parametersGame1)
-                         , ("e2",parametersGame2)
-                         , ("e3",parametersGame3)]
+parametersMap gamma = fromList [ ("e1",parametersGame1 gamma)
+                               , ("e2",parametersGame2 gamma)
+                               , ("e3",parametersGame3 gamma)]
 
-expIds = keys parametersMap
+expIds gamma = keys $ parametersMap gamma
 
 
 
@@ -112,8 +112,8 @@ expIds = keys parametersMap
 --------------------
 -- Symmetric matches
 
-p1e1p2e1 :: StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
-p1e1p2e1 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+p1e1p2e1 :: Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e1p2e1 gamma gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   { pKsi = 0
   , pBeta =  0.000004
   , pInitialExploreRate1 = 0
@@ -122,7 +122,7 @@ p1e1p2e1 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   , pBertrandPrice2 = 1.47
   , pMonopolyPrice1 = 1.92
   , pMonopolyPrice2 = 1.92
-  , pGamma = 0
+  , pGamma = gamma
   , pLearningRate = 0.15
   , pMu = 0.25
   , pA1 = 2
@@ -139,8 +139,8 @@ p1e1p2e1 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   }
 
 -- Denoted as e2
-p1e2p2e2 :: StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
-p1e2p2e2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+p1e2p2e2 :: Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e2p2e2 gamma gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   { pKsi = 0
   , pBeta =  0.000004
   , pInitialExploreRate1 = 0
@@ -149,7 +149,7 @@ p1e2p2e2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   , pBertrandPrice2 = 1.47
   , pMonopolyPrice1 = 2.52
   , pMonopolyPrice2 = 2.52
-  , pGamma = 0
+  , pGamma = gamma
   , pLearningRate = 0.15
   , pMu = 0.25
   , pA1 = 2.3
@@ -167,8 +167,8 @@ p1e2p2e2 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
 
 
 -- Denoted as e3
-p1e3p2e3 :: StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
-p1e3p2e3 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
+p1e3p2e3 :: Double -> StdGen -> StdGen -> StdGen -> StdGen -> Scenario.Parameters
+p1e3p2e3 gamma gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   { pKsi = 0
   , pBeta =  0.000004
   , pInitialExploreRate1 = 0
@@ -177,7 +177,7 @@ p1e3p2e3 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
   , pBertrandPrice2 = 1.47
   , pMonopolyPrice1 = 2.52
   , pMonopolyPrice2 = 2.52
-  , pGamma = 0
+  , pGamma = gamma
   , pLearningRate = 0.15
   , pMu = 0.25
   , pA1 = 2.6
@@ -197,10 +197,10 @@ p1e3p2e3 gEnv1 gEnv2 gObs1 gObs2 = Scenario.Parameters
 ----------------
 -- Create the map which contains all the parameterizations
 -- NOTE: the keys have to follow the pattern "exey"
-parametersGameRematchingMap explore1 explore2 = fromList 
-                                       [ (("e1","e1"),p1e1p2e1)
-                                       , (("e2","e2"),p1e2p2e2)
-                                       , (("e3","e3"),p1e3p2e3)]
+parametersGameRematchingMap gamma explore1 explore2 = fromList 
+                                       [ (("e1","e1"),p1e1p2e1 gamma)
+                                       , (("e2","e2"),p1e2p2e2 gamma)
+                                       , (("e3","e3"),p1e3p2e3 gamma)]
 
 rematchIds = [ Scenario.ReMatchType "e1" "e1" False
              , Scenario.ReMatchType "e2" "e2" False
@@ -213,7 +213,7 @@ rematchIds = [ Scenario.ReMatchType "e1" "e1" False
 
 -- Number of runs to be executed
 numberOfRuns :: Int
-numberOfRuns = 250
+numberOfRuns = 4
 
 -- How many of the last iterations should be exported
 keepOnlyNLastIterations :: Int
@@ -222,7 +222,7 @@ keepOnlyNLastIterations = 100
 
 -- Configuration of run and export parameters for initial learning run
 exportConfigGameLearning name parameters = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000000000
+    { iterations = 1000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
@@ -258,7 +258,7 @@ exportConfigGameRematchingPhase2 name parameters arr1 arr2 = ExportAsymmetricLea
 
 -- Configuration of run and export parameters for rematching phase
 exportConfigGameRematchingPhase3 name parameters arr1 arr2  = ExportAsymmetricLearners.ExportConfig
-    { iterations = 1000000000
+    { iterations = 1000
     -- ^ how many iterations?
     , qValueExportMode = ExportAsymmetricLearners.LastOnly
     -- ^ report incremental changes to qmatrix or export full qmatrix with each iteration?
@@ -277,19 +277,25 @@ exportConfigGameRematchingPhase3 name parameters arr1 arr2  = ExportAsymmetricLe
 ----------------
 -- Main run file
 ----------------
+
 main :: IO ()
-main = do
+main = mapM_ run [0.1,0.2..1.0]
+
+
+
+run :: Double ->  IO ()
+run gamma = do
   sequence_ $
     fmap (\name -> Scenario.executeAndRematchSingleRun
                     name
                     exportConfigGameLearning
-                    parametersMap
+                    (parametersMap gamma)
                     keepOnlyNLastIterations
-                    (parametersGameRematchingMap 0 0)
-                    (parametersGameRematchingMap 0 0)
+                    (parametersGameRematchingMap gamma 0 0)
+                    (parametersGameRematchingMap gamma 0 0)
                     exportConfigGameRematchingPhase2
                     exportConfigGameRematchingPhase3
-                    expIds
+                    (expIds gamma)
                     rematchIds
                     rematchIds)
            [1..numberOfRuns]
