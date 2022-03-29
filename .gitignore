@@ -169,3 +169,6 @@ TSWLatexianTemp*
 
 *.hi
 *.o
+
+.stack-work/
+open-games-hs.cabal
