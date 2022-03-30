@@ -12,6 +12,10 @@ pip install -r requirements.txt
 ### Notes
 
 - We've "connected" Rlib!?
+- If the training speed is too slow; could compare the request/response time
+  if we used websockets instead of pure requests.
+- Could define an "episode" by a number of iterations, instead of <= 100 years
+  in jail.
 
 Todo:
 
