@@ -15,10 +15,14 @@ pip install -r requirements.txt
 
 Todo:
 
-- [ ] Make it stop training
+- [x] Make it stop training
+  - We clamped the # of years in jail to 100.
+
 - [ ] Flip the payoff so it's a reward (minimise instead of maximise)
 - [ ] Think about two-players? Should we learn two agents at once?
 - [ ] Metrics/graphs of training?
+- [ ] For this game, do we have _any_ observations? (No?)
+- [ ] What stuff could we track in 'info' ?
 - [ ] Work out how to get the optimal "strategy" from the result of training?
   - I.e. how to save/use the trained agent.
 
