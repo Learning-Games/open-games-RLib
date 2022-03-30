@@ -92,64 +92,65 @@ library:
 
 dependencies:
     - base >=4.7 && <5
-    - mtl
-    - transformers
+    - QuickCheck
     - ad
-    - poly
-    - profunctors
-    - template-haskell
-    - parsec
-    - comonad
-    - optics
-    - ixset
-    - random-fu
-    - probability
-    - hashtables
-    - random
-    - vector
-    - vector-instances
-    - unordered-containers
-    - mwc-random >= 0.15.0.1
-    - vector-sized
-    - hashable
-    - cassava
-    - bytestring
     - aeson
-    - filepath
-    - typed-process
-    - clock
-    - rio
-    - formatting
-    - deepseq
     - array
-    - time
+    - bytestring
+    - cassava
+    - clock
+    - comonad
+    - cond
     - containers
+    - criterion
+    - deepseq
+    - directory
+    - double-conversion
+    - extra
+    - fgl
+    - filepath
+    - formatting
+    - graphviz
+    - hashable
+    - hashmap
+    - hashtables
+    - hspec
+    - ixset
+    - lens
+    - megaparsec
+    - monad-bayes
+    - mtl
+    - mwc-random
+    - mwc-random >= 0.15.0.1
+    - optics
+    - parsec
     - path
     - path-io
-    - unliftio
-    - double-conversion
-    - hspec
-    - cond
-    - QuickCheck
-    - splitmix
-    - utf8-string
-    - hashmap
-    - directory
-    - graphviz
-    - fgl
-    - lens
-    - typed-process
-    - extra
-    - mwc-random
+    - poly
+    - probability
+    - profunctors
     - random
-    - vector
-    - monad-bayes
-    - criterion
+    - random
+    - random-fu
+    - rio
+    - servant
+    - servant-server
+    - splitmix
+    - template-haskell
     - text
-    - megaparsec
-
-
-
+    - time
+    - transformers
+    - typed-process
+    - typed-process
+    - unliftio
+    - unordered-containers
+    - utf8-string
+    - vector
+    - vector
+    - vector-instances
+    - vector-sized
+    - wai
+    - warp
 
 executables:
   learning-exe:
