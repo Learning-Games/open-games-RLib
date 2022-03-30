@@ -87,6 +87,11 @@ runPlay PlayParameters { player1Action, player2Action, startingState } = do
   (p1, p2) <- liftIO $ extractPayoff next
 
   -- HACK: We manage state by making the client do it (!)
+  --
+  -- In general, we'd probably like the state to be tracked by the MonadOptic
+  -- machinery; we think, however, that this is enough to demonstrate a
+  -- multi-round prisoners-dilemma via RLib; hopefully the essence of this
+  -- side stays the same; namely extract the state from the result of `play`.
   let newState = State { totalPlayer1 = totalPlayer1 startingState + p1
                        , totalPlayer2 = totalPlayer2 startingState + p2
                        }
@@ -104,9 +109,8 @@ strat = Cooperate ::- Cooperate ::- Nil
 test :: MonadOptic IO () (Double, Double) (ActionPD, ActionPD) ()
 test = play prisonersDilemmaExternal strat
 
--- State:
---  Total Jail Time
---
+
+
 
 {-- Usage:
 extractPayoff test
