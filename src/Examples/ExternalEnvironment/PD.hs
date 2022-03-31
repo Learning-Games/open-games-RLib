@@ -153,14 +153,16 @@ prisonersDilemmaExternal = [opengame|
 
 
 -- extract continuation
-extractPayoff :: MonadOptic IO () (Double,Double) (ActionPD,ActionPD) () -> IO (Double,Double)
+-- extractPayoff :: MonadOptic IO () (Double,Double) (ActionPD,ActionPD) () -> IO (Double,Double)
+extractPayoff :: MonadOptic m () t a () -> m t
 extractPayoff (MonadOptic v u) = do
   (z,_) <- v ()
   u z ()
 
 
 -- extract next state (action)
-extractNextState :: MonadOptic IO () (Double,Double) (ActionPD,ActionPD) () -> IO (ActionPD,ActionPD)
+-- extractNextState :: MonadOptic IO () (Double,Double) (ActionPD,ActionPD) () -> IO (ActionPD,ActionPD)
+extractNextState :: MonadOptic m () t a b -> m a
 extractNextState (MonadOptic v _) = do
   (_,a) <- v ()
   pure a
