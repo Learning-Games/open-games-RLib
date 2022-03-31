@@ -30,19 +30,12 @@ import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaul
 data PlayParameters = PlayParameters
   { player1Action :: ActionPD
   , player2Action :: ActionPD
-  , startingState :: State
   } deriving (Show, Generic, ToJSON, FromJSON)
 
-
-data State = State
-  { totalPlayer1 :: Double
-  , totalPlayer2 :: Double
-  } deriving (Show, Generic, ToJSON, FromJSON)
 
 data PlayResult = PlayResult
-  { lastPlayer1Payoff  :: Double
-  , lastPlayer2Payoff  :: Double
-  , gameState          :: State
+  { player1Payoff  :: Double
+  , player2Payoff  :: Double
   } deriving (Show, Generic, ToJSON, FromJSON)
 
 -- Using: https://httpie.io/docs/cli/json
@@ -78,7 +71,7 @@ instance ToJSON   ActionPD
 instance FromJSON ActionPD
 
 runPlay :: PlayParameters -> Handler PlayResult
-runPlay PlayParameters { player1Action, player2Action, startingState } = do
+runPlay PlayParameters { player1Action, player2Action } = do
 
   let strategy = player1Action ::- player2Action ::- Nil
       next     = play prisonersDilemmaExternal strategy
@@ -86,19 +79,8 @@ runPlay PlayParameters { player1Action, player2Action, startingState } = do
   -- TODO: Does this need to be in IO?
   (p1, p2) <- liftIO $ extractPayoff next
 
-  -- HACK: We manage state by making the client do it (!)
-  --
-  -- In general, we'd probably like the state to be tracked by the MonadOptic
-  -- machinery; we think, however, that this is enough to demonstrate a
-  -- multi-round prisoners-dilemma via RLib; hopefully the essence of this
-  -- side stays the same; namely extract the state from the result of `play`.
-  let newState = State { totalPlayer1 = totalPlayer1 startingState + p1
-                       , totalPlayer2 = totalPlayer2 startingState + p2
-                       }
-
-  let pr = PlayResult { lastPlayer1Payoff  = p1
-                      , lastPlayer2Payoff  = p2
-                      , gameState          = newState
+  let pr = PlayResult { player1Payoff  = p1
+                      , player2Payoff  = p2
                       }
 
   return pr

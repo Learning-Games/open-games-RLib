@@ -1,4 +1,3 @@
 { "player1Action": "Defect"
 , "player2Action": "Defect"
-, "startingState": { "totalPlayer1": 0, "totalPlayer2": 100 }
 }
