@@ -28,16 +28,15 @@ data ActionRPS = Rock | Paper | Scissors
 -- Payoff function
 
 rockPaperScissorsPayoff :: ActionRPS -> ActionRPS -> Double
-rockPaperScissorsPayoff a1 a2
-  | a1 == Rock && a2 == Rock  = 0
-  | a1 == Rock && a2 == Paper = -1
-  | a1 == Rock && a2 == Scissors = 1
-  | a1 == Paper && a2 == Rock  = 1
-  | a1 == Paper && a2 == Paper = 0
-  | a1 == Paper && a2 == Scissors = -1
-  | a1 == Scissors && a2 == Rock  = -1
-  | a1 == Scissors && a2 == Paper = 1
-  | a1 == Scissors && a2 == Scissors = 0
+rockPaperScissorsPayoff Rock Rock = 0
+rockPaperScissorsPayoff Rock Paper = -1
+rockPaperScissorsPayoff Rock Scissors = 1
+rockPaperScissorsPayoff Paper Rock = 1
+rockPaperScissorsPayoff Paper Paper = 0
+rockPaperScissorsPayoff Paper Scissors = -1
+rockPaperScissorsPayoff Scissors Rock = -1
+rockPaperScissorsPayoff Scissors Paper = 1
+rockPaperScissorsPayoff Scissors Scissors = 0
 
 
 
