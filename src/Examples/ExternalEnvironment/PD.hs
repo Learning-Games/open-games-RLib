@@ -18,6 +18,7 @@ import Engine.Engine hiding (fromLens, fromFunctions, state)
 import Preprocessor.Preprocessor
 
 import Engine.ExternalEnvironment
+import Examples.ExternalEnvironment.Common (extractPayoff)
 import Examples.SimultaneousMoves (prisonersDilemmaMatrix,ActionPD(..))
 
 import Servant                  ((:>), (:<|>)((:<|>)), Server, Handler, Application
@@ -82,8 +83,13 @@ runPlay PlayParameters { player1Action, player2Action } = do
   let pr = PlayResult { player1Payoff  = p1
                       , player2Payoff  = p2
                       }
-
   return pr
+
+
+{-- Usage:
+
+-- extractPayoff :: MonadOptic IO () (Double,Double) (ActionPD,ActionPD) () -> IO (Double,Double)
+-- extractNextState :: MonadOptic IO () (Double,Double) (ActionPD,ActionPD) () -> IO (ActionPD,ActionPD)
 
 strat :: List '[ActionPD, ActionPD]
 strat = Cooperate ::- Cooperate ::- Nil
@@ -91,10 +97,6 @@ strat = Cooperate ::- Cooperate ::- Nil
 test :: MonadOptic IO () (Double, Double) (ActionPD, ActionPD) ()
 test = play prisonersDilemmaExternal strat
 
-
-
-
-{-- Usage:
 extractPayoff test
 
 extractNextState test
@@ -132,23 +134,4 @@ prisonersDilemmaExternal = [opengame|
    outputs   : (decisionPlayer1, decisionPlayer2)   ;
    returns   :     ;
   |]
-
-
--- extract continuation
--- extractPayoff :: MonadOptic IO () (Double,Double) (ActionPD,ActionPD) () -> IO (Double,Double)
-extractPayoff :: MonadOptic m () t a () -> m t
-extractPayoff (MonadOptic v u) = do
-  (z,_) <- v ()
-  u z ()
-
-
--- extract next state (action)
--- extractNextState :: MonadOptic IO () (Double,Double) (ActionPD,ActionPD) () -> IO (ActionPD,ActionPD)
-extractNextState :: MonadOptic m () t a b -> m a
-extractNextState (MonadOptic v _) = do
-  (_,a) <- v ()
-  pure a
-
-
-
 
