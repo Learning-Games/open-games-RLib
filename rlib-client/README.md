@@ -1,4 +1,4 @@
-## How to use (via conda) 
+## How to use (via conda)
 
 From this folder:
 
@@ -19,22 +19,17 @@ pip install -r requirements.txt
 
 Todo:
 
-- [x] Make it stop training
-  - We clamped the # of years in jail to 100.
+- [x] Make it stop training: set done=true at some point.
+- [x] For this game, do we have _any_ observations? (yes: the moves themselves, duh)
 
-- [ ] Flip the payoff so it's a reward (minimise instead of maximise)
-- [ ] Think about two-players? Should we learn two agents at once?
-- [ ] Metrics/graphs of training?
-- [ ] For this game, do we have _any_ observations? (No?)
+- [ ] Metrics/graphs of training (tensorboard)?
+      - episode_reward_max
+
 - [ ] What stuff could we track in 'info' ?
+- [ ] PD: Get the agent to reach the optimal strategy for the fixed opponent (cooperate, tit-for-tat, etc.).
+- [ ] RPS: Get the agent to reach the optimal strategy for the fixed opponent.
+- [ ] Get the agent(s) to reach the optimal strategy for the multi-agent version (PD + RPS).
+
 - [ ] Work out how to get the optimal "strategy" from the result of training?
   - I.e. how to save/use the trained agent.
-
-
-(To move to a Haskell spot)
-
-- [ ] How to track state in the MonadOptic/Servant?
-- [ ] ???
-- [ ] Extend to other game examples? Have we done the Iterated Prisoners
-      Dilemma (IPD) correctly?
 
