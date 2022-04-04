@@ -36,4 +36,6 @@ pip install -r requirements.txt
   - I.e. how to save/use the trained agent.
 - [ ] Start running more experiments on a GPU?
 - [ ] Experiment with different network architectures for training
+- [ ] Clean up the Haskell code?
+  - [ ] IO Monad?!
 
