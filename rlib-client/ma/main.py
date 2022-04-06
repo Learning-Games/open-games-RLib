@@ -9,7 +9,7 @@
 
 import ray
 
-from policies import ConstantMove
+from policies import ConstantMove, TitForTat
 from ray import tune
 from ray.tune.registry import register_env
 from ray.rllib.policy.policy import PolicySpec
@@ -49,6 +49,7 @@ def main(name, other_players_strategy, learner="PG"):
         return f"player_{agent_id}"
 
     policies_to_train = ["player_0"]
+    player_1_policy   = None
 
     # TODO: Refactor!
     if other_players_strategy == "always_cooperate":
@@ -79,11 +80,17 @@ def main(name, other_players_strategy, learner="PG"):
                 }
             }
         }
+
+    if other_players_strategy == "shared":
+        # Note: Not sure if this is actually sharing or not. Needs more
+        # investigation.
+        config["multiagent"]["policies"] = { "shared": learned_policy }
+        config["multiagent"]["policies_to_train"] = ["shared"]
+        config["multiagent"]["policy_mapping_fn"] = lambda _: "shared"
     
     stop_conditions = {
             "training_iteration": 10,
             "timesteps_total": 10_000,
-
             }
 
     ray.init()
@@ -97,9 +104,10 @@ def main(name, other_players_strategy, learner="PG"):
 
 if __name__ == "__main__":
 
-    main(name="basic", other_players_strategy="learned")
+    # main(name="basic", other_players_strategy="learned")
     # main(name="basic", other_players_strategy="always_defect")
     # main(name="basic", other_players_strategy="always_cooperate")
+    main(name="basic", other_players_strategy="shared") # shared weights
 
 
 # TODO:
@@ -110,7 +118,7 @@ if __name__ == "__main__":
 #       - [ ] Tit-For-Tat
 #   - [ ] Verify it works for Rock-Paper-Scissors
 #   - [x] Understand the graphs
-#   - [ ] Implement the _shared_ "learned" agent, where the network is the same
-#     between both players.
-#       - I think we had this working by having only "one" policy in
-#       "policies"; maybe there are more explicit ways to share?
+#   - [x] Implement the _shared_ "learned" agent, where the network is the same
+#         between both players.
+#       - Maybe there is a more explicit way to know if the networks are being
+#       shared?
