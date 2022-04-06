@@ -40,3 +40,13 @@ if __name__ == "__main__":
     ray.init()
 
     run(name="basic")
+
+
+# TODO:
+#
+#   - [ ] Use the `PolicySpec` to hardcode some specific policies:
+#       - [ ] AlwaysDefect
+#       - [ ] AlwaysCoopoerate
+#       - [ ] Tit-For-Tat
+#   - [ ] Verify it works for Rock-Paper-Scissors
+#   - [ ] Understand the graphs
