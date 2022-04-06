@@ -49,7 +49,6 @@ def main(name, other_players_strategy, learner="PG"):
         return f"player_{agent_id}"
 
     policies_to_train = ["player_0"]
-    player_1_policy   = None
 
     # TODO: Refactor!
     if other_players_strategy == "always_cooperate":
@@ -81,13 +80,6 @@ def main(name, other_players_strategy, learner="PG"):
             }
         }
 
-    if other_players_strategy == "shared":
-        # Note: Not sure if this is actually sharing or not. Needs more
-        # investigation.
-        config["multiagent"]["policies"] = { "shared": learned_policy }
-        config["multiagent"]["policies_to_train"] = ["shared"]
-        config["multiagent"]["policy_mapping_fn"] = lambda _: "shared"
-    
     stop_conditions = {
             "training_iteration": 10,
             "timesteps_total": 10_000,
@@ -106,8 +98,7 @@ if __name__ == "__main__":
 
     # main(name="basic", other_players_strategy="learned")
     # main(name="basic", other_players_strategy="always_defect")
-    # main(name="basic", other_players_strategy="always_cooperate")
-    main(name="basic", other_players_strategy="shared") # shared weights
+    main(name="basic", other_players_strategy="always_cooperate")
 
 
 # TODO:
@@ -122,3 +113,5 @@ if __name__ == "__main__":
 #         between both players.
 #       - Maybe there is a more explicit way to know if the networks are being
 #       shared?
+#       - Decided against this way of sharing; it doesn't do anything
+#       different, and is too confusing.
