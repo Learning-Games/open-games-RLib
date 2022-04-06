@@ -1,3 +1,5 @@
+gputil
+jupyter
+psutil
 ray[rllib]
 tensorflow
-jupyter

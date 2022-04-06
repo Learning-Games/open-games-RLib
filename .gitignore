@@ -173,3 +173,4 @@ TSWLatexianTemp*
 .stack-work/
 open-games-hs.cabal
 out/
+__pycache__/
