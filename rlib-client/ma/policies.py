@@ -60,9 +60,10 @@ class RandomMove(Policy):
         assert "action_space" in args[-1]
         self.action_space = args[-1]["action_space"]
 
-    # # TODO: Do we really need this?
-    # def get_initial_state(self):
-    #     return [self.move]
+    # TODO: Do we really need this?
+    def get_initial_state(self):
+        move = random.choice(range(len(self.action_space)))
+        return [move]
 
     def compute_actions(
         self,
@@ -74,7 +75,7 @@ class RandomMove(Policy):
         episodes=None,
         **kwargs
     ):
-        move = random.choice(self.action_space)
+        move = random.choice(range(len(self.action_space)))
         return [move], state_batches, {}
 
 

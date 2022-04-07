@@ -169,7 +169,8 @@ if __name__ == "__main__":
     # main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
 
     # main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
-    main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
+    main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
 
 
 
