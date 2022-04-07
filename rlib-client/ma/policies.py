@@ -20,8 +20,13 @@ class TitForTat(Policy):
         episodes=None,
         **kwargs
     ):
-        # TODO: Implement
-        assert "Implement!"
+        # obs_batch is a tuple containing the moves of the two players in the
+        # last round.  So, we pick player_0's last move (i.e., first part of the
+        # tuple).  Note: if we wanted player_0 to play tit-for-tat, this would
+        # need to change; we'd need to get the second part of the tuple
+        # instead.
+        assert len(obs_batch[0]) == 1, f"unexpected length: {len(obs_batch[0])}"
+        return obs_batch[0], state_batches, {}
 
 
 class ConstantMove(Policy):

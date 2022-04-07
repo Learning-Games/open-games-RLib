@@ -57,15 +57,15 @@ def main(name, other_players_strategy, episode_length, learner="PG"):
                               )
 
     always_defect = PolicySpec( policy_class=ConstantMove
-                              , config={"move": action_space.index("Defect") } 
+                              , config={"move": action_space.index("Defect") }
                               )
 
     always_cooperate = PolicySpec( policy_class=ConstantMove
-                              , config={"move": action_space.index("Cooperate") } 
+                              , config={"move": action_space.index("Cooperate") }
                               )
 
     tit_for_tat = PolicySpec( policy_class=TitForTat
-                              , config={"initial_move": action_space.index("Cooperate") } 
+                              , config={"initial_move": action_space.index("Cooperate") }
                               )
 
 
@@ -81,7 +81,7 @@ def main(name, other_players_strategy, episode_length, learner="PG"):
 
     if other_players_strategy == "tit_for_tat":
         player_1_policy = tit_for_tat
-    
+
     if other_players_strategy == "always_defect":
         player_1_policy = always_defect
 
@@ -130,20 +130,25 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    ep_len = 1
+    ep_len = 10 # 1
+
+    # main( name="prisoners-dilemma"
+    #     , other_players_strategy="learned"
+    #     , episode_length=ep_len
+    #     )
+
+    # main( name="prisoners-dilemma"
+    #     , other_players_strategy="always_defect"
+    #     , episode_length=ep_len
+    #     )
+
+    # main( name="prisoners-dilemma"
+    #     , other_players_strategy="always_cooperate"
+    #     , episode_length=ep_len
+    #     )
 
     main( name="prisoners-dilemma"
-        , other_players_strategy="learned"
-        , episode_length=ep_len
-        )
-
-    main( name="prisoners-dilemma"
-        , other_players_strategy="always_defect"
-        , episode_length=ep_len
-        )
-
-    main( name="prisoners-dilemma"
-        , other_players_strategy="always_cooperate"
+        , other_players_strategy="tit_for_tat"
         , episode_length=ep_len
         )
 
