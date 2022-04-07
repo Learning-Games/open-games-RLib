@@ -108,8 +108,8 @@ def main(name, other_players_strategy, episode_length, learner="PG"):
         }
 
     stop_conditions = {
-            "training_iteration": 50,
-            "timesteps_total": 10_000,
+            # "training_iteration": 100,
+            "timesteps_total": 15_000,
             }
 
 
@@ -127,8 +127,8 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    # main(name="prisoners-dilemma", other_players_strategy="learned", episode_length=50)
-    # main(name="prisoners-dilemma", other_players_strategy="always_defect", episode_length=50)
+    main(name="prisoners-dilemma", other_players_strategy="learned", episode_length=50)
+    main(name="prisoners-dilemma", other_players_strategy="always_defect", episode_length=50)
     main(name="prisoners-dilemma", other_players_strategy="always_cooperate", episode_length=50)
 
 # TODO:
@@ -145,3 +145,6 @@ if __name__ == "__main__":
 #       shared?
 #       - Decided against this way of sharing; it doesn't do anything
 #       different, and is too confusing.
+#   - [ ] Adjust the 'env' so that there is an option of learning a 'combined'
+#         reward? (i.e. when should the learner learn to always cooperate? As
+#         it gives the best _total_ reward?).
