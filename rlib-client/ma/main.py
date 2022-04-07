@@ -92,6 +92,9 @@ def main(name, other_players_strategy, episode_length, learner="PG"):
     config = {
         "env": "DTPLGE",
         "callbacks": CustomCallbacks,
+        # "rollout_fragment_length": 10,
+        # "train_batch_size": 200,
+        # "metrics_num_episodes_for_smoothing": 200,
         "framework": framework,
         "env_config": {
             "action_space": action_space,
@@ -127,9 +130,22 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    main(name="prisoners-dilemma", other_players_strategy="learned", episode_length=50)
-    main(name="prisoners-dilemma", other_players_strategy="always_defect", episode_length=50)
-    main(name="prisoners-dilemma", other_players_strategy="always_cooperate", episode_length=50)
+    ep_len = 1
+
+    main( name="prisoners-dilemma"
+        , other_players_strategy="learned"
+        , episode_length=ep_len
+        )
+
+    main( name="prisoners-dilemma"
+        , other_players_strategy="always_defect"
+        , episode_length=ep_len
+        )
+
+    main( name="prisoners-dilemma"
+        , other_players_strategy="always_cooperate"
+        , episode_length=ep_len
+        )
 
 # TODO:
 #

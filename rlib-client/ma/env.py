@@ -18,6 +18,13 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
             Yet another example:
                 >>> env_config = { "action_space": ["Cooperate", "Defect"]
                 ...              , "episode_length": 10 }
+
+            Parameters:
+                - episode_length : The number of steps we run.
+                - action_space   : A list of actions to send to Haskell.
+
+            Terminology:
+                - "episodes" ~ "steps"
         """
 
         assert "action_space" in env_config, "Need a 'action_space' in 'env_config'"
@@ -88,10 +95,10 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
         for i in range(self.num_agents):
             observations[i] = ( action_dict[0], action_dict[1] )
 
-        # Dones
+        # Dones: We're done, if we've done enough steps.
         is_done = self.step_number >= self.episode_length
 
-        dones   = { i: is_done for i in range(self.num_agents) }
+        dones = { i: is_done for i in range(self.num_agents) }
         dones["__all__"] = is_done
 
         # Infos
@@ -99,3 +106,4 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
 
         # Return it all!
         return observations, rewards, dones, infos
+
