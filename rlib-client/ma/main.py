@@ -60,6 +60,12 @@ tit_for_tat = NamedPolicy( name="tit_for_tat"
                                             )
                          )
 
+random_pd_move = NamedPolicy( name="random_pd_move"
+                             , policy=PolicySpec( policy_class=RandomMove
+                                                , config={"action_space": pd_action_space }
+                                                )
+                             )
+
 # RPS policies
 # TODO: Consider moving these to a separate file
 
@@ -77,12 +83,12 @@ random_rps_move = NamedPolicy( name="random_rps_move"
 
 # Generic policies
 # TODO: Consider moving these to a separate file
-learned_policy = NamedPolicy( name="learned"
-                            , policy=PolicySpec( config={ "model": { "use_lstm": True }
-                                                        , "framework": framework
-                                                        }
-                                                )
-                            )
+learned = NamedPolicy( name="learned"
+                     , policy=PolicySpec( config={ "model": { "use_lstm": True }
+                                                 , "framework": framework
+                                                 }
+                                        )
+                     )
 
 
 class CustomCallbacks(DefaultCallbacks):
@@ -135,7 +141,7 @@ def main(game, episode_length, player_1_policy, learner="PG"):
             "policies_to_train": policies_to_train,
             "policy_mapping_fn": select_policy,
             "policies": {
-                "player_0": learned_policy.policy,
+                "player_0": learned.policy,
                 "player_1": player_1_policy.policy,
                 }
             }
@@ -161,16 +167,17 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    ep_len = 10 # 1
+    ep_len = 1
 
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=always_defect)
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=always_cooperate)
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
+    main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
+    main(episode_length=ep_len, game=pd_game, player_1_policy=always_defect)
+    main(episode_length=ep_len, game=pd_game, player_1_policy=always_cooperate)
+    main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
+    main(episode_length=ep_len, game=pd_game, player_1_policy=random_pd_move)
 
     # main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
     # main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
-    main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
 
 
 
