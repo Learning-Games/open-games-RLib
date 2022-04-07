@@ -14,9 +14,16 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
 
             Another example:
                 >>> env_config = { "action_space": ["Rock", "Paper", "Scissors"] }
+
+            Yet another example:
+                >>> env_config = { "action_space": ["Cooperate", "Defect"]
+                ...              , "episode_length": 10 }
         """
 
         assert "action_space" in env_config, "Need a 'action_space' in 'env_config'"
+
+        # Default episode length of 1.
+        self.episode_length = env_config.get("episode_length", 1)
 
         self.action_space = env_config["action_space"]
         self.action_map   = { i: v for (i, v) in enumerate(self.action_space) }
@@ -45,6 +52,8 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
 
 
     def reset (self):
+        self.step_number = 0
+
         # Prisoners Dilemma:   In the beginning, everyone cooperates.
         # Rock-paper-scissors: In the beginning, everyone plays rock?!
         #
@@ -59,6 +68,8 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
 
 
     def step (self, action_dict):
+        self.step_number += 1
+
         # Build the data
         data = { "player1Action": self.action_map[ action_dict[0] ]
                , "player2Action": self.action_map[ action_dict[1] ]
@@ -78,12 +89,13 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
             observations[i] = ( action_dict[0], action_dict[1] )
 
         # Dones
-        dones = { i: True for i in range(self.num_agents) }
-        dones["__all__"] = True
+        is_done = self.step_number >= self.episode_length
+
+        dones   = { i: is_done for i in range(self.num_agents) }
+        dones["__all__"] = is_done
 
         # Infos
         infos = { i: {} for i in range(self.num_agents) }
 
         # Return it all!
         return observations, rewards, dones, infos
-

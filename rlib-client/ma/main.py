@@ -7,20 +7,45 @@
 
 """
 
+from typing import Dict
+
 import ray
 
-from policies import ConstantMove, TitForTat
-from ray import tune
-from ray.tune.registry import register_env
-from ray.rllib.policy.policy import PolicySpec
+from ray                        import tune
+from ray.tune.registry          import register_env
+from ray.rllib.policy.policy    import PolicySpec
+from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.policy           import Policy
+from ray.rllib.evaluation       import Episode, RolloutWorker
+from ray.rllib.env              import BaseEnv
 
 from env import DiscreteTwoPlayerLearningGamesEnv # DTPLGE for short.
-
+from policies import ConstantMove, TitForTat
 
 framework = "tf2"
 action_space = ["Cooperate", "Defect"]
 
-def main(name, other_players_strategy, learner="PG"):
+class CustomCallbacks(DefaultCallbacks):
+    def on_episode_end(
+        self,
+        *,
+        worker: RolloutWorker,
+        base_env: BaseEnv,
+        policies: Dict[str, Policy],
+        episode: Episode,
+        env_index: int,
+        **kwargs
+    ):
+        # Because we have variable episode-lengths, but ultimately a 1-step
+        # game, we only care about the average reward per step.
+        ep_len = worker.env.episode_length
+        keys = episode.agent_rewards.keys()
+        for k in keys:
+            name = k[1]
+            episode.custom_metrics[f"{name}_step_average"] = episode.agent_rewards[k] / ep_len
+
+
+def main(name, other_players_strategy, episode_length, learner="PG"):
 
     register_env( "DTPLGE"
                 , lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config)
@@ -66,9 +91,11 @@ def main(name, other_players_strategy, learner="PG"):
 
     config = {
         "env": "DTPLGE",
+        "callbacks": CustomCallbacks,
         "framework": framework,
         "env_config": {
-            "action_space": action_space
+            "action_space": action_space,
+            "episode_length": episode_length
             },
         "multiagent": {
             "policies_to_train": policies_to_train,
@@ -81,25 +108,28 @@ def main(name, other_players_strategy, learner="PG"):
         }
 
     stop_conditions = {
-            "training_iteration": 10,
+            "training_iteration": 50,
             "timesteps_total": 10_000,
             }
 
-    ray.init()
+
+    # For easy identification on TensorBoard.
+    folder_path = f"{config['env']}/{name}/learned-vs-{other_players_strategy}/ep_len={episode_length}"
 
     results = tune.run( learner
-                      , name=f"{config['env']}/learned-vs-{other_players_strategy}/{name}" # Determines the folder in ~/ray_results
+                      , name=folder_path
                       , config=config
                       , stop=stop_conditions
                       , verbose=1
                       )
 
 if __name__ == "__main__":
+    # Only want to 'init' once.
+    ray.init()
 
-    # main(name="basic", other_players_strategy="learned")
-    # main(name="basic", other_players_strategy="always_defect")
-    main(name="basic", other_players_strategy="always_cooperate")
-
+    # main(name="prisoners-dilemma", other_players_strategy="learned", episode_length=50)
+    # main(name="prisoners-dilemma", other_players_strategy="always_defect", episode_length=50)
+    main(name="prisoners-dilemma", other_players_strategy="always_cooperate", episode_length=50)
 
 # TODO:
 #
