@@ -20,10 +20,70 @@ from ray.rllib.evaluation       import Episode, RolloutWorker
 from ray.rllib.env              import BaseEnv
 
 from env import DiscreteTwoPlayerLearningGamesEnv # DTPLGE for short.
-from policies import ConstantMove, TitForTat
+from policies import ConstantMove, TitForTat, RandomMove
+
+from collections import namedtuple
 
 framework = "tf2"
-action_space = ["Cooperate", "Defect"]
+pd_action_space = ["Cooperate", "Defect"]
+rps_action_space = ["Rock", "Paper", "Scissors"]
+
+
+# Attach the name of each policy to it, so that we can know whether it's
+# "learned" (i.e., the agent using it needs to be trained) or not.
+NamedPolicy = namedtuple("NamedPolicy", "name policy")
+
+TwoPlayerGame = namedtuple("TwoPlayerGame", "name action_space")
+
+pd_game = TwoPlayerGame(name="pd", action_space=pd_action_space)
+rps_game = TwoPlayerGame(name="rps", action_space=rps_action_space)
+
+
+# PD policies
+# TODO: Consider moving these to a separate file
+
+always_defect = NamedPolicy( name="always_defect"
+                           , policy=PolicySpec( policy_class=ConstantMove
+                                              , config={ "move": pd_action_space.index("Defect") }
+                                              )
+                           )
+
+always_cooperate = NamedPolicy( name="always_cooperate"
+                              , policy=PolicySpec( policy_class=ConstantMove
+                                                 , config={ "move": pd_action_space.index("Cooperate") }
+                                                 )
+                              )
+
+tit_for_tat = NamedPolicy( name="tit_for_tat"
+                         , policy=PolicySpec( policy_class=TitForTat
+                                            , config={ "initial_move": pd_action_space.index("Cooperate") }
+                                            )
+                         )
+
+# RPS policies
+# TODO: Consider moving these to a separate file
+
+always_rock = NamedPolicy( name="always_rock"
+                         , policy=PolicySpec( policy_class=ConstantMove
+                                            , config={ "move": rps_action_space.index("Rock") }
+                                            )
+                         )
+
+random_rps_move = NamedPolicy( name="random_rps_move"
+                             , policy=PolicySpec( policy_class=RandomMove
+                                                , config={"action_space": rps_action_space }
+                                                )
+                             )
+
+# Generic policies
+# TODO: Consider moving these to a separate file
+learned_policy = NamedPolicy( name="learned"
+                            , policy=PolicySpec( config={ "model": { "use_lstm": True }
+                                                        , "framework": framework
+                                                        }
+                                                )
+                            )
+
 
 class CustomCallbacks(DefaultCallbacks):
     def on_episode_end(
@@ -45,49 +105,20 @@ class CustomCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"{name}_step_average"] = episode.agent_rewards[k] / ep_len
 
 
-def main(name, other_players_strategy, episode_length, learner="PG"):
+def main(game, episode_length, player_1_policy, learner="PG"):
 
     register_env( "DTPLGE"
                 , lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config)
                 )
 
-    learned_policy = PolicySpec( config={ "model": { "use_lstm": True }
-                                        , "framework": framework
-                                        }
-                              )
-
-    always_defect = PolicySpec( policy_class=ConstantMove
-                              , config={"move": action_space.index("Defect") }
-                              )
-
-    always_cooperate = PolicySpec( policy_class=ConstantMove
-                              , config={"move": action_space.index("Cooperate") }
-                              )
-
-    tit_for_tat = PolicySpec( policy_class=TitForTat
-                              , config={"initial_move": action_space.index("Cooperate") }
-                              )
-
-
     def select_policy (agent_id, episode, **kwargs):
         assert agent_id in [ 0, 1 ], f"Unknown player: {agent_id}!"
         return f"player_{agent_id}"
 
-    policies_to_train = ["player_0"]
-
-    # TODO: Refactor!
-    if other_players_strategy == "always_cooperate":
-        player_1_policy = always_cooperate
-
-    if other_players_strategy == "tit_for_tat":
-        player_1_policy = tit_for_tat
-
-    if other_players_strategy == "always_defect":
-        player_1_policy = always_defect
-
-    if other_players_strategy == "learned":
-        player_1_policy = learned_policy
-        policies_to_train.append("player_1")
+    if player_1_policy.name == "learned":
+        policies_to_train = ["player_0", "player_1"]
+    else:
+        policies_to_train = ["player_0"]
 
     config = {
         "env": "DTPLGE",
@@ -97,15 +128,15 @@ def main(name, other_players_strategy, episode_length, learner="PG"):
         # "metrics_num_episodes_for_smoothing": 200,
         "framework": framework,
         "env_config": {
-            "action_space": action_space,
+            "action_space": game.action_space,
             "episode_length": episode_length
             },
         "multiagent": {
             "policies_to_train": policies_to_train,
             "policy_mapping_fn": select_policy,
             "policies": {
-                "player_0": learned_policy,
-                "player_1": player_1_policy
+                "player_0": learned_policy.policy,
+                "player_1": player_1_policy.policy,
                 }
             }
         }
@@ -117,7 +148,7 @@ def main(name, other_players_strategy, episode_length, learner="PG"):
 
 
     # For easy identification on TensorBoard.
-    folder_path = f"{config['env']}/{name}/learned-vs-{other_players_strategy}/ep_len={episode_length}"
+    folder_path = f"{config['env']}/{game.name}/learned-vs-{player_1_policy.name}/ep_len={episode_length}"
 
     results = tune.run( learner
                       , name=folder_path
@@ -132,33 +163,26 @@ if __name__ == "__main__":
 
     ep_len = 10 # 1
 
-    # main( name="prisoners-dilemma"
-    #     , other_players_strategy="learned"
-    #     , episode_length=ep_len
-    #     )
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=always_defect)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=always_cooperate)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
 
-    # main( name="prisoners-dilemma"
-    #     , other_players_strategy="always_defect"
-    #     , episode_length=ep_len
-    #     )
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
+    main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
 
-    # main( name="prisoners-dilemma"
-    #     , other_players_strategy="always_cooperate"
-    #     , episode_length=ep_len
-    #     )
 
-    main( name="prisoners-dilemma"
-        , other_players_strategy="tit_for_tat"
-        , episode_length=ep_len
-        )
 
 # TODO:
 #
-#   - [ ] Use the `PolicySpec` to hardcode some specific policies:
+#   - [X] Use the `PolicySpec` to hardcode some specific policies:
 #       - [x] AlwaysDefect
 #       - [x] AlwaysCoopoerate
-#       - [ ] Tit-For-Tat
+#       - [x] Tit-For-Tat
 #   - [ ] Verify it works for Rock-Paper-Scissors
+#       - [x] AlwaysRock
+#       - [ ] Learned-vs-Learned?
+#   - [ ] Add a "random" policy, just for fun
 #   - [x] Understand the graphs
 #   - [x] Implement the _shared_ "learned" agent, where the network is the same
 #         between both players.
