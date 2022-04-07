@@ -19,23 +19,27 @@ pip install -r requirements.txt
 
 ### Todo
 
+- [ ] Start running more experiments on a GPU?
+- [ ] Work out how to get the optimal "strategy" from the result of training?
+  - I.e. how to save/use the trained agent.
+- [ ] Experiment with different network architectures for training
+- [ ] Monty Hall
+- [ ] Future directions
+  - [ ] Principled approach
+- [ ] Clean up the Haskell code?
+  - [ ] IO Monad?!
+
 - [x] Connected RLLib
 - [x] Make it stop training: set done=true at some point.
 - [x] For this game, do we have _any_ observations? (yes: the moves themselves, duh)
 - [x] Metrics/graphs of training (tensorboard)?
       - episode_reward_max
-- [ ] PD: Get the agent to reach the optimal strategy for the fixed opponent (cooperate, tit-for-tat, etc.).
+- [x] PD: Get the agent to reach the optimal strategy for the fixed opponent (cooperate, tit-for-tat, etc.).
   - [x] Cooperate
   - [x] Defect
-  - [ ] Tit-for-tat
-- [ ] RPS: Get the agent to reach the optimal strategy for the fixed opponent.
+  - [x] Tit-for-tat
+- [x] RPS: Get the agent to reach the optimal strategy for the fixed opponent.
   - [x] Fixed opponent
-  - [ ] Other strategies?!
-- [ ] Get the agent(s) to reach the optimal strategy for the multi-agent version (PD + RPS).
-- [ ] Work out how to get the optimal "strategy" from the result of training?
-  - I.e. how to save/use the trained agent.
-- [ ] Start running more experiments on a GPU?
-- [ ] Experiment with different network architectures for training
-- [ ] Clean up the Haskell code?
-  - [ ] IO Monad?!
+  - [x] Other strategies?!
+- [x] Get the agent(s) to reach the optimal strategy for the multi-agent version (PD + RPS).
 
