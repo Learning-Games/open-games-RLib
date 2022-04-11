@@ -19,7 +19,6 @@ pip install -r requirements.txt
 
 ### Todo
 
-- [ ] Start running more experiments on a GPU?
 - [ ] Work out how to get the optimal "strategy" from the result of training?
   - I.e. how to save/use the trained agent.
 - [ ] Experiment with different network architectures for training
@@ -29,6 +28,7 @@ pip install -r requirements.txt
 - [ ] Clean up the Haskell code?
   - [ ] IO Monad?!
 
+- [x] Start running more experiments on a GPU?
 - [x] Connected RLLib
 - [x] Make it stop training: set done=true at some point.
 - [x] For this game, do we have _any_ observations? (yes: the moves themselves, duh)
