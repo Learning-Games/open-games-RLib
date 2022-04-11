@@ -104,9 +104,18 @@ test strat = do
   return p
 
   -- where
-  --   strat = (1 ::- False ::- Nil)
-    -- strat = (1 ::- True ::- Nil)
+  -- strat = 1 ::- True ::- 7 ::- Nil -- Wrong!
+  --
+    -- strat = (1 ::- const False ::- Nil)
+    -- strat = (1 ::- (\a -> if a == 0 then True else False) ::- Nil)
 
+     -- np.gym.Discrete( ... )
+     --
+     -- 1 ::- <%@#$%@$#> ::- Nil
+     --         |
+     --         Arbitrarily rich.
+     --
+     -- 1 ::- (w1, w2, w3) ::- Nil
 
 
 switch, dontSwitch :: Int -> IO Double
@@ -123,8 +132,14 @@ dontSwitch   n = fmap (/ fromIntegral n) (sum <$> replicateM n (test (2 ::- Fals
 -- To play a full round of the game:
 --
 -- do
---   game1State <- extractState $ play game0 (1 ::- True ::- Nil)
---   finalState <- extractState $ play game1 (game1State ::- 1 ::- Nil)
+--   game1State <- extractState $ play game0 (1 ::- Nil)                   -- Door choice
+--   game2State <- extractState $ play game1 (game1State ::- True ::- Nil) -- Switch choice
+--   finalState <- extractState $ play game2 (game2State ::- 1 ::- Nil)    -- Final door choice
+
+
+-- ???
+-- game'  <- play game strategy1
+-- game'' <- play game' strategy2
 
 
 -- For webserver details/busywork:
