@@ -7,13 +7,13 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
-
 module Examples.ExternalEnvironment.MontyHall where
 
-import Engine.Engine hiding (fromLens, fromFunctions, state, nature, liftStochastic)
+import Engine.Engine hiding (fromLens, fromFunctions, state, nature)
 import Preprocessor.Preprocessor
 
 import Engine.ExternalEnvironment
@@ -21,10 +21,9 @@ import Examples.ExternalEnvironment.Common (extractPayoff)
 
 import qualified Data.Set as S
 import           System.Random
-import qualified System.Random as Rand
-import           System.Random.MWC.CondensedTable
 
-
+import Data.Aeson               (ToJSON, FromJSON)
+import GHC.Generics             (Generic)
 
 -- TODO Use the dependency operator for that!
 
@@ -36,36 +35,54 @@ type DoorGoat = Int
 
 type ChangeChoice = Bool
 
+data PlayParameters = PlayParameters
+  { theDoor :: Door
+  , playerAction :: ChangeChoice
+  } deriving (Show, Generic, ToJSON, FromJSON)
+
+data PlayResult = PlayResult
+  { playerPayoff  :: Double
+  } deriving (Show, Generic, ToJSON, FromJSON)
+
 -------------
 -- Parameters
+
+initialSetDoors :: S.Set DoorCar
 initialSetDoors = S.fromList [1,2,3]
+
+prize :: Double
 prize = 10
 
 ----------------------
 -- Auxiliary functions
 
 -- Fix door behind which is the car
-chooseDoor :: IO DoorCar
-chooseDoor = do
+chooseWinningDoor :: IO DoorCar
+chooseWinningDoor = do
   g <- newStdGen
-  return $ fst $ randomR (1,3) g
+  let winning_door = fst $ randomR (1,3) g
+  putStrLn $ "winning door : " ++ show winning_door -- debugging print
+  return winning_door
 
 -- Given a set of doors choose one randomly
-revealDoorGoat :: S.Set Door -> IO DoorGoat
-revealDoorGoat doors = do
+-- chooseRandomDoorFromSet bug: index out of bounds (0,s)
+chooseRandomDoorFromSet :: S.Set Door -> IO DoorGoat
+chooseRandomDoorFromSet doors = do
   g <- newStdGen
   let s = S.size doors
-      index = fst $ randomR (0,s) g
-  return $ S.elemAt index doors
+      index = fst $ randomR (0, s - 1) g
+  let result = S.elemAt index doors
+  return result
 
 -- Given door with car behind and chosen door, reveal door which contains a goat
+-- revealGoatDoor bug: the resulting index does not refer to the original list
 revealGoatDoor :: DoorCar -> Door -> IO DoorGoat
 revealGoatDoor winner choice = do
-  case winner == choice of
-    True -> revealDoorGoat $ S.delete winner initialSetDoors
-    -- ^ If winning door has been chosen, randomly choose one of the goat doors
-    _    -> revealDoorGoat $ S.delete choice $ S.delete winner initialSetDoors
-    -- ^ If a goat door has been chosen, reveal the other goat door
+  putStrLn $ "chosen door  : " ++ show choice -- debugging print
+  opened_door <- chooseRandomDoorFromSet $ S.delete choice $ S.delete winner initialSetDoors
+  -- ^ ignore the winner door and the chosen door (might overlap, but that's alright)
+  putStrLn $ "opened door  : " ++ show opened_door -- debugging print
+  return opened_door
 
 ----------
 -- Payoffs
@@ -86,7 +103,7 @@ montyHall :: OpenGame
                 '[]
                 ()
                 (Double)
-                (Door,Bool)
+                (Door, Bool)
                 ()
 montyHall = [opengame|
 
@@ -96,7 +113,7 @@ montyHall = [opengame|
    :----------------------------:
    inputs    :     ;
    feedback  :     ;
-   operation : nature chooseDoor ;
+   operation : nature chooseWinningDoor ;
    outputs   : winningDoor ;
    returns   :     ;
    // Chooses behind which door the car is
@@ -129,4 +146,17 @@ montyHall = [opengame|
   |]
 
 
+runPlay :: PlayParameters -> IO PlayResult
+runPlay PlayParameters { theDoor, playerAction } = do
+  putStrLn $ "switch door  : " ++ show playerAction -- debugging print
+
+  let strategy :: List '[Door, ChangeChoice]
+      strategy = theDoor ::- playerAction ::- Nil
+
+      gamenext :: MonadOptic IO () Double (Door, Bool) ()
+      gamenext = play montyHall strategy
+
+  p <- extractPayoff gamenext
+
+  return $ PlayResult { playerPayoff = p }
 
