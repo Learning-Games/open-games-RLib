@@ -17,7 +17,7 @@ import Engine.Engine hiding (fromLens, fromFunctions, state, nature)
 import Preprocessor.Preprocessor
 
 import Engine.ExternalEnvironment
-import Examples.ExternalEnvironment.Common (extractPayoff)
+import Examples.ExternalEnvironment.Common (extractPayoffAndNextState)
 
 import qualified Data.Set as S
 import           System.Random
@@ -132,12 +132,13 @@ montyHall = [opengame|
    returns   :  ;
    // if first decision did not win the prize, reveal one door which contains a goat
 
-   inputs    : revealedDoor  ;
+   inputs    : revealedDoor ;
    feedback  : payoff ;
    operation : interactWithEnv ;
    outputs   : decision2 ;
    returns   : payoffDecision winningDoor decision1 decision2 ;
    // reverse or keep first choice; if winning prize else zero
+   // GEORGE: why do we need revealedDoor as an input??
 
    :----------------------------:
 
@@ -156,7 +157,7 @@ runPlay PlayParameters { theDoor, playerAction } = do
       gamenext :: MonadOptic IO () Double (Door, Bool) ()
       gamenext = play montyHall strategy
 
-  p <- extractPayoff gamenext
+  (p, _ns) <- extractPayoffAndNextState gamenext
 
   return $ PlayResult { playerPayoff = p }
 

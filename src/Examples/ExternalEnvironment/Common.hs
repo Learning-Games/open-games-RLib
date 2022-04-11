@@ -1,4 +1,4 @@
-module Examples.ExternalEnvironment.Common (extractPayoff, extractNextState) where
+module Examples.ExternalEnvironment.Common (extractPayoff, extractNextState, extractPayoffAndNextState) where
 
 import Engine.Engine (MonadOptic(..))
 
@@ -15,3 +15,11 @@ extractNextState :: MonadOptic m () t a b -> m a
 extractNextState (MonadOptic v _) = do
   (_,a) <- v ()
   pure a
+
+-- extract both the next state and the continuation
+extractPayoffAndNextState :: MonadOptic m () t a () -> m (t, a)
+extractPayoffAndNextState (MonadOptic v u) = do
+  (z, nextState) <- v ()
+  payoff <- u z ()
+  return (payoff, nextState)
+
