@@ -16,14 +16,21 @@ module Examples.ExternalEnvironment.MontyHall where
 import Engine.Engine hiding (fromLens, fromFunctions, state, nature)
 import Preprocessor.Preprocessor
 
+import Control.Monad.IO.Class   (liftIO)
+import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaultSettings)
+import Servant                  ((:>), (:<|>)((:<|>)), Server, Handler, Application
+                                , Proxy(..), JSON, Get, Post, ReqBody, serve)
+
 import Engine.ExternalEnvironment
-import Examples.ExternalEnvironment.Common (extractPayoffAndNextState)
+import Examples.ExternalEnvironment.Common (extractPayoff, extractPayoffAndNextState)
 
 import qualified Data.Set as S
 import           System.Random
 
 import Data.Aeson               (ToJSON, FromJSON)
 import GHC.Generics             (Generic)
+
+import Control.Monad (replicateM)
 
 -- TODO Use the dependency operator for that!
 
@@ -96,16 +103,16 @@ payoffDecision winner doorChosen choiceChanged
 
 -------
 -- Game
-montyHall :: OpenGame
-                (MonadOptic IO)
-                (MonadContext IO)
-                '[Door,Bool]
-                '[]
-                ()
-                (Double)
-                (Door, Bool)
-                ()
-montyHall = [opengame|
+montyHallExternal :: OpenGame
+                       (MonadOptic IO)
+                       (MonadContext IO)
+                       '[Door,Bool]
+                       '[]
+                       ()
+                       (Double)
+                       (Door, Bool)
+                       ()
+montyHallExternal = [opengame|
 
    inputs    :      ;
    feedback  :  payoff    ;
@@ -147,19 +154,65 @@ montyHall = [opengame|
   |]
 
 
-runPlay :: PlayParameters -> IO PlayResult
-runPlay PlayParameters { theDoor, playerAction } = do
+test :: PlayParameters -> IO PlayResult
+test PlayParameters { theDoor, playerAction } = do
   -- putStrLn $ "switch door  : " ++ show playerAction -- debugging print
 
   let strategy :: List '[Door, ChangeChoice]
       strategy = theDoor ::- playerAction ::- Nil
 
       gamenext :: MonadOptic IO () Double (Door, Bool) ()
-      gamenext = play montyHall strategy
+      gamenext = play montyHallExternal strategy
 
   (p, _ns) <- extractPayoffAndNextState gamenext
 
   return $ PlayResult { playerPayoff = p }
 
--- fmap (/ 1000) (sum <$> replicateM 1000 (playerPayoff <$> runPlay (PlayParameters { theDoor = 2, playerAction = False })))
+switch :: Int -> IO Double
+switch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test (PlayParameters { theDoor = 2, playerAction = True })))
+
+dontSwitch :: Int -> IO Double
+dontSwitch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test (PlayParameters { theDoor = 2, playerAction = False })))
+
+--------------
+-- Servant API
+
+-- Using: https://httpie.io/docs/cli/json
+--
+--  http localhost:3000/healthcheck
+--  http POST localhost:3000/play < json-data/mh-game.json
+--
+type Api = "play" :> ReqBody '[JSON] PlayParameters :> Post '[JSON] PlayResult
+           :<|> "healthcheck" :> Get '[JSON] String
+
+api :: Proxy Api
+api = Proxy
+
+server :: Server Api
+server =
+  runPlay
+  :<|> return "Ok!"
+
+run :: IO ()
+run = do
+  let port = 3000
+      settings =
+        setPort port $
+          setBeforeMainLoop (putStrLn ("Listening on port " ++ show port)) $
+            defaultSettings
+  runSettings settings =<< mkApp
+
+mkApp :: IO Application
+mkApp = return $ serve api server
+
+runPlay :: PlayParameters -> Handler PlayResult
+runPlay PlayParameters { theDoor, playerAction } = do
+
+  let strategy = theDoor ::- playerAction ::- Nil
+      gamenext = play montyHallExternal strategy
+
+  -- TODO: Does this need to be in IO?
+  p <- liftIO $ extractPayoff gamenext
+
+  return $ PlayResult { playerPayoff = p }
 
