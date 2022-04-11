@@ -10,6 +10,7 @@
 from typing import Dict
 
 import ray
+import os
 
 from ray                        import tune
 from ray.tune.registry          import register_env
@@ -111,7 +112,7 @@ class CustomCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"{name}_step_average"] = episode.agent_rewards[k] / ep_len
 
 
-def main(game, episode_length, player_1_policy, learner="PG"):
+def main(game, episode_length, player_1_policy, learner="PG", timesteps_total=150_000):
 
     register_env( "DTPLGE"
                 , lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config)
@@ -129,9 +130,11 @@ def main(game, episode_length, player_1_policy, learner="PG"):
     config = {
         "env": "DTPLGE",
         "callbacks": CustomCallbacks,
-        # "rollout_fragment_length": 10,
-        # "train_batch_size": 200,
+        "gamma": 0.8,
+        "rollout_fragment_length": 500,
+        "train_batch_size": 1000,
         # "metrics_num_episodes_for_smoothing": 200,
+        "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", 0)),
         "framework": framework,
         "env_config": {
             "action_space": game.action_space,
@@ -149,7 +152,7 @@ def main(game, episode_length, player_1_policy, learner="PG"):
 
     stop_conditions = {
             # "training_iteration": 100,
-            "timesteps_total": 15_000,
+            "timesteps_total": timesteps_total,
             }
 
 
@@ -167,7 +170,7 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    ep_len = 1
+    ep_len = 100
 
     main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
     main(episode_length=ep_len, game=pd_game, player_1_policy=always_defect)
