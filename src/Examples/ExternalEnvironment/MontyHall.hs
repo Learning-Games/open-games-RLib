@@ -61,7 +61,7 @@ chooseWinningDoor :: IO DoorCar
 chooseWinningDoor = do
   g <- newStdGen
   let winning_door = fst $ randomR (1,3) g
-  putStrLn $ "winning door : " ++ show winning_door -- debugging print
+  -- putStrLn $ "winning door : " ++ show winning_door -- debugging print
   return winning_door
 
 -- Given a set of doors choose one randomly
@@ -78,10 +78,10 @@ chooseRandomDoorFromSet doors = do
 -- revealGoatDoor bug: the resulting index does not refer to the original list
 revealGoatDoor :: DoorCar -> Door -> IO DoorGoat
 revealGoatDoor winner choice = do
-  putStrLn $ "chosen door  : " ++ show choice -- debugging print
+  -- putStrLn $ "chosen door  : " ++ show choice -- debugging print
   opened_door <- chooseRandomDoorFromSet $ S.delete choice $ S.delete winner initialSetDoors
   -- ^ ignore the winner door and the chosen door (might overlap, but that's alright)
-  putStrLn $ "opened door  : " ++ show opened_door -- debugging print
+  -- putStrLn $ "opened door  : " ++ show opened_door -- debugging print
   return opened_door
 
 ----------
@@ -149,7 +149,7 @@ montyHall = [opengame|
 
 runPlay :: PlayParameters -> IO PlayResult
 runPlay PlayParameters { theDoor, playerAction } = do
-  putStrLn $ "switch door  : " ++ show playerAction -- debugging print
+  -- putStrLn $ "switch door  : " ++ show playerAction -- debugging print
 
   let strategy :: List '[Door, ChangeChoice]
       strategy = theDoor ::- playerAction ::- Nil
@@ -160,4 +160,6 @@ runPlay PlayParameters { theDoor, playerAction } = do
   (p, _ns) <- extractPayoffAndNextState gamenext
 
   return $ PlayResult { playerPayoff = p }
+
+-- fmap (/ 1000) (sum <$> replicateM 1000 (playerPayoff <$> runPlay (PlayParameters { theDoor = 2, playerAction = False })))
 
