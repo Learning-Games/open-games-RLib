@@ -45,11 +45,11 @@ type ExternalEnvironmentGame a b x s y r = OpenGame (MonadOptic IO) (MonadContex
 -- Takes external input and outputs a move? Does evaluate the game as in the Bayesian case.
 interactWithEnv ::
   (Show a, Ord a) =>
-   ExternalEnvironmentGame  '[a] '[] () Double a Double
+   ExternalEnvironmentGame  '[a] '[] x Double a Double
 interactWithEnv = OpenGame {
-  play =  \(strat ::- Nil) -> let v () = do
+  play =  \(strat ::- Nil) -> let v x = do
                                    return ((),strat)
-                                  u () r = pure r
+                                  u x r = pure r
                                    in MonadOptic v u ,
   evaluate = undefined}
 
@@ -64,3 +64,16 @@ fromLens v u = OpenGame {
 
 fromFunctions :: (x -> y) -> (r -> s) -> ExternalEnvironmentGame '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
+
+-- Nature draws from a random distribution
+nature :: IO x -> ExternalEnvironmentGame '[] '[] () () x ()
+nature a = OpenGame {
+  play = \Nil -> MonadOptic (\() -> do {x <- a; return ((), x)}) (\() () -> return ()),
+  evaluate = \Nil _ -> Nil}
+
+-- Lift a stochastic computation into an open game
+liftStochastic :: (x -> IO y) -> ExternalEnvironmentGame '[] '[] x () y ()
+liftStochastic f = OpenGame {
+  play = \Nil -> MonadOptic (\x -> do {y <- f x; return ((), y)}) (\() () -> return ()),
+  evaluate = \_ _ -> Nil}
+
