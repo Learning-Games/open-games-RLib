@@ -99,7 +99,7 @@ test strat = do
   let a :: MonadOptic IO () Double (GameState) ()
       a = play genericMontyHall strat
 
-  (p, ns)  <- extractPayoffAndNextState a
+  (p, ns)  <- extractPayoffAndNextState a () ()
 
   return p
 

@@ -92,7 +92,7 @@ runPlay PlayParameters { player1Action, player2Action } = do
       next     = play rockPaperScissorsExternal strategy
 
   -- TODO: Does this need to be in IO?
-  (p1, p2) <- liftIO $ extractPayoff next
+  (p1, p2) <- liftIO $ extractPayoff next () ()
 
   let pr = PlayResult { player1Payoff  = p1
                       , player2Payoff  = p2

@@ -164,7 +164,7 @@ test PlayParameters { theDoor, playerAction } = do
       gamenext :: MonadOptic IO () Double (Door, Bool) ()
       gamenext = play montyHallExternal strategy
 
-  (p, _ns) <- extractPayoffAndNextState gamenext
+  (p, _ns) <- extractPayoffAndNextState gamenext () ()
 
   return $ PlayResult { playerPayoff = p }
 
@@ -212,7 +212,7 @@ runPlay PlayParameters { theDoor, playerAction } = do
       gamenext = play montyHallExternal strategy
 
   -- TODO: Does this need to be in IO?
-  p <- liftIO $ extractPayoff gamenext
+  p <- liftIO $ extractPayoff gamenext () ()
 
   return $ PlayResult { playerPayoff = p }
 
