@@ -49,7 +49,7 @@ interactWithEnv ::
 interactWithEnv = OpenGame {
   play =  \(strat ::- Nil) -> let v x = do
                                    return ((),strat)
-                                  u x r = pure r
+                                  u () r = pure r
                                    in MonadOptic v u ,
   evaluate = undefined}
 

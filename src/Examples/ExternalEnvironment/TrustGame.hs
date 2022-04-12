@@ -17,16 +17,15 @@ import Engine.Engine hiding (fromLens, fromFunctions, state, nature)
 import Preprocessor.Preprocessor
 
 import Engine.ExternalEnvironment
-import Examples.SequentialMoves (trustGamePayoffProposer, trustGamePayoffResponder, Sent, SentBack, Factor)
+import Examples.SequentialMoves (trustGamePayoffProposer, trustGamePayoffResponder, Pie, Factor, Sent, SentBack)
 
 import           Data.Tuple.Extra (uncurry3)
 
 import Examples.ExternalEnvironment.Common (extractNextState)
 
--- NOTE: The current implementation of
--- Examples.SequentialMoves.trustGamePayoffProposer is probably wrong.
-
--- TODO: What is "pie" in this game?
+-- NOTE: I think that "pie" is supposed to capture the total amount of money
+--   that player 1 has. However, observe that it is not used within "trustGame"
+--   below at all.
 
 -- 1.1. Trust Game
 trustGame :: p
@@ -50,7 +49,7 @@ trustGame pie factor = [opengame|
    feedback  : payoff1     ;
    operation : interactWithEnv ;
    outputs   : sent ;
-   returns   : trustGamePayoffProposer factor sent sentBack;
+   returns   : trustGamePayoffProposer factor sent sentBack; // TODO: should factor be pie here?
 
    inputs    : sent;
    feedback  : payoff2     ;
@@ -71,16 +70,16 @@ proposerDecision :: OpenGame
                       (MonadContext IO)
                       '[Double]
                       '[]
+                      Pie
                       ()
-                      ()
-                      Double
-                      Double
+                      Sent
+                      Double -- payoffProposer
 proposerDecision = [opengame|
-   inputs    :   ;
+   inputs    : pie ;
    feedback  :   ;
 
    :----------------------------:
-   inputs    :   ;
+   inputs    : pie ;
    feedback  : ignorePayoff    ;
    operation : interactWithEnv ;
    outputs   : sent ;
@@ -125,16 +124,16 @@ proposerPayoff :: OpenGame
                     (MonadContext IO)
                     '[]
                     '[]
-                    (Factor, Sent, SentBack)
+                    (Pie, Sent, SentBack)
                     ()
                     Payoff
                     ()
 proposerPayoff = [opengame|
-   inputs    : factor, sent, sentBack    ;
+   inputs    : pie, sent, sentBack    ;
    feedback  :   ;
 
    :----------------------------:
-   inputs    : factor, sent, sentBack  ;
+   inputs    : pie, sent, sentBack  ;
    feedback  :      ;
    operation : fromFunctions (uncurry3 trustGamePayoffProposer) id;
    outputs   : payoffSender;
@@ -200,20 +199,21 @@ testResponder = responderDecision (3 :: Double)
 --   you get 3X             (-2x for the manager)
 --   you give me back 2X    (+x p1, +x p2)
 
--- issue1: sendBack is unrestricted; it doesn't even depend on factor currently
+-- issue: in proposerDecision: unenforced logic: 0 <= sent <= pie
+-- issue: sendBack is unrestricted; it doesn't even depend on factor currently
 -- 0 <= sentBack <= factor * sent
 
--- e.g. (test 10 6 3)
+-- e.g. (test 100 10 6 3)
 
-test :: Sent -> SentBack -> Factor -> IO (Sent, SentBack, Payoff, Payoff)
-test sentInput sentBackInput factor = do
+test :: Pie -> Sent -> SentBack -> Factor -> IO (Sent, SentBack, Payoff, Payoff)
+test pie sentInput sentBackInput factor = do
   -- GAME 1
   let strategy1 :: List '[Double]
       strategy1 = sentInput ::- Nil
 
-      game1 :: MonadOptic IO () () Double Double
+      game1 :: MonadOptic IO Pie () Double Double
       game1 = play proposerDecision strategy1
-  sent <- extractNextState game1 ()
+  sent <- extractNextState game1 pie
 
   -- GAME 2
   let strategy2 :: List '[Double]
@@ -224,9 +224,9 @@ test sentInput sentBackInput factor = do
   sentBack <- extractNextState game2 sent
 
   -- GAME 3
-  let game3 :: MonadOptic IO (Factor, Sent, SentBack) () Double ()
+  let game3 :: MonadOptic IO (Pie, Sent, SentBack) () Double ()
       game3 = play proposerPayoff Nil
-  payoff1 <- extractNextState game3 (factor, sent, sentBack)
+  payoff1 <- extractNextState game3 (pie, sent, sentBack)
 
   -- GAME 4
   let game4 :: MonadOptic IO (Factor, Sent, SentBack) () Double ()

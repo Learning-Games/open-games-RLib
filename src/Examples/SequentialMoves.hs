@@ -35,9 +35,12 @@ type Sent = Double
 type SentBack = Double
 type Factor = Double
 
-trustGamePayoffProposer,trustGamePayoffResponder :: Factor -> Sent -> SentBack -> Payoff
-trustGamePayoffProposer factor sent reaction = reaction - sent
-trustGamePayoffResponder factor sent reaction = sent * factor - reaction
+
+trustGamePayoffProposer :: Pie -> Sent -> SentBack -> Payoff
+trustGamePayoffProposer pie sent sentBack = pie - sent + sentBack
+
+trustGamePayoffResponder :: Factor -> Sent -> SentBack -> Payoff
+trustGamePayoffResponder factor proposal reaction = proposal * factor - reaction
 
 -- 1.2. Sequential rockPaperScissors
 data ActionRPS = Rock | Paper | Scissors
@@ -93,7 +96,7 @@ trustGame pie factor = [opengame|
    feedback  :      ;
    operation : dependentDecision "proposer" (const [1..pie]);
    outputs   : sent ;
-   returns   : trustGamePayoffProposer factor sent sentBack;
+   returns   : trustGamePayoffProposer pie sent sentBack;
 
    inputs    : sent;
    feedback  :      ;
