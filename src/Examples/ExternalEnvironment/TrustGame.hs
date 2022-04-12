@@ -23,6 +23,11 @@ import           Data.Tuple.Extra (uncurry3)
 
 import Examples.ExternalEnvironment.Common (extractNextState)
 
+-- NOTE: The current implementation of
+-- Examples.SequentialMoves.trustGamePayoffProposer is probably wrong.
+
+-- TODO: What is "pie" in this game?
+
 -- 1.1. Trust Game
 trustGame :: p
              -> Factor
@@ -64,18 +69,18 @@ trustGame pie factor = [opengame|
 proposerDecision :: OpenGame
                       (MonadOptic IO)
                       (MonadContext IO)
-                      ('[Double])
-                      ('[])
-                      Double
+                      '[Double]
+                      '[]
+                      ()
                       ()
                       Double
                       Double
 proposerDecision = [opengame|
-   inputs    : pie     ;
+   inputs    :   ;
    feedback  :   ;
 
    :----------------------------:
-   inputs    : pie  ;
+   inputs    :   ;
    feedback  : ignorePayoff    ;
    operation : interactWithEnv ;
    outputs   : sent ;
@@ -91,18 +96,18 @@ proposerDecision = [opengame|
 responderDecision :: OpenGame
                        (MonadOptic IO)
                        (MonadContext IO)
-                       ('[Double])
-                       ('[])
-                       (Double,Double)
+                       '[Double]
+                       '[]
+                       Double
                        ()
                        Double
                        Double
 responderDecision = [opengame|
-   inputs    : pie,sent     ;
+   inputs    : sent     ;
    feedback  :   ;
 
    :----------------------------:
-   inputs    : pie,sent  ;
+   inputs    : sent  ;
    feedback  : ignorePayoff     ;
    operation : interactWithEnv ;
    outputs   : sentBack ;
@@ -125,11 +130,11 @@ proposerPayoff :: OpenGame
                     Payoff
                     ()
 proposerPayoff = [opengame|
-   inputs    : pie, sent, sentBack    ;
+   inputs    : factor, sent, sentBack    ;
    feedback  :   ;
 
    :----------------------------:
-   inputs    : pie, sent, sentBack  ;
+   inputs    : factor, sent, sentBack  ;
    feedback  :      ;
    operation : fromFunctions (uncurry3 trustGamePayoffProposer) id;
    outputs   : payoffSender;
@@ -141,24 +146,23 @@ proposerPayoff = [opengame|
    returns   :      ;
   |]
 
-responderPayoff :: Factor
-                   -> OpenGame
-                        (MonadOptic IO)
-                        (MonadContext IO)
-                        '[]
-                        '[]
-                        (Sent, SentBack)
-                        ()
-                        Payoff
-                        ()
-responderPayoff factor = [opengame|
-   inputs    : sent, sentBack    ;
+responderPayoff :: OpenGame
+                     (MonadOptic IO)
+                     (MonadContext IO)
+                     '[]
+                     '[]
+                     (Factor, Sent, SentBack)
+                     ()
+                     Payoff
+                     ()
+responderPayoff = [opengame|
+   inputs    : factor, sent, sentBack    ;
    feedback  :   ;
 
    :----------------------------:
-   inputs    : sent, sentBack  ;
+   inputs    : factor, sent, sentBack  ;
    feedback  :      ;
-   operation : fromFunctions (uncurry $ trustGamePayoffProposer factor) id;
+   operation : fromFunctions (uncurry3 trustGamePayoffResponder) id;
    outputs   : payoffResponder;
    returns   :  ;
 
@@ -186,14 +190,61 @@ testResponder = responderDecision (3 :: Double)
 --}
 
 
-proposerEval :: IO Double
-proposerEval = extractNextState (play proposerDecision (10 ::- Nil)) 10
-                                                                     -- ^ this is the s input in the extractState, the _pie_ in the p_roposerGame_
-responderEval :: IO Double
-responderEval = extractNextState (play responderDecision (5 ::- Nil)) (10,5)
+-- Trustless
+--   I give you 0
+--   you get 0
+--   you give me back 0
+--
+-- Trusty
+--   I give you X
+--   you get 3X             (-2x for the manager)
+--   you give me back 2X    (+x p1, +x p2)
 
-proposerPayoffEval :: IO Payoff
-proposerPayoffEval = extractNextState (play proposerPayoff Nil) (10,10,5)
+-- issue1: sendBack is unrestricted; it doesn't even depend on factor currently
+-- 0 <= sentBack <= factor * sent
 
-responderPayoffEval :: Factor -> IO Payoff
-responderPayoffEval factor = extractNextState (play (responderPayoff factor) Nil) (10,5)
+-- e.g. (test 10 6 3)
+
+test :: Sent -> SentBack -> Factor -> IO (Sent, SentBack, Payoff, Payoff)
+test sentInput sentBackInput factor = do
+  -- GAME 1
+  let strategy1 :: List '[Double]
+      strategy1 = sentInput ::- Nil
+
+      game1 :: MonadOptic IO () () Double Double
+      game1 = play proposerDecision strategy1
+  sent <- extractNextState game1 ()
+
+  -- GAME 2
+  let strategy2 :: List '[Double]
+      strategy2 = sentBackInput ::- Nil
+
+      game2 :: MonadOptic IO Double () Double Double
+      game2 = play responderDecision strategy2
+  sentBack <- extractNextState game2 sent
+
+  -- GAME 3
+  let game3 :: MonadOptic IO (Factor, Sent, SentBack) () Double ()
+      game3 = play proposerPayoff Nil
+  payoff1 <- extractNextState game3 (factor, sent, sentBack)
+
+  -- GAME 4
+  let game4 :: MonadOptic IO (Factor, Sent, SentBack) () Double ()
+      game4 = play responderPayoff Nil
+  payoff2 <- extractNextState game4 (factor, sent, sentBack)
+
+  return (sent, sentBack, payoff1, payoff2)
+
+
+
+-- proposerEval :: IO Double
+-- proposerEval = extractNextState (play proposerDecision (10 {- sent -} ::- Nil)) () -- 10
+--                                                                      -- ^ this is the s input in the extractState, the _pie_ in the _proposerGame_
+-- responderEval :: IO Double
+-- responderEval = extractNextState (play responderDecision (5 {- sentBack -} ::- Nil)) 5 {- sent -}
+--
+-- proposerPayoffEval :: IO Payoff
+-- proposerPayoffEval = extractNextState (play proposerPayoff Nil) (10,10,5)
+--
+-- responderPayoffEval :: Factor -> IO Payoff
+-- responderPayoffEval factor = extractNextState (play (responderPayoff factor) Nil) (10,5)

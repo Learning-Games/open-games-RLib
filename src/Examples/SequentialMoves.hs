@@ -36,8 +36,8 @@ type SentBack = Double
 type Factor = Double
 
 trustGamePayoffProposer,trustGamePayoffResponder :: Factor -> Sent -> SentBack -> Payoff
-trustGamePayoffProposer factor send reaction = reaction
-trustGamePayoffResponder factor proposal reaction = proposal * factor - reaction
+trustGamePayoffProposer factor sent reaction = reaction - sent
+trustGamePayoffResponder factor sent reaction = sent * factor - reaction
 
 -- 1.2. Sequential rockPaperScissors
 data ActionRPS = Rock | Paper | Scissors
