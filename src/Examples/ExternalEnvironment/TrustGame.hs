@@ -13,15 +13,28 @@
 
 module Examples.ExternalEnvironment.TrustGame where
 
-import Engine.Engine hiding (fromLens, fromFunctions, state, nature, liftStochastic)
+import Engine.Engine hiding (fromLens, fromFunctions, state, nature)
 import Preprocessor.Preprocessor
 
 import Engine.ExternalEnvironment
-import Examples.SequentialMoves (trustGamePayoffProposer, trustGamePayoffResponder, Sent,SentBack)
+import Examples.SequentialMoves (trustGamePayoffProposer, trustGamePayoffResponder, Sent, SentBack, Factor)
 
 import           Data.Tuple.Extra (uncurry3)
 
+import Examples.ExternalEnvironment.Common (extractNextState)
+
 -- 1.1. Trust Game
+trustGame :: p
+             -> Factor
+             -> OpenGame
+                  (MonadOptic IO)
+                  (MonadContext IO)
+                  '[Double, Double]
+                  '[]
+                  ()
+                  (Double, Double)
+                  (Double, Double)
+                  ()
 trustGame pie factor = [opengame|
 
    inputs    :      ;
@@ -48,7 +61,7 @@ trustGame pie factor = [opengame|
 
 -- 2. splitting things into components
 
-proposerDecision ::  OpenGame
+proposerDecision :: OpenGame
                       (MonadOptic IO)
                       (MonadContext IO)
                       ('[Double])
@@ -57,7 +70,7 @@ proposerDecision ::  OpenGame
                       ()
                       Double
                       Double
-proposerDecision  = [opengame|
+proposerDecision = [opengame|
    inputs    : pie     ;
    feedback  :   ;
 
@@ -75,15 +88,15 @@ proposerDecision  = [opengame|
   |]
 
 
-responderDecision ::  OpenGame
-                      (MonadOptic IO)
-                      (MonadContext IO)
-                      ('[Double])
-                      ('[])
-                      (Double,Double)
-                      ()
-                      Double
-                      Double
+responderDecision :: OpenGame
+                       (MonadOptic IO)
+                       (MonadContext IO)
+                       ('[Double])
+                       ('[])
+                       (Double,Double)
+                       ()
+                       Double
+                       Double
 responderDecision = [opengame|
    inputs    : pie,sent     ;
    feedback  :   ;
@@ -102,7 +115,16 @@ responderDecision = [opengame|
    |]
 
 
-proposerPayoff  = [opengame|
+proposerPayoff :: OpenGame
+                    (MonadOptic IO)
+                    (MonadContext IO)
+                    '[]
+                    '[]
+                    (Factor, Sent, SentBack)
+                    ()
+                    Payoff
+                    ()
+proposerPayoff = [opengame|
    inputs    : pie, sent, sentBack    ;
    feedback  :   ;
 
@@ -119,6 +141,16 @@ proposerPayoff  = [opengame|
    returns   :      ;
   |]
 
+responderPayoff :: Factor
+                   -> OpenGame
+                        (MonadOptic IO)
+                        (MonadContext IO)
+                        '[]
+                        '[]
+                        (Sent, SentBack)
+                        ()
+                        Payoff
+                        ()
 responderPayoff factor = [opengame|
    inputs    : sent, sentBack    ;
    feedback  :   ;
@@ -137,30 +169,15 @@ responderPayoff factor = [opengame|
   |]
 
 
--- extract next state (action)
-extractNextState :: MonadOptic m s t a b -> s -> m a
-extractNextState (MonadOptic v _) x = do
-  (_,a) <- v x
-  pure a
- 
-  
 {-
--- extract continuation
-extractPayoff :: MonadOptic m s t a b -> s -> b -> m t
-extractPayoff (MonadOptic v u) x r= do
-  (z,_) <- v x
-  u z r
-
- 
-
 
 
 --- Control flow now:
 
 -- 0 extractNextState from proposerDecision -> _sent_
 -- 1 extractNextState from responderDecision ->  _sentBack_
--- 2 responderDecision produces _payoff2_ -> 
--- 3 senderDecision produces _payoff1_ 
+-- 2 responderDecision produces _payoff2_ ->
+-- 3 senderDecision produces _payoff1_
 
 
 testSender = senderDecision (3 :: Double)
@@ -169,11 +186,14 @@ testResponder = responderDecision (3 :: Double)
 --}
 
 
+proposerEval :: IO Double
 proposerEval = extractNextState (play proposerDecision (10 ::- Nil)) 10
                                                                      -- ^ this is the s input in the extractState, the _pie_ in the p_roposerGame_
-
+responderEval :: IO Double
 responderEval = extractNextState (play responderDecision (5 ::- Nil)) (10,5)
 
+proposerPayoffEval :: IO Payoff
 proposerPayoffEval = extractNextState (play proposerPayoff Nil) (10,10,5)
 
+responderPayoffEval :: Factor -> IO Payoff
 responderPayoffEval factor = extractNextState (play (responderPayoff factor) Nil) (10,5)
