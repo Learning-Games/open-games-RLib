@@ -19,15 +19,26 @@ pip install -r requirements.txt
 
 ### Todo
 
+Now:
+
+- [ ] Future directions
+  - [ ] Principled approach
+  - [ ] "Multi-staged"/Sequential game done via multiple 'opengame's in
+         Haskell; and a set of staged actions in Python/rllib.
+
+Later:
+
+- [ ] Clean up the Haskell code?
+  - [ ] IO Monad?!
 - [ ] Work out how to get the optimal "strategy" from the result of training?
   - I.e. how to save/use the trained agent.
 - [ ] Experiment with different network architectures for training
-- [ ] Monty Hall
-- [ ] Future directions
-  - [ ] Principled approach
-- [ ] Clean up the Haskell code?
-  - [ ] IO Monad?!
 
+
+Done:
+
+- [!] Monty Hall
+  - Opted to investigate 'Trust Game' instead.
 - [x] Start running more experiments on a GPU?
 - [x] Connected RLLib
 - [x] Make it stop training: set done=true at some point.
