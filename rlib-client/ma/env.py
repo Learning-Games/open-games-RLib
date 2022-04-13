@@ -57,6 +57,9 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
                                         )
                                       )
 
+        # The websocket we read from
+        self.ws = None
+
         self.reset()
 
 
@@ -72,6 +75,11 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
         #   - move of no move?
         #   - or start from some specific starting point?
 
+        # Close the socket if it's already open, and reopen it
+        if self.ws:
+          self.ws.close()
+        self.ws = create_connection("ws://localhost:3000/play")
+
         obs = { i: (0, 0) for i in range(self.num_agents) }
         return obs
 
@@ -84,17 +92,11 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
                , "player2Action": self.action_map[ action_dict[1] ]
                }
 
-        # Open the socket
-        ws = create_connection("ws://localhost:3000/play")
-
         # Send the moves message
-        ws.send(json.dumps(data))
+        self.ws.send(json.dumps(data))
 
         # Receive the payoffs message
-        response = json.loads(ws.recv())
-
-        # Close the socket (doesn't seem to do anything at the moment)
-        ws.close()
+        response = json.loads(self.ws.recv())
 
         # Compute the rewards
         rewards = {}

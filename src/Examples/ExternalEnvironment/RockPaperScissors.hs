@@ -32,6 +32,7 @@ import Network.WebSockets.Connection (PendingConnection)
 import qualified Network.WebSockets as WS
 import Control.Exception (SomeException, handle)
 import Data.ByteString.Lazy.Internal (ByteString)
+import Control.Monad (forever)
 
 -- Types
 
@@ -93,7 +94,7 @@ wsPlay :: PendingConnection -> Handler ()
 wsPlay pending = do
   liftIO $ do
     connection <- WS.acceptRequest pending
-    handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ do
+    handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
       -- Receive and decode the action of each player
       -- TODO: Fix this partial pattern match here.
       playParameters <- WS.receiveData @ByteString connection
