@@ -130,9 +130,9 @@ def main(game, episode_length, player_1_policy, learner="PG", timesteps_total=15
     config = {
         "env": "DTPLGE",
         "callbacks": CustomCallbacks,
-        "gamma": 0.8,
-        "rollout_fragment_length": 500,
-        "train_batch_size": 1000,
+        # "gamma": 0.8,
+        # "rollout_fragment_length": 500,
+        # "train_batch_size": 1000,
         # "metrics_num_episodes_for_smoothing": 200,
         "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", 0)),
         "framework": framework,
@@ -170,17 +170,17 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    ep_len = 100
+    ep_len = 10 # 100
 
-    main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
-    main(episode_length=ep_len, game=pd_game, player_1_policy=always_defect)
-    main(episode_length=ep_len, game=pd_game, player_1_policy=always_cooperate)
-    main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
-    main(episode_length=ep_len, game=pd_game, player_1_policy=random_pd_move)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=always_defect)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=always_cooperate)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=random_pd_move)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
 
-    # main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
-    # main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
-    # main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
+    main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
+    main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
+    main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
 
 
 

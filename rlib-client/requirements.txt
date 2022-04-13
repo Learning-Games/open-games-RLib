@@ -3,3 +3,4 @@ jupyter
 psutil
 ray[rllib]
 tensorflow
+websocket-client
