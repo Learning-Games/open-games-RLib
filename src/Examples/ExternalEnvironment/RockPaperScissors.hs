@@ -18,14 +18,20 @@ import Engine.Engine hiding (fromLens, fromFunctions, state)
 import Preprocessor.Preprocessor
 
 import Control.Monad.IO.Class   (liftIO)
-import Data.Aeson               (ToJSON, FromJSON)
+import Data.Aeson               (ToJSON, FromJSON, encode, decode)
 import GHC.Generics             (Generic)
 import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaultSettings)
 import Servant                  ((:>), (:<|>)((:<|>)), Server, Handler, Application
-                                , Proxy(..), JSON, Get, Post, ReqBody, serve)
+                                , Proxy(..), JSON, Get, serve)
 
 import Engine.ExternalEnvironment
 import Examples.ExternalEnvironment.Common (extractPayoff)
+
+import Servant.API.WebSocket    (WebSocketPending)
+import Network.WebSockets.Connection (PendingConnection)
+import qualified Network.WebSockets as WS
+import Control.Exception (SomeException, handle)
+import Data.ByteString.Lazy.Internal (ByteString)
 
 -- Types
 
@@ -57,12 +63,10 @@ rockPaperScissorsPayoff Scissors Scissors = 0
 
 -- Servant API
 
--- Using: https://httpie.io/docs/cli/json
---
---  http localhost:3000/healthcheck
---  http POST localhost:3000/play < json-data/rps-game.json
---
-type Api = "play" :> ReqBody '[JSON] PlayParameters :> Post '[JSON] PlayResult
+-- Using 'websocat':
+--  websocat ws://localhost:3000/play
+
+type Api = "play" :> WebSocketPending
            :<|> "healthcheck" :> Get '[JSON] String
 
 api :: Proxy Api
@@ -70,7 +74,7 @@ api = Proxy
 
 server :: Server Api
 server =
-  runPlay
+  wsPlay
   :<|> return "Ok!"
 
 run :: IO ()
@@ -85,19 +89,33 @@ run = do
 mkApp :: IO Application
 mkApp = return $ serve api server
 
-runPlay :: PlayParameters -> Handler PlayResult
-runPlay PlayParameters { player1Action, player2Action } = do
+wsPlay :: PendingConnection -> Handler ()
+wsPlay pending = do
+  liftIO $ do
+    connection <- WS.acceptRequest pending
+    handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ do
+      -- Receive and decode the action of each player
+      -- TODO: Fix this partial pattern match here.
+      playParameters <- WS.receiveData @ByteString connection
+      let Just (PlayParameters { player1Action, player2Action }) = decode playParameters
 
-  let strategy = player1Action ::- player2Action ::- Nil
-      next     = play rockPaperScissorsExternal strategy
+      -- Play the game to compute the payoffs
+      let strategy = player1Action ::- player2Action ::- Nil
+          nextgame = play rockPaperScissorsExternal strategy
+      (p1, p2) <- extractPayoff nextgame () ()
 
-  -- TODO: Does this need to be in IO?
-  (p1, p2) <- liftIO $ extractPayoff next () ()
+      -- Send the payoffs back to the client
+      let playResult = PlayResult { player1Payoff = p1, player2Payoff = p2 }
+      let response = encode playResult
+      WS.sendTextData connection response
 
-  let pr = PlayResult { player1Payoff  = p1
-                      , player2Payoff  = p2
-                      }
-  return pr
+      -- NOTE: Does nothing
+      -- WS.sendClose connection $ pack "Friendly disconnecting message."
+      pure ()
+    pure ()
+  where
+    disconnect :: SomeException -> IO ()
+    disconnect _ = putStrLn "Disconnecting.." >> pure ()
 
 -- Game
 

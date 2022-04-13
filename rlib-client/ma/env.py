@@ -2,6 +2,8 @@ from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from gym.spaces import Discrete, Tuple
 from copy import copy
 import requests
+import json
+from websocket import create_connection
 
 # Functions for dealing with Haskell.
 # No functions! Haskell is a joy.
@@ -69,7 +71,7 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
         # TODO:
         #   - move of no move?
         #   - or start from some specific starting point?
-        
+
         obs = { i: (0, 0) for i in range(self.num_agents) }
         return obs
 
@@ -82,8 +84,17 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
                , "player2Action": self.action_map[ action_dict[1] ]
                }
 
-        # Call the webserver
-        response = requests.post("http://localhost:3000/play", json=data).json()
+        # Open the socket
+        ws = create_connection("ws://localhost:3000/play")
+
+        # Send the moves message
+        ws.send(json.dumps(data))
+
+        # Receive the payoffs message
+        response = json.loads(ws.recv())
+
+        # Close the socket (doesn't seem to do anything at the moment)
+        ws.close()
 
         # Compute the rewards
         rewards = {}
