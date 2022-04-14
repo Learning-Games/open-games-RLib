@@ -1,12 +1,12 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
@@ -24,20 +24,30 @@ import           Data.Tuple.Extra (uncurry3)
 import Examples.ExternalEnvironment.Common (extractNextState)
 
 import Servant                  ((:>), (:<|>)((:<|>)), Server, Handler, Application
-                                , Proxy(..), JSON, Get, Post, ReqBody, serve)
+                                , Proxy(..), JSON, Get, serve)
 import Control.Monad.IO.Class   (liftIO)
-import Data.Aeson               (ToJSON, FromJSON)
-import GHC.Generics             (Generic)
+import Data.Aeson               (ToJSON, FromJSON, encode, decode)
 import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaultSettings)
 import Servant.API.WebSocket    (WebSocketPending)
-import Network.WebSockets.Connection (Connection, PendingConnection)
+import Network.WebSockets.Connection (PendingConnection)
 import qualified Network.WebSockets as WS
-import Data.Text (pack, Text)
 import Control.Exception (SomeException, handle)
+import Data.Maybe (fromJust)
+import GHC.Generics (Generic)
 
 -- NOTE: I think that "pie" is supposed to capture the total amount of money
 --   that player 1 has. However, observe that it is not used within "trustGame"
 --   below at all.
+
+
+-- | Wrapper for JSON-Encodable data we'd like to pass through
+-- the websocket.
+newtype SD a = SD a
+
+instance (ToJSON a, FromJSON a) => WS.WebSocketsData (SD a) where
+  fromLazyByteString b    = fromJust (error $ "Decoding error; raw bytes:" ++ show b) (SD $ decode @a b)
+  toLazyByteString (SD a) = encode a
+  fromDataMessage         = error "WS.WebSocketsData (SD a); fromDataMessage - Unimplemented."
 
 type Api = "play" :> WebSocketPending
            :<|> "healthcheck" :> Get '[JSON] String
@@ -47,24 +57,53 @@ api = Proxy
 
 server :: Server Api
 server =
-  wsPlay
+  runPlay
   :<|> return "Ok!"
 
+data Payoffs = Payoffs
+  { player1 :: Double
+  , player2 :: Double
+  } deriving (Show, Generic, ToJSON)
 
 -- Using 'websocat':
 --  websocat ws://localhost:3000/play
---
-wsPlay :: PendingConnection -> Handler ()
-wsPlay pending = do
+
+runPlay :: PendingConnection -> Handler ()
+runPlay pending = do
   liftIO $ do
     connection <- WS.acceptRequest pending
     handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ do
-      WS.sendTextData connection (pack "Hello")
-      you <- WS.receiveData @Text connection
-      WS.sendTextData connection $ pack "You said: " <> you
-      WS.sendTextData connection $ pack "Goodbye."
-      pure ()
-    pure ()
+      -- Constants
+      let pie    = 10
+          factor = 3
+
+      -- Game 1
+      --  - Ask for an amount to send
+      (SD sentInput) <- WS.receiveData @(SD Double) connection
+      let step1 :: List '[Double]
+          step1 = sentInput ::- Nil
+          game1 = play proposerDecision step1
+
+      sent <- extractNextState game1 pie
+
+      -- Game 2
+      --  - Ask for an amount to send back.
+      (SD sentBackInput) <- WS.receiveData @(SD Double) connection
+      let step2 :: List '[Double]
+          step2 = sentBackInput ::- Nil
+          game2 = play responderDecision step2
+
+      sentBack <- extractNextState game2 sent
+
+      -- Game 3 & 4
+      --  - Compute the payoffs and send them back.
+      let game3 = play proposerPayoff Nil
+      payoff1 <- extractNextState game3 (pie, sent, sentBack)
+
+      let game4 = play responderPayoff Nil
+      payoff2 <- extractNextState game4 (factor, sent, sentBack)
+
+      WS.sendTextData connection (SD (payoff1, payoff2))
   where
     disconnect :: SomeException -> IO ()
     disconnect _ = pure ()
