@@ -32,22 +32,12 @@ import Servant.API.WebSocket    (WebSocketPending)
 import Network.WebSockets.Connection (PendingConnection)
 import qualified Network.WebSockets as WS
 import Control.Exception (SomeException, handle)
-import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
+import Data.ByteString.Lazy.Internal (ByteString)
 
 -- NOTE: I think that "pie" is supposed to capture the total amount of money
 --   that player 1 has. However, observe that it is not used within "trustGame"
 --   below at all.
-
-
--- | Wrapper for JSON-Encodable data we'd like to pass through
--- the websocket.
-newtype SD a = SD a
-
-instance (ToJSON a, FromJSON a) => WS.WebSocketsData (SD a) where
-  fromLazyByteString b    = fromJust (error $ "Decoding error; raw bytes:" ++ show b) (SD $ decode @a b)
-  toLazyByteString (SD a) = encode a
-  fromDataMessage         = error "WS.WebSocketsData (SD a); fromDataMessage - Unimplemented."
 
 type Api = "play" :> WebSocketPending
            :<|> "healthcheck" :> Get '[JSON] String
@@ -77,9 +67,13 @@ runPlay pending = do
       let pie    = 10
           factor = 3
 
+      putStrLn "Asking for an amount"
       -- Game 1
       --  - Ask for an amount to send
-      (SD sentInput) <- WS.receiveData @(SD Double) connection
+      (Just sentInput) <- decode <$> WS.receiveData @ByteString connection
+
+      putStrLn $ "Received: " ++ show sentInput
+
       let step1 :: List '[Double]
           step1 = sentInput ::- Nil
           game1 = play proposerDecision step1
@@ -88,7 +82,8 @@ runPlay pending = do
 
       -- Game 2
       --  - Ask for an amount to send back.
-      (SD sentBackInput) <- WS.receiveData @(SD Double) connection
+      (Just sentBackInput) <- decode <$> WS.receiveData @ByteString connection
+
       let step2 :: List '[Double]
           step2 = sentBackInput ::- Nil
           game2 = play responderDecision step2
@@ -103,7 +98,7 @@ runPlay pending = do
       let game4 = play responderPayoff Nil
       payoff2 <- extractNextState game4 (factor, sent, sentBack)
 
-      WS.sendTextData connection (SD (payoff1, payoff2))
+      WS.sendTextData connection (encode (payoff1, payoff2))
   where
     disconnect :: SomeException -> IO ()
     disconnect _ = pure ()
