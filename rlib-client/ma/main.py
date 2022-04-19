@@ -20,7 +20,8 @@ from ray.rllib.policy           import Policy
 from ray.rllib.evaluation       import Episode, RolloutWorker
 from ray.rllib.env              import BaseEnv
 
-from env import DiscreteTwoPlayerLearningGamesEnv # DTPLGE for short.
+from env      import DiscreteTwoPlayerLearningGamesEnv # DTPLGE for short.
+from tg_env   import TrustGameEnv
 from policies import ConstantMove, TitForTat, RandomMove
 
 from collections import namedtuple
@@ -37,6 +38,7 @@ NamedPolicy = namedtuple("NamedPolicy", "name policy")
 TwoPlayerGame = namedtuple("TwoPlayerGame", "name action_space")
 
 pd_game = TwoPlayerGame(name="pd", action_space=pd_action_space)
+rps_game = TwoPlayerGame(name="rps", action_space=rps_action_space)
 rps_game = TwoPlayerGame(name="rps", action_space=rps_action_space)
 
 
@@ -112,10 +114,19 @@ class CustomCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"{name}_step_average"] = episode.agent_rewards[k] / ep_len
 
 
-def main(game, episode_length, player_1_policy, learner="PG", timesteps_total=150_000):
+def main( player_1_policy
+        , env_config
+        , game_name
+        , learner="PG"
+        , timesteps_total=150_000
+        , env="DTPLGE"):
 
     register_env( "DTPLGE"
                 , lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config)
+                )
+
+    register_env( "TGE"
+                , lambda config: TrustGameEnv(env_config=config)
                 )
 
     def select_policy (agent_id, episode, **kwargs):
@@ -128,18 +139,17 @@ def main(game, episode_length, player_1_policy, learner="PG", timesteps_total=15
         policies_to_train = ["player_0"]
 
     config = {
-        "env": "DTPLGE",
-        "callbacks": CustomCallbacks,
+        "env": env,
+        # TODO: This callback is wrong for the TrustGame, but right for the DTPLGE one.
+        # "callbacks": CustomCallbacks,
+
         # "gamma": 0.8,
         # "rollout_fragment_length": 500,
         # "train_batch_size": 1000,
         # "metrics_num_episodes_for_smoothing": 200,
         "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", 0)),
         "framework": framework,
-        "env_config": {
-            "action_space": game.action_space,
-            "episode_length": episode_length
-            },
+        "env_config": env_config,
         "multiagent": {
             "policies_to_train": policies_to_train,
             "policy_mapping_fn": select_policy,
@@ -157,7 +167,7 @@ def main(game, episode_length, player_1_policy, learner="PG", timesteps_total=15
 
 
     # For easy identification on TensorBoard.
-    folder_path = f"{config['env']}/{game.name}/learned-vs-{player_1_policy.name}/ep_len={episode_length}"
+    folder_path = f"{config['env']}/{game_name}/learned-vs-{player_1_policy.name}"
 
     results = tune.run( learner
                       , name=folder_path
@@ -170,17 +180,28 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    ep_len = 10 # 100
+    # ep_len = 10 # 100
 
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=always_defect)
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=always_cooperate)
+    # config1 = { "action_space": pd_game.action_space
+    #           , "episode_length": ep_len
+    #           }
+
+    # main(game=pd_game, player_1_policy=always_defect, env_config=config1)
+    # main(game=pd_game, player_1_policy=always_cooperate, env_config=config1)
+    # TODO: Fix!
     # main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
     # main(episode_length=ep_len, game=pd_game, player_1_policy=random_pd_move)
     # main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
 
-    main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
-    main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
-    main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
+
+    config2 = { "factor": 3
+              , "pie": 10
+              }
+
+    main(player_1_policy=learned, env_config=config2, game_name="trust-game", env="TGE")
 
 
 

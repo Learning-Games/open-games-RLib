@@ -26,7 +26,7 @@ import Examples.ExternalEnvironment.Common (extractNextState)
 import Servant                  ((:>), (:<|>)((:<|>)), Server, Handler, Application
                                 , Proxy(..), JSON, Get, serve)
 import Control.Monad.IO.Class   (liftIO)
-import Data.Aeson               (ToJSON, FromJSON, encode, decode)
+import Data.Aeson               (ToJSON, encode, decode)
 import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaultSettings)
 import Servant.API.WebSocket    (WebSocketPending)
 import Network.WebSockets.Connection (PendingConnection)
@@ -34,6 +34,7 @@ import qualified Network.WebSockets as WS
 import Control.Exception (SomeException, handle)
 import GHC.Generics (Generic)
 import Data.ByteString.Lazy.Internal (ByteString)
+import Control.Monad (forever)
 
 -- NOTE: I think that "pie" is supposed to capture the total amount of money
 --   that player 1 has. However, observe that it is not used within "trustGame"
@@ -62,7 +63,7 @@ runPlay :: PendingConnection -> Handler ()
 runPlay pending = do
   liftIO $ do
     connection <- WS.acceptRequest pending
-    handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ do
+    handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
       -- Constants
       let pie    = 10
           factor = 3
