@@ -114,6 +114,17 @@ class CustomCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"{name}_step_average"] = episode.agent_rewards[k] / ep_len
 
 
+register_env("DTPLGE", lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config))
+
+register_env("TGE", lambda config: TrustGameEnv(env_config=config))
+
+def select_policy (agent_id, episode, **kwargs):
+    assert agent_id in [ 0, 1 ], f"Unknown player: {agent_id}!"
+    return f"player_{agent_id}"
+
+# create_DTPLGE_config
+# create_TGE_config
+
 def main( player_1_policy
         , env_config
         , game_name
@@ -121,17 +132,6 @@ def main( player_1_policy
         , timesteps_total=150_000
         , env="DTPLGE"):
 
-    register_env( "DTPLGE"
-                , lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config)
-                )
-
-    register_env( "TGE"
-                , lambda config: TrustGameEnv(env_config=config)
-                )
-
-    def select_policy (agent_id, episode, **kwargs):
-        assert agent_id in [ 0, 1 ], f"Unknown player: {agent_id}!"
-        return f"player_{agent_id}"
 
     if player_1_policy.name == "learned":
         policies_to_train = ["player_0", "player_1"]
