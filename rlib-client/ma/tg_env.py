@@ -30,6 +30,7 @@ class TrustGameEnv(MultiAgentEnv):
         # Wrong; logically.
         # But doesn't crash the Haskell anymore.
         self.action_space      = Box(low=0, high=pie, shape=(1,), dtype=np.float32)
+        # self.action_space      = Discrete(pie)
 
         # TODO: What are our observations?
         self.observation_space = Tuple(( Box(low=0, high=pie,        shape=(1,), dtype=np.float32)

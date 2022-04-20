@@ -4,11 +4,12 @@ Policies for the Trust game.
 
 from .generic                import NamedPolicy, ConstantMove
 from ray.rllib.policy.policy import Policy, PolicySpec
+import numpy as np
 
-always_zero = NamedPolicy( name="always_zero"
-                         , policy=PolicySpec( policy_class=ConstantMove
-                                            , config={ "move": 666 # 0
-                                                     }
-                                            )
-                         )
+always_constant = lambda x: \
+    NamedPolicy( name=f"always_constant @ {x}"
+               , policy=PolicySpec( policy_class=ConstantMove
+                                  , config={ "move": np.array(x, dtype=np.float32) }
+                                  )
+               )
 

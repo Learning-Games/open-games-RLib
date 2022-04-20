@@ -25,11 +25,11 @@ from policies.pd      import ( always_defect
                              , always_cooperate
                              , tit_for_tat
                              )
-from policies.tg      import always_zero
-from configs import ( make_pd_config
-                    , make_rps_config
-                    , make_trust_game_config
-                    )
+from policies.tg      import always_constant
+from configs          import ( make_pd_config
+                             , make_rps_config
+                             , make_trust_game_config
+                             )
 
 # TODO: The trust game is non-symmetric and with our current abstraction we
 # cannot train the second player while the first player has a fixed strategy.
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # train( make_rps_config(always_rock, episode_length=100) )
 
     # train( make_trust_game_config(learned, pie=10) )
-    train( make_trust_game_config(always_zero, pie=10) )
+    train( make_trust_game_config(always_constant(0), pie=10) )
 
 
 

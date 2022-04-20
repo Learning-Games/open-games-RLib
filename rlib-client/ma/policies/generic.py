@@ -1,6 +1,7 @@
 from random                  import choice
 from collections             import namedtuple
 from ray.rllib.policy.policy import Policy, PolicySpec
+from gym.spaces              import Box
 
 NamedPolicy = namedtuple("NamedPolicy", "name policy")
 
@@ -9,7 +10,21 @@ class ConstantMove(Policy):
         super().__init__(*args, **kwargs)
 
         assert "move" in args[-1]
-        self.move = args[-1]["move"]
+
+        move = args[-1]["move"]
+
+        # NOTE: This is a cheap hack to make sure that the continuous constant
+        # result is always in the domain of the (centered?) action space.\
+        #
+        # This is probably broken for more complicated action spaces (i.e.
+        # tuples, dicts, ...)
+        if isinstance(self.action_space, Box):
+            # Oh, that means the action space is a 'Box', so self.move needs
+            # to be centered.
+            self.move = move - ( (self.action_space.high + self.action_space.low) / 2 )
+        else:
+            # Discrete, it's okay.
+            self.move = move
 
     def get_initial_state(self):
         return [self.move]
@@ -24,7 +39,8 @@ class ConstantMove(Policy):
         episodes=None,
         **kwargs
     ):
-        return state_batches[0], state_batches, {}
+        x = state_batches[0], state_batches, {}
+        return x
 
 
 class RandomMove(Policy):
@@ -32,7 +48,7 @@ class RandomMove(Policy):
         super().__init__(*args, **kwargs)
 
         assert "action_space" in args[-1]
-        self.action_space = args[-1]["action_space"]
+        self._action_space = args[-1]["action_space"]
 
     # TODO: Do we really need this?
     def get_initial_state(self):
@@ -49,7 +65,7 @@ class RandomMove(Policy):
         episodes=None,
         **kwargs
     ):
-        move = choice(range(len(self.action_space)))
+        move = choice(range(len(self._action_space)))
         return [move], state_batches, {}
 
 learned = NamedPolicy( name="learned"
