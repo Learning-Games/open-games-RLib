@@ -61,6 +61,7 @@ class TrustGameEnv(MultiAgentEnv):
         """
             action_dict :: AgentID -> Action
         """
+        print(action_dict)
 
         self.step_number += 1
 
