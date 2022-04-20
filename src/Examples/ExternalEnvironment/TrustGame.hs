@@ -31,10 +31,10 @@ import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaul
 import Servant.API.WebSocket    (WebSocketPending)
 import Network.WebSockets.Connection (PendingConnection)
 import qualified Network.WebSockets as WS
-import Control.Exception (SomeException, handle)
+import Control.Exception (throw, handle, fromException, Exception, SomeException(..))
 import GHC.Generics (Generic)
 import Data.ByteString.Lazy.Internal (ByteString)
-import Control.Monad (forever)
+import Control.Monad (forever, when)
 
 -- NOTE: I think that "pie" is supposed to capture the total amount of money
 --   that player 1 has. However, observe that it is not used within "trustGame"
@@ -73,6 +73,9 @@ runPlay pending = do
       --  - Ask for an amount to send
       (Just sentInput) <- decode <$> WS.receiveData @ByteString connection
 
+      when (sentInput > pie) $ do
+        throw $ BadSentInputException sentInput pie
+
       putStrLn $ "Received: " ++ show sentInput
 
       let step1 :: List '[Double]
@@ -84,6 +87,9 @@ runPlay pending = do
       -- Game 2
       --  - Ask for an amount to send back.
       (Just sentBackInput) <- decode <$> WS.receiveData @ByteString connection
+
+      when (sentBackInput > sent*factor) $ do
+        throw $ BadSentBackInputException sentBackInput (sent * factor)
 
       let step2 :: List '[Double]
           step2 = sentBackInput ::- Nil
@@ -102,8 +108,14 @@ runPlay pending = do
       WS.sendTextData connection (encode (payoff1, payoff2))
   where
     disconnect :: SomeException -> IO ()
-    disconnect _ = pure ()
+    disconnect e =
+      case fromException e :: Maybe GameException of
+        Just ge -> putStrLn ("Bad game play: " ++ show ge ++ ". Goodbye.") >> pure ()
+        _       -> putStrLn "Disconnect" >> pure ()
 
+data GameException = BadSentInputException     { got :: Double, max :: Double }
+                   | BadSentBackInputException { got :: Double, max :: Double }
+  deriving (Show, Exception)
 
 run :: IO ()
 run = do

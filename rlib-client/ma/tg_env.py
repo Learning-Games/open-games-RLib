@@ -27,7 +27,9 @@ class TrustGameEnv(MultiAgentEnv):
         #                                , Box(low=0, high=factor*pie, shape=(1,), dtype=np.float32) # Step 2.
         #                               ))
 
-        self.action_space      = Box(low=0, high=factor*pie, shape=(1,), dtype=np.float32)
+        # Wrong; logically.
+        # But doesn't crash the Haskell anymore.
+        self.action_space      = Box(low=0, high=pie, shape=(1,), dtype=np.float32)
 
         # TODO: What are our observations?
         self.observation_space = Tuple(( Box(low=0, high=pie,        shape=(1,), dtype=np.float32)
