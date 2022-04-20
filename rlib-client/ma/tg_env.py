@@ -20,6 +20,13 @@ class TrustGameEnv(MultiAgentEnv):
 
         # Player 1 "action" is a number between 0 and pie
         # Player 2 "action" is a number between 0 and (factor * pie)
+
+        # TODO: We could have TWO actions; one for step 1, one for step 2. Is
+        #       this a good idea?
+        # self.action_space      = Tuple(( Box(low=0, high=pie, shape=(1,), dtype=np.float32) # Step 1.
+        #                                , Box(low=0, high=factor*pie, shape=(1,), dtype=np.float32) # Step 2.
+        #                               ))
+
         self.action_space      = Box(low=0, high=factor*pie, shape=(1,), dtype=np.float32)
 
         # TODO: What are our observations?

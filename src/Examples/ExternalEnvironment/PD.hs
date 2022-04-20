@@ -33,6 +33,7 @@ import Network.WebSockets.Connection (PendingConnection)
 import qualified Network.WebSockets as WS
 import Control.Exception (SomeException, handle)
 import Data.ByteString.Lazy.Internal (ByteString)
+import Control.Monad (forever)
 
 data PlayParameters = PlayParameters
   { player1Action :: ActionPD
@@ -83,7 +84,7 @@ wsPlay :: PendingConnection -> Handler ()
 wsPlay pending = do
   liftIO $ do
     connection <- WS.acceptRequest pending
-    handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ do
+    handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
       -- Receive and decode the action of each player
       -- TODO: Fix this partial pattern match here.
       playParameters <- WS.receiveData @ByteString connection
@@ -98,11 +99,6 @@ wsPlay pending = do
       let playResult = PlayResult { player1Payoff = p1, player2Payoff = p2 }
       let response = encode playResult
       WS.sendTextData connection response
-
-      -- NOTE: Does nothing
-      -- WS.sendClose connection $ pack "Friendly disconnecting message."
-      pure ()
-    pure ()
   where
     disconnect :: SomeException -> IO ()
     disconnect _ = putStrLn "Disconnecting.." >> pure ()

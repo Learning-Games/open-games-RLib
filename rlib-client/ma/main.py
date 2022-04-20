@@ -94,7 +94,159 @@ learned = NamedPolicy( name="learned"
                      )
 
 
-class CustomCallbacks(DefaultCallbacks):
+
+register_env("DTPLGE", lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config))
+
+register_env("TGE", lambda config: TrustGameEnv(env_config=config))
+
+# def select_policy (agent_id, episode, **kwargs):
+#     assert agent_id in [ 0, 1 ], f"Unknown player: {agent_id}!"
+#     return f"player_{agent_id}"
+
+# create_DTPLGE_config
+# create_TGE_config
+
+# def main( player_1_policy
+#         , env_config
+#         , game_name
+#         , learner="PG"
+#         , timesteps_total=150_000
+#         , env="DTPLGE"):
+
+
+#     if player_1_policy.name == "learned":
+#         policies_to_train = ["player_0", "player_1"]
+#     else:
+#         policies_to_train = ["player_0"]
+
+#     config = {
+#         "env": env,
+#         # TODO: This callback is wrong for the TrustGame, but right for the DTPLGE one.
+#         # "callbacks": CustomCallbacks,
+
+#         # "gamma": 0.8,
+#         # "rollout_fragment_length": 500,
+#         # "train_batch_size": 1000,
+#         # "metrics_num_episodes_for_smoothing": 200,
+#         "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", 0)),
+#         "framework": framework,
+#         "env_config": env_config,
+#         "multiagent": {
+#             "policies_to_train": policies_to_train,
+#             "policy_mapping_fn": select_policy,
+#             "policies": {
+#                 "player_0": learned.policy,
+#                 "player_1": player_1_policy.policy,
+#                 }
+#             }
+#         }
+
+#     stop_conditions = {
+#             # "training_iteration": 100,
+#             "timesteps_total": timesteps_total,
+#             }
+
+
+#     # For easy identification on TensorBoard.
+#     folder_path = f"{config['env']}/{game_name}/learned-vs-{player_1_policy.name}"
+
+#     results = tune.run( learner
+#                       , name=folder_path
+#                       , config=config
+#                       , stop=stop_conditions
+#                       , verbose=1
+#                       )
+
+# if __name__ == "__main__":
+#     # Only want to 'init' once.
+#     ray.init()
+
+    # ep_len = 10 # 100
+
+    # config1 = { "action_space": pd_game.action_space
+    #           , "episode_length": ep_len
+    #           }
+
+    # main(game=pd_game, player_1_policy=always_defect, env_config=config1)
+    # main(game=pd_game, player_1_policy=always_cooperate, env_config=config1)
+    # TODO: Fix!
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=random_pd_move)
+    # main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
+
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
+    # main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
+
+    # config2 = { "factor": 3
+    #           , "pie": 10
+    #           }
+
+    # main(player_1_policy=learned, env_config=config2, game_name="trust-game", env="TGE")
+
+
+
+
+
+
+
+
+# --- New stuff.
+# configs.py
+def dict_to_string (d):
+    """ Note: Not recursive; only works for a top-level dictionary. """
+    return ",".join( f"{k}={v}" for k,v in d.items() )
+
+def make_trust_game_config (policy, factor=3, pie=10):
+    c = { "env": "TGE"
+        , "env_config":
+                { "factor": factor
+                , "pie": pie
+                }
+        , "multiagent": make_multiagent_config(policy)
+        }
+    c["env_config"]["name"] = f'{c["env"]}/player1={policy.name}/{dict_to_string(c["env_config"])}'
+    return c
+
+def make_multiagent_config (player_1_policy):
+    def select_policy (agent_id, episode, **kwargs):
+        assert agent_id in [ 0, 1 ], f"Unknown player: {agent_id}!"
+        return f"player_{agent_id}"
+
+    if player_1_policy.name == "learned":
+        policies_to_train = ["player_0", "player_1"]
+    else:
+        policies_to_train = ["player_0"]
+
+    multiagent = {
+        "policies_to_train": policies_to_train,
+        "policy_mapping_fn": select_policy,
+        "policies": {
+            "player_0": learned.policy,
+            "player_1": player_1_policy.policy,
+            }
+        }
+    return multiagent
+
+def make_action_space_config (policy, action_space, episode_length):
+    c = { "env": "DTPLGE"
+        , "env_config":
+                { "action_space": action_space
+                , "episode_length": episode_length # Used by our callback.
+                }
+        , "multiagent": make_multiagent_config(policy)
+        , "callbacks": AverageRewardOverEpisodeLength
+        }
+    c["env_config"]["name"] = f'{c["env"]}/player1={policy.name}/ep_len={episode_length}'
+    return c
+
+def make_pd_config (policy, episode_length=10):
+    return make_action_space_config(policy, pd_action_space, episode_length)
+
+def make_rps_config (policy, episode_length=10):
+    return make_action_space_config(policy, rps_action_space, episode_length)
+
+class AverageRewardOverEpisodeLength(DefaultCallbacks):
     def on_episode_end(
         self,
         *,
@@ -114,94 +266,60 @@ class CustomCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"{name}_step_average"] = episode.agent_rewards[k] / ep_len
 
 
-register_env("DTPLGE", lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config))
 
-register_env("TGE", lambda config: TrustGameEnv(env_config=config))
+# main.py
 
-def select_policy (agent_id, episode, **kwargs):
-    assert agent_id in [ 0, 1 ], f"Unknown player: {agent_id}!"
-    return f"player_{agent_id}"
+from mergedeep import merge
 
-# create_DTPLGE_config
-# create_TGE_config
-
-def main( player_1_policy
-        , env_config
-        , game_name
-        , learner="PG"
-        , timesteps_total=150_000
-        , env="DTPLGE"):
+base_config = {
+    # "gamma": 0.8,
+    # "rollout_fragment_length": 500,
+    # "train_batch_size": 1000,
+    # "metrics_num_episodes_for_smoothing": 200,
+    "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", 0)),
+    "framework": framework,
+    }
 
 
-    if player_1_policy.name == "learned":
-        policies_to_train = ["player_0", "player_1"]
-    else:
-        policies_to_train = ["player_0"]
 
-    config = {
-        "env": env,
-        # TODO: This callback is wrong for the TrustGame, but right for the DTPLGE one.
-        # "callbacks": CustomCallbacks,
+def train(conf, timesteps_total=10_000, learner="PG"):
 
-        # "gamma": 0.8,
-        # "rollout_fragment_length": 500,
-        # "train_batch_size": 1000,
-        # "metrics_num_episodes_for_smoothing": 200,
-        "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", 0)),
-        "framework": framework,
-        "env_config": env_config,
-        "multiagent": {
-            "policies_to_train": policies_to_train,
-            "policy_mapping_fn": select_policy,
-            "policies": {
-                "player_0": learned.policy,
-                "player_1": player_1_policy.policy,
-                }
-            }
-        }
+    # Note: 'merge' does a recursive merge, which is what we want.
+    config = merge(base_config, conf)
 
-    stop_conditions = {
-            # "training_iteration": 100,
-            "timesteps_total": timesteps_total,
-            }
+    folder_path = conf["env_config"]["name"]
 
+    stop_conditions = { "timesteps_total": timesteps_total }
 
-    # For easy identification on TensorBoard.
-    folder_path = f"{config['env']}/{game_name}/learned-vs-{player_1_policy.name}"
-
-    results = tune.run( learner
-                      , name=folder_path
-                      , config=config
-                      , stop=stop_conditions
-                      , verbose=1
-                      )
+    tune.run( learner
+            , name    = folder_path
+            , config  = config
+            , stop    = stop_conditions
+            , verbose = 1
+            )
 
 if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    # ep_len = 10 # 100
+    # train( make_pd_config(always_defect) )
+    train( make_pd_config(random_pd_move) )
+    # train( make_pd_config(random_pd_move, episode_length=100) )
+    # train( make_rps_config(random_rps_move, episode_length=100) )
+    # train( make_rps_config(always_rock, episode_length=100) )
 
-    # config1 = { "action_space": pd_game.action_space
-    #           , "episode_length": ep_len
-    #           }
+    # train( make_trust_game_config(learned, pie=100) )
 
-    # main(game=pd_game, player_1_policy=always_defect, env_config=config1)
-    # main(game=pd_game, player_1_policy=always_cooperate, env_config=config1)
-    # TODO: Fix!
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=tit_for_tat)
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=random_pd_move)
-    # main(episode_length=ep_len, game=pd_game, player_1_policy=learned)
 
-    # main(episode_length=ep_len, game=rps_game, player_1_policy=always_rock)
-    # main(episode_length=ep_len, game=rps_game, player_1_policy=random_rps_move)
-    # main(episode_length=ep_len, game=rps_game, player_1_policy=learned)
 
-    config2 = { "factor": 3
-              , "pie": 10
-              }
 
-    main(player_1_policy=learned, env_config=config2, game_name="trust-game", env="TGE")
+
+
+
+
+
+
+
 
 
 
