@@ -68,12 +68,18 @@ runPlay pending = do
       let pie    = 10
           factor = 3
 
+      -- Note: This has been modified so that the input it requests from
+      -- Python is always a _fraction_ (between 0 and 1), and then we compute
+      -- the actual amounts in the appropriate way. This simplifies the Python
+      -- RL model design.
+
       putStrLn "Asking for an amount"
       -- Game 1
       --  - Ask for an amount to send
-      (Just sentInput) <- decode <$> WS.receiveData @ByteString connection
+      (Just sentInputF) <- decode <$> WS.receiveData @ByteString connection
 
-      let sentIsValid = sentInput <= pie
+      let sentIsValid = sentInputF >= 0 && sentInputF <= 1
+          sentInput = sentInputF * pie
 
       WS.sendTextData connection (encode sentIsValid) -- true = valid
 
@@ -90,14 +96,15 @@ runPlay pending = do
 
       -- Game 2
       --  - Ask for an amount to send back.
-      (Just sentBackInput) <- decode <$> WS.receiveData @ByteString connection
+      (Just sentBackInputF) <- decode <$> WS.receiveData @ByteString connection
 
-      let sentBackInputIsValid = sentBackInput <= sent * factor
+      let sentBackInputIsValid = sentBackInputF >= 0 && sentBackInputF <= 1
+          sentBackInput = sentBackInputF * sent * factor
 
       WS.sendTextData connection (encode sentBackInputIsValid) -- true = valid
 
       when (not sentBackInputIsValid) $ do
-        throw $ BadSentBackInputException sentBackInput (sent * factor)
+        throw $ BadSentBackInputException sentBackInputF (sent * factor)
 
       let step2 :: List '[Double]
           step2 = sentBackInput ::- Nil

@@ -21,7 +21,15 @@ class ConstantMove(Policy):
         if isinstance(self.action_space, Box):
             # Oh, that means the action space is a 'Box', so self.move needs
             # to be centered.
-            self.move = move - ( (self.action_space.high + self.action_space.low) / 2 )
+            #
+            # TODO: This is definitely wrong; need to track down the code in
+            # ray that it doing this transformation.
+            #
+            #   0-1 -> -1, 1
+            assert self.action_space.high == 1, "unsupported action space; review."
+            assert self.action_space.low  == 0, "unsupported action space; review."
+            self.move = (move*2) - 1 # - ( (self.action_space.high + self.action_space.low) )
+            # print(f"changed {move} to be {self.move}")
         else:
             # Discrete, it's okay.
             self.move = move
@@ -40,6 +48,7 @@ class ConstantMove(Policy):
         **kwargs
     ):
         x = state_batches[0], state_batches, {}
+        # print(f"x={x}")
         return x
 
 

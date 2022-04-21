@@ -77,23 +77,9 @@ if __name__ == "__main__":
     # train( make_rps_config(random_rps_move, episode_length=10) )
     # train( make_rps_config(always_rock, episode_length=100) )
 
-    # train( make_trust_game_config(learned, pie=10) )
-    # train( make_trust_game_config(always_constant(0), pie=10) )
-    train( make_trust_game_config(always_fraction(0, 3), pie=10) )  # TODO: I don't like passing nameless numbers
-
-
-
-
-
-
-
-
-
-
-
-
-# TODO:
-#
-#   - [ ] Verify it works for Rock-Paper-Scissors
-#       - [x] AlwaysRock
-#       - [ ] Learned-vs-Learned?
+    train( make_trust_game_config(always_constant(0), pie=10), timesteps_total=20_000 )
+    train( make_trust_game_config(always_constant(0.1), pie=10), timesteps_total=20_000 )
+    train( make_trust_game_config(always_constant(0.5), pie=10), timesteps_total=20_000 )
+    train( make_trust_game_config(always_constant(1), pie=10), timesteps_total=20_000 )
+    train( make_trust_game_config(learned, pie=10), timesteps_total=20_000 )
+    # train( make_trust_game_config(always_fraction(0, 3), pie=10) )  # TODO: I don't like passing nameless numbers

@@ -61,6 +61,8 @@ always_fraction = lambda fraction, factor: \
                )
 
 
+# Note: Because we changed the _game_, this is actually always a constant
+# _fraction_.
 always_constant = lambda x: \
     NamedPolicy( name=f"always_constant @ {x}"
                , policy=PolicySpec( policy_class=ConstantMove
