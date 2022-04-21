@@ -14,7 +14,7 @@ class ConstantMove(Policy):
         move = args[-1]["move"]
 
         # NOTE: This is a cheap hack to make sure that the continuous constant
-        # result is always in the domain of the (centered?) action space.\
+        # result is always in the domain of the (centered?) action space.
         #
         # This is probably broken for more complicated action spaces (i.e.
         # tuples, dicts, ...)
@@ -52,7 +52,7 @@ class RandomMove(Policy):
 
     # TODO: Do we really need this?
     def get_initial_state(self):
-        move = choice(range(len(self.action_space)))
+        move = choice(range(len(self._action_space)))
         return [move]
 
     def compute_actions(
