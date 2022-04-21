@@ -40,7 +40,7 @@ trustGamePayoffProposer :: Pie -> Sent -> SentBack -> Payoff
 trustGamePayoffProposer pie sent sentBack = pie - sent + sentBack
 
 trustGamePayoffResponder :: Factor -> Sent -> SentBack -> Payoff
-trustGamePayoffResponder factor proposal reaction = proposal * factor - reaction
+trustGamePayoffResponder factor sent sentBack = sent * factor - sentBack
 
 -- 1.2. Sequential rockPaperScissors
 data ActionRPS = Rock | Paper | Scissors
