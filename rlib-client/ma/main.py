@@ -25,7 +25,9 @@ from policies.pd      import ( always_defect
                              , always_cooperate
                              , tit_for_tat
                              )
-from policies.tg      import always_constant
+from policies.tg      import ( always_constant
+                             , always_fraction
+                             )
 from configs          import ( make_pd_config
                              , make_rps_config
                              , make_trust_game_config
@@ -71,12 +73,13 @@ if __name__ == "__main__":
     # train( make_pd_config(always_defect) )
     # train( make_pd_config(random_pd_move) )
     # train( make_pd_config(random_pd_move, episode_length=100) )
-    # train( make_rps_config(random_rps_move, episode_length=100) )
+
+    # train( make_rps_config(random_rps_move, episode_length=10) )
     # train( make_rps_config(always_rock, episode_length=100) )
 
     # train( make_trust_game_config(learned, pie=10) )
-    train( make_trust_game_config(always_constant(0), pie=10) )
-
+    # train( make_trust_game_config(always_constant(0), pie=10) )
+    train( make_trust_game_config(always_fraction(0, 3), pie=10) )  # TODO: I don't like passing nameless numbers
 
 
 
