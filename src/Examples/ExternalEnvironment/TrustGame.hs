@@ -73,7 +73,11 @@ runPlay pending = do
       --  - Ask for an amount to send
       (Just sentInput) <- decode <$> WS.receiveData @ByteString connection
 
-      when (sentInput > pie) $ do
+      let sentIsValid = sentInput <= pie
+
+      WS.sendTextData connection (encode sentIsValid) -- true = valid
+
+      when (not sentIsValid) $ do
         throw $ BadSentInputException sentInput pie
 
       putStrLn $ "Received: " ++ show sentInput
@@ -88,7 +92,11 @@ runPlay pending = do
       --  - Ask for an amount to send back.
       (Just sentBackInput) <- decode <$> WS.receiveData @ByteString connection
 
-      when (sentBackInput > sent*factor) $ do
+      let sentBackInputIsValid = sentBackInput <= sent * factor
+
+      WS.sendTextData connection (encode sentBackInputIsValid) -- true = valid
+
+      when (not sentBackInputIsValid) $ do
         throw $ BadSentBackInputException sentBackInput (sent * factor)
 
       let step2 :: List '[Double]

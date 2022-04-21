@@ -29,7 +29,7 @@ class TrustGameEnv(MultiAgentEnv):
 
         # Wrong; logically.
         # But doesn't crash the Haskell anymore.
-        self.action_space      = Box(low=0, high=pie, shape=(1,), dtype=np.float32)
+        self.action_space      = Box(low=0, high=pie * factor, shape=(1,), dtype=np.float32)
         # self.action_space      = Discrete(pie)
 
         # TODO: What are our observations?
@@ -76,9 +76,13 @@ class TrustGameEnv(MultiAgentEnv):
             # print(f"Sending {encode(sent_input)}")
             self.ws.send(encode(sent_input))
 
+            sent_input_is_valid = json.loads(self.ws.recv())
+
             # At step 1, nothing is known of rewards; so they are zero.
-            rewards = { i: 0 for i in range(self.num_agents) }
-            is_done = False
+            rewards = { 0: 0 if sent_input_is_valid else -1, 1: 0 }
+
+            # If the input was valid there's more to do
+            is_done = not sent_input_is_valid
 
             # TODO: Revisit; this seems horribly wrong.
             observations = {}
@@ -89,10 +93,16 @@ class TrustGameEnv(MultiAgentEnv):
             sent_back_input = action_dict[1][0]
             self.ws.send(encode(sent_back_input))
 
-            # Now we can compute the reward
-            reward1,reward2 = json.loads(self.ws.recv())
+            sent_back_input_is_valid = json.loads(self.ws.recv())
+
+            if sent_back_input_is_valid:
+                # Valid input; ask the server for the rewards
+                reward1,reward2 = json.loads(self.ws.recv())
+            else:
+                reward1,reward2 = 0, -1
 
             rewards = { i: r for (i,r) in enumerate([reward1, reward2]) }
+
             is_done = True
 
             # TODO: Revisit; this seems horribly wrong.
