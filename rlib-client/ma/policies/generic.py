@@ -50,9 +50,12 @@ class RandomMove(Policy):
         assert "action_space" in args[-1]
         self._action_space = args[-1]["action_space"]
 
+    def _get_random_move(self):
+        return choice(range(len(self._action_space)))
+
     # TODO: Do we really need this?
     def get_initial_state(self):
-        move = choice(range(len(self._action_space)))
+        move = self._get_random_move()
         return [move]
 
     def compute_actions(
@@ -65,7 +68,7 @@ class RandomMove(Policy):
         episodes=None,
         **kwargs
     ):
-        move = choice(range(len(self._action_space)))
+        move = self._get_random_move()
         return [move], state_batches, {}
 
 learned = NamedPolicy( name="learned"
