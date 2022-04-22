@@ -47,7 +47,6 @@ wsPlay pending = do
       -- the actual amounts in the appropriate way. This simplifies the Python
       -- RL model design.
 
-      putStrLn "Asking for an amount"
       -- Game 1
       --  - Ask for an amount to send
       (Just sentInputF) <- decode <$> WS.receiveData @ByteString connection
@@ -58,9 +57,7 @@ wsPlay pending = do
       WS.sendTextData connection (encode sentIsValid) -- true = valid
 
       when (not sentIsValid) $ do
-        throw $ BadSentInputException sentInput pie
-
-      putStrLn $ "Received: " ++ show sentInput
+        throw $ BadSentInputException sentInputF 1
 
       let step1 :: List '[Double]
           step1 = sentInput ::- Nil
@@ -78,7 +75,7 @@ wsPlay pending = do
       WS.sendTextData connection (encode sentBackInputIsValid) -- true = valid
 
       when (not sentBackInputIsValid) $ do
-        throw $ BadSentBackInputException sentBackInputF (sent * factor)
+        throw $ BadSentBackInputException sentBackInputF 1
 
       let step2 :: List '[Double]
           step2 = sentBackInput ::- Nil
@@ -100,7 +97,7 @@ wsPlay pending = do
     disconnect e =
       case fromException e :: Maybe GameException of
         Just ge -> putStrLn ("Bad game play: " ++ show ge ++ ". Goodbye.") >> pure ()
-        _       -> putStrLn "Disconnect" >> pure ()
+        _       -> pure ()
 
 -- 1.1. Trust Game
 trustGame :: p
