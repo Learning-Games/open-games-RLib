@@ -132,10 +132,9 @@ data GameException = BadSentInputException     { got :: Double, max :: Double }
                    | BadSentBackInputException { got :: Double, max :: Double }
   deriving (Show, Exception)
 
-run :: IO ()
-run = do
-  let port = 3000
-      settings =
+run :: Int -> IO ()
+run port = do
+  let settings =
         setPort port $
           setBeforeMainLoop (putStrLn ("Listening on port " ++ show port)) $
             defaultSettings

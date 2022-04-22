@@ -17,12 +17,11 @@ library:
     - Engine.BayesianGames
     - Engine.Diagnostics
     - Engine.Engine
+    - Engine.InteractiveIO
     - Engine.Memory
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
-    - Engine.QLearningVerboseOutput
-    - Engine.QLearningNoMemory.Export
     - Engine.QLearning.Export
     - Engine.QLearning.ExportAsymmetric
     - Engine.QLearning.ExportAsymmetricLearners
@@ -32,65 +31,67 @@ library:
     - Engine.QLearning.ExportAsymmetricLearnersOwnPrice
     - Engine.QLearning.ExportVerbose
     - Engine.QLearning.ImportAsymmetricLearners
-    - Engine.InteractiveIO
-    - Engine.QLearningSimple
-    - Engine.QLearningBoltzmann.ExportAsymmetricLearnersLogReduced
     - Engine.QLearningBoltzmann
+    - Engine.QLearningBoltzmann.ExportAsymmetricLearnersLogReduced
+    - Engine.QLearningNoMemory.Export
+    - Engine.QLearningSimple
+    - Engine.QLearningVerboseOutput
     - Engine.TLL
-    - Preprocessor.AbstractSyntax
-    - Preprocessor.Compile
-    - Preprocessor.Lambda
-    - Preprocessor.Parser
-    - Preprocessor.THSyntax
-    - Preprocessor.TH
-    - Preprocessor.Types
-    - Preprocessor.Preprocessor
-    - Examples.SimultaneousMoves
-    - Examples.Bayesian
-    - Examples.Decision
-    - Examples.SequentialMoves
     - Examples.Auctions.AuctionSupportFunctions
     - Examples.Auctions.ChooseReservePrice
     - Examples.Auctions.DutchAuction
     - Examples.Auctions.SequentialAuction
     - Examples.Auctions.SimultaneousBidAuction
-    - Examples.Markov.RepeatedPD
-    - Examples.Markov.TwoStageMarkov
-    - Examples.Markov.TestSimpleMonteCarlo
-    - Examples.Markov.TestSimpleMonteCarlo.Continuation
+    - Examples.Bayesian
+    - Examples.Decision
     - Examples.ExternalEnvironment.PD
     - Examples.ExternalEnvironment.RockPaperScissors
-    - Graphics
+    - Examples.ExternalEnvironment.TrustGame
     - Examples.InteractiveIO.InteractiveIO
+    - Examples.Markov.RepeatedPD
+    - Examples.Markov.TestSimpleMonteCarlo
+    - Examples.Markov.TestSimpleMonteCarlo.Continuation
+    - Examples.Markov.TwoStageMarkov
+    - Examples.QLearning.AsymmetricLearners
+    - Examples.QLearning.AsymmetricLearners.Internal
+    - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
+    - Examples.QLearning.AsymmetricLearners.MarkovInternal
+    - Examples.QLearning.AsymmetricLearners2PhasesExogAction
+    - Examples.QLearning.AsymmetricLearners3Phases
+    - Examples.QLearning.AsymmetricLearners4Phases
+    - Examples.QLearning.AsymmetricLearners8Phases
+    - Examples.QLearning.AsymmetricPrices
+    - Examples.QLearning.AsymmetricPrices.Internal
+    - Examples.QLearning.BestReply
+    - Examples.QLearning.CalvanoReplication
+    - Examples.QLearning.CalvanoReplication.Internal
+    - Examples.QLearning.CalvanoReplication.InternalVerbose
+    - Examples.QLearning.CalvanoReplicationVerbose
+    - Examples.QLearning.Cournot
+    - Examples.QLearning.Cournot.Internal
+    - Examples.QLearning.CournotBoltzmann
+    - Examples.QLearning.CournotBoltzmann.Internal
     - Examples.QLearning.NoMemory.Internal
     - Examples.QLearning.NoMemory3Phases
     - Examples.QLearning.NoObservation.Internal
     - Examples.QLearning.NoObservation3Phases
     - Examples.QLearning.OwnPriceObservation.Internal
-    - Examples.QLearning.OwnPriceObservationExogAction
     - Examples.QLearning.OwnPriceObservation3Phases
-    - Examples.QLearning.AsymmetricLearners.Internal
-    - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
-    - Examples.QLearning.AsymmetricLearners.MarkovInternal
-    - Examples.QLearning.AsymmetricLearners
-    - Examples.QLearning.AsymmetricLearners2PhasesExogAction
-    - Examples.QLearning.AsymmetricLearners3Phases
-    - Examples.QLearning.AsymmetricLearners4Phases
-    - Examples.QLearning.AsymmetricLearners8Phases
-    - Examples.QLearning.AsymmetricPrices.Internal
-    - Examples.QLearning.AsymmetricPrices
-    - Examples.QLearning.BestReply
-    - Examples.QLearning.CalvanoReplication
-    - Examples.QLearning.CalvanoReplication.Internal
-    - Examples.QLearning.CalvanoReplicationVerbose
-    - Examples.QLearning.CalvanoReplication.InternalVerbose
-    - Examples.QLearning.Cournot.Internal
-    - Examples.QLearning.Cournot
-    - Examples.QLearning.CournotBoltzmann
-    - Examples.QLearning.CournotBoltzmann.Internal
+    - Examples.QLearning.OwnPriceObservationExogAction
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
+    - Examples.SequentialMoves
+    - Examples.SimultaneousMoves
+    - Graphics
+    - Preprocessor.AbstractSyntax
+    - Preprocessor.Compile
+    - Preprocessor.Lambda
+    - Preprocessor.Parser
+    - Preprocessor.Preprocessor
+    - Preprocessor.TH
+    - Preprocessor.THSyntax
+    - Preprocessor.Types
 
 dependencies:
     - base >=4.7 && <5
@@ -125,6 +126,7 @@ dependencies:
     - mwc-random
     - mwc-random >= 0.15.0.1
     - optics
+    - optparse-applicative
     - parsec
     - path
     - path-io
@@ -157,9 +159,10 @@ dependencies:
     - websockets
 
 executables:
-  pd-server:
+  # Servers for RL-training
+  serve-game:
     main:        Main.hs
-    source-dirs: pd-server
+    source-dirs: serve-game
     ghc-options:
     - -threaded
     - -rtsopts

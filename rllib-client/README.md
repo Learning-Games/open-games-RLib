@@ -1,4 +1,42 @@
-## How to use (via conda)
+# About
+
+
+This folder contains the [Ray][ray] code that let's us train agents for the
+games defined in Haskell.
+
+[ray]: https://docs.ray.io/en/latest/
+
+
+
+To test the websockets, it's helpful to have [websocat][websocat].
+
+[websocat]: https://github.com/vi/websocat
+
+
+#### Prisoners-Dilemma Server
+
+```
+> stack build open-games-hs:serve-game
+> stack exec -- server-game --port 3000 --game PrisonersDilemma
+```
+
+Testing it:
+
+```
+> curl http://localhost:3000/healthcheck
+"Ok!
+```
+
+Running a game:
+
+```
+> echo '{"player1Action": "Defect", "player2Action": "Defect"}' | websocat ws://localhost:3000/play
+```
+
+
+
+
+## Environment: How to use (via conda)
 
 From this folder:
 
@@ -9,12 +47,6 @@ pip install -r requirements.txt
 ```
 
 
-### Notes
-
-- If the training speed is too slow; could compare the request/response time
-  if we used websockets instead of pure requests.
-
-  (Doesn't appear to be at the moment)
 
 
 ### Todo
