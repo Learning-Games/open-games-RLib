@@ -10,29 +10,21 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
-
 module Examples.ExternalEnvironment.RockPaperScissors where
 
-
-import Engine.Engine hiding (fromLens, fromFunctions, state)
-import Preprocessor.Preprocessor
-
-import Control.Monad.IO.Class   (liftIO)
-import Data.Aeson               (ToJSON, FromJSON, encode, decode)
-import GHC.Generics             (Generic)
-import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaultSettings)
-import Servant                  ((:>), (:<|>)((:<|>)), Server, Handler, Application
-                                , Proxy(..), JSON, Get, serve)
-
-import Engine.ExternalEnvironment
-import Examples.ExternalEnvironment.Common (extractPayoff)
-
-import Servant.API.WebSocket    (WebSocketPending)
-import Network.WebSockets.Connection (PendingConnection)
-import qualified Network.WebSockets as WS
-import Control.Exception (SomeException, handle)
-import Data.ByteString.Lazy.Internal (ByteString)
-import Control.Monad (forever)
+import           Control.Exception                   (SomeException, handle)
+import           Control.Monad                       (forever)
+import           Control.Monad.IO.Class              (liftIO)
+import           Data.Aeson                          (ToJSON, FromJSON, encode, decode)
+import           Data.ByteString.Lazy.Internal       (ByteString)
+import           Engine.Engine hiding                (fromLens, fromFunctions, state)
+import           Engine.ExternalEnvironment
+import           Examples.ExternalEnvironment.Common (extractPayoff)
+import           GHC.Generics                        (Generic)
+import           Network.WebSockets.Connection       (PendingConnection)
+import           Preprocessor.Preprocessor
+import           Servant                             (Handler)
+import qualified Network.WebSockets                  as WS
 
 -- Types
 
@@ -62,33 +54,6 @@ rockPaperScissorsPayoff Scissors Rock = -1
 rockPaperScissorsPayoff Scissors Paper = 1
 rockPaperScissorsPayoff Scissors Scissors = 0
 
--- Servant API
-
--- Using 'websocat':
---  websocat ws://localhost:3000/play
-
-type Api = "play" :> WebSocketPending
-           :<|> "healthcheck" :> Get '[JSON] String
-
-api :: Proxy Api
-api = Proxy
-
-server :: Server Api
-server =
-  wsPlay
-  :<|> return "Ok!"
-
-run :: Int -> IO ()
-run port = do
-  let settings =
-        setPort port $
-          setBeforeMainLoop (putStrLn ("Listening on port " ++ show port)) $
-            defaultSettings
-  runSettings settings =<< mkApp
-
-mkApp :: IO Application
-mkApp = return $ serve api server
-
 wsPlay :: PendingConnection -> Handler ()
 wsPlay pending = do
   liftIO $ do
@@ -115,7 +80,7 @@ wsPlay pending = do
     pure ()
   where
     disconnect :: SomeException -> IO ()
-    disconnect _ = putStrLn "Disconnecting.." >> pure ()
+    disconnect _ = pure ()
 
 -- Game
 

@@ -13,54 +13,28 @@
 
 module Examples.ExternalEnvironment.TrustGame where
 
-import Engine.Engine hiding (fromLens, fromFunctions, state, nature)
-import Preprocessor.Preprocessor
+import           Control.Exception                   (throw, handle, fromException, Exception, SomeException(..))
+import           Control.Monad                       (forever, when)
+import           Control.Monad.IO.Class              (liftIO)
+import           Data.Aeson                          (encode, decode)
+import           Data.ByteString.Lazy.Internal       (ByteString)
+import           Data.Tuple.Extra                    (uncurry3)
+import           Engine.Engine hiding                (fromLens, fromFunctions, state, nature)
+import           Engine.ExternalEnvironment
+import           Examples.ExternalEnvironment.Common (extractNextState)
+import           Examples.SequentialMoves            (trustGamePayoffProposer, trustGamePayoffResponder, Pie, Factor, Sent, SentBack)
+import           Network.WebSockets.Connection       (PendingConnection)
+import           Preprocessor.Preprocessor
+import           Servant                             (Handler)
+import qualified Network.WebSockets                  as WS
 
-import Engine.ExternalEnvironment
-import Examples.SequentialMoves (trustGamePayoffProposer, trustGamePayoffResponder, Pie, Factor, Sent, SentBack)
+data GameException = BadSentInputException     { got :: Double, max :: Double }
+                   | BadSentBackInputException { got :: Double, max :: Double }
+  deriving (Show, Exception)
 
-import           Data.Tuple.Extra (uncurry3)
 
-import Examples.ExternalEnvironment.Common (extractNextState)
-
-import Servant                  ((:>), (:<|>)((:<|>)), Server, Handler, Application
-                                , Proxy(..), JSON, Get, serve)
-import Control.Monad.IO.Class   (liftIO)
-import Data.Aeson               (ToJSON, encode, decode)
-import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaultSettings)
-import Servant.API.WebSocket    (WebSocketPending)
-import Network.WebSockets.Connection (PendingConnection)
-import qualified Network.WebSockets as WS
-import Control.Exception (throw, handle, fromException, Exception, SomeException(..))
-import GHC.Generics (Generic)
-import Data.ByteString.Lazy.Internal (ByteString)
-import Control.Monad (forever, when)
-
--- NOTE: I think that "pie" is supposed to capture the total amount of money
---   that player 1 has. However, observe that it is not used within "trustGame"
---   below at all.
-
-type Api = "play" :> WebSocketPending
-           :<|> "healthcheck" :> Get '[JSON] String
-
-api :: Proxy Api
-api = Proxy
-
-server :: Server Api
-server =
-  runPlay
-  :<|> return "Ok!"
-
-data Payoffs = Payoffs
-  { player1 :: Double
-  , player2 :: Double
-  } deriving (Show, Generic, ToJSON)
-
--- Using 'websocat':
---  websocat ws://localhost:3000/play
-
-runPlay :: PendingConnection -> Handler ()
-runPlay pending = do
+wsPlay :: PendingConnection -> Handler ()
+wsPlay pending = do
   liftIO $ do
     connection <- WS.acceptRequest pending
     handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
@@ -127,21 +101,6 @@ runPlay pending = do
       case fromException e :: Maybe GameException of
         Just ge -> putStrLn ("Bad game play: " ++ show ge ++ ". Goodbye.") >> pure ()
         _       -> putStrLn "Disconnect" >> pure ()
-
-data GameException = BadSentInputException     { got :: Double, max :: Double }
-                   | BadSentBackInputException { got :: Double, max :: Double }
-  deriving (Show, Exception)
-
-run :: Int -> IO ()
-run port = do
-  let settings =
-        setPort port $
-          setBeforeMainLoop (putStrLn ("Listening on port " ++ show port)) $
-            defaultSettings
-  runSettings settings =<< mkApp
-
-mkApp :: IO Application
-mkApp = return $ serve api server
 
 -- 1.1. Trust Game
 trustGame :: p

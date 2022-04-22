@@ -70,7 +70,11 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    # train( make_pd_config(always_defect) )
+    pd_url  = "ws://localhost:3000/prisoners-dilemma/play"
+    rps_url = "ws://localhost:3000/rock-paper-scissors/play"
+    tg_url  = "ws://localhost:3000/trust-game/play"
+
+    train( make_pd_config(always_defect), game_server_url=pd_url )
     # train( make_pd_config(random_pd_move) )
     # train( make_pd_config(random_pd_move, episode_length=100) )
 

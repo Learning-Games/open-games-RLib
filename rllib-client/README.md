@@ -17,7 +17,7 @@ To test the websockets, it's helpful to have [websocat][websocat].
 
 ```
 > stack build open-games-hs:serve-game
-> stack exec -- server-game --port 3000 --game PrisonersDilemma
+> stack exec -- serve-game
 ```
 
 Testing it:
@@ -30,7 +30,7 @@ Testing it:
 Running a game:
 
 ```
-> echo '{"player1Action": "Defect", "player2Action": "Defect"}' | websocat ws://localhost:3000/play
+> echo '{"player1Action": "Defect", "player2Action": "Defect"}' | websocat ws://localhost:3000/prisoners-dilemma/play
 ```
 
 
@@ -38,23 +38,15 @@ Running a game:
 
 ```
 > stack build open-games-hs:serve-game
-> stack exec -- server-game --port 3001 --game TrustGame
+> stack exec -- serve-game
 ```
-
-Testing it:
-
-```
-> curl http://localhost:3001/healthcheck
-"Ok!
-```
-
 
 Running a game:
 
 Start an interactive websocat session:
 
 ```
-> websocat ws://localhost:3001/play
+> websocat ws://localhost:3001/trust-game/play
 ```
 
 Then, play the first move:

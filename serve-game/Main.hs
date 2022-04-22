@@ -1,23 +1,48 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Main where
 
 import           Options.Applicative
+import           Servant                  ((:>), (:<|>)((:<|>)), Server, Application, Proxy(..), JSON, Get, serve)
+import           Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaultSettings)
+import           Servant.API.WebSocket    (WebSocketPending)
+
 import qualified Examples.ExternalEnvironment.PD                as PD
 import qualified Examples.ExternalEnvironment.RockPaperScissors as RockPaperScissors
 import qualified Examples.ExternalEnvironment.TrustGame         as TrustGame
 
--- TODO:
---  Alternatively to this; could just serve all the games on different routes.
+type Api
+  = "prisoners-dilemma" :> "play" :> WebSocketPending
+  :<|> "trust-game" :> "play" :> WebSocketPending
+  :<|> "rock-paper-scissors" :> "play" :> WebSocketPending
+  :<|> "healthcheck" :> Get '[JSON] String
 
-data Game = PrisonersDilemma
-          | TrustGame
-          | RockPaperScissors
-  deriving (Eq, Show, Read)
+api :: Proxy Api
+api = Proxy
+
+server :: Server Api
+server
+  =    PD.wsPlay
+  :<|> TrustGame.wsPlay
+  :<|> RockPaperScissors.wsPlay
+  :<|> return "Ok!"
+
+mkApp :: IO Application
+mkApp = return $ serve api server
+
+run :: Int -> IO ()
+run port = do
+  let settings =
+        setPort port $
+          setBeforeMainLoop (putStrLn ("Listening on port " ++ show port)) $
+            defaultSettings
+  runSettings settings =<< mkApp
+
 
 data Options = Options
   { port :: Int
-  , game :: Game
   }
 
 opts :: Parser Options
@@ -28,17 +53,10 @@ opts = Options
                 <> value 3000
                 <> metavar "INT"
               )
-        <*> option auto
-              ( long "game"
-              <> metavar "GAME"
-              )
 
+main :: IO ()
 main = go =<< execParser p
   where
     p = info (opts <**> helper) fullDesc
-    go Options { port, game }  =
-      case game of
-        PrisonersDilemma  -> PD.run port
-        RockPaperScissors -> RockPaperScissors.run port
-        TrustGame         -> TrustGame.run port
+    go Options { port }  = run port
 
