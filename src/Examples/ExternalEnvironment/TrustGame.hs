@@ -38,9 +38,8 @@ wsPlay pending = do
   liftIO $ do
     connection <- WS.acceptRequest pending
     handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
-      -- Constants
-      let pie    = 10
-          factor = 3
+      -- Constants: Note, we read them as input.
+      (Just (pie, factor)) <- decode <$> WS.receiveData @ByteString connection
 
       -- Note: This has been modified so that the input it requests from
       -- Python is always a _fraction_ (between 0 and 1), and then we compute

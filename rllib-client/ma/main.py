@@ -70,19 +70,17 @@ if __name__ == "__main__":
     # Only want to 'init' once.
     ray.init()
 
-    pd_url  = "ws://localhost:3000/prisoners-dilemma/play"
-    rps_url = "ws://localhost:3000/rock-paper-scissors/play"
-    tg_url  = "ws://localhost:3000/trust-game/play"
+    timesteps = 25_000
 
-    train( make_pd_config(always_defect), game_server_url=pd_url )
-    # train( make_pd_config(random_pd_move) )
-    # train( make_pd_config(random_pd_move, episode_length=100) )
+    train( make_pd_config(always_defect), timesteps_total=timesteps )
+    train( make_pd_config(random_pd_move), timesteps_total=timesteps )
+    train( make_pd_config(random_pd_move, episode_length=100), timesteps_total=timesteps)
 
-    # train( make_rps_config(random_rps_move, episode_length=10) )
-    # train( make_rps_config(always_rock, episode_length=100) )
+    train( make_rps_config(random_rps_move, episode_length=10), timesteps_total=timesteps)
+    train( make_rps_config(always_rock, episode_length=100), timesteps_total=timesteps)
 
-    train( make_trust_game_config(always_constant(0), pie=10), timesteps_total=20_000 )
-    train( make_trust_game_config(always_constant(0.1), pie=10), timesteps_total=20_000 )
-    train( make_trust_game_config(always_constant(0.5), pie=10), timesteps_total=20_000 )
-    train( make_trust_game_config(always_constant(1), pie=10), timesteps_total=20_000 )
-    train( make_trust_game_config(learned, pie=10), timesteps_total=20_000 )
+    train( make_trust_game_config(always_constant(0), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(always_constant(0.1), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(always_constant(0.5), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(always_constant(1), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(learned, pie=10), timesteps_total=timesteps )

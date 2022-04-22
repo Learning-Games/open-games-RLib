@@ -18,7 +18,7 @@ def dict_to_string (d):
 def make_trust_game_config ( policy
                            , factor=3
                            , pie=10
-                           , game_server_url="ws://localhost:3000/play"
+                           , game_server_url="ws://localhost:3000/trust-game/play"
                            ):
     c = { "env": "TGE"
         , "env_config":
@@ -54,7 +54,7 @@ def make_multiagent_config (player_1_policy):
 def make_action_space_config ( policy
                              , action_space
                              , episode_length
-                             , game_server_url="ws://localhost:3000/play"
+                             , game_server_url
                              ):
     c = { "env": "DTPLGE"
         , "env_config":
@@ -68,11 +68,11 @@ def make_action_space_config ( policy
     c["env_config"]["name"] = f'{c["env"]}/player1={policy.name}/ep_len={episode_length}'
     return c
 
-def make_pd_config (policy, episode_length=10):
-    return make_action_space_config(policy, pd_action_space, episode_length)
+def make_pd_config (policy, episode_length=10, game_server_url="ws://localhost:3000/prisoners-dilemma/play"):
+    return make_action_space_config(policy, pd_action_space, episode_length, game_server_url)
 
-def make_rps_config (policy, episode_length=10):
-    return make_action_space_config(policy, rps_action_space, episode_length)
+def make_rps_config (policy, episode_length=10, game_server_url="ws://localhost:3000/rock-paper-scissors/play"):
+    return make_action_space_config(policy, rps_action_space, episode_length, game_server_url)
 
 class AverageRewardOverEpisodeLength(DefaultCallbacks):
     def on_episode_end(

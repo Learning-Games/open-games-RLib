@@ -16,26 +16,15 @@ class TrustGameEnv(MultiAgentEnv):
         assert "factor" in env_config, "Need a 'factor' in 'env_config'"
         assert "game_server_url" in env_config, "Need a 'game_server_url' in 'env_config'!"
 
-        pie    = env_config["pie"]
-        factor = env_config["factor"]
-
+        self.pie             = env_config["pie"]
+        self.factor          = env_config["factor"]
         self.game_server_url = env_config["game_server_url"]
 
-        # Player 1 "action" is a number between 0 and pie
-        # Player 2 "action" is a number between 0 and (factor * pie)
-
-        # TODO: We could have TWO actions; one for step 1, one for step 2. Is
-        #       this a good idea?
-        # self.action_space      = Tuple(( Box(low=0, high=pie, shape=(1,), dtype=np.float32) # Step 1.
-        #                                , Box(low=0, high=factor*pie, shape=(1,), dtype=np.float32) # Step 2.
-        #                               ))
-
-        # Wrong; logically.
-        # But doesn't crash the Haskell anymore.
+        # We've adjusted the server-side game so that we only need to pick
+        # fractions; this means every choice is valid.
         self.action_space      = Box(low=0, high=1, shape=(1,), dtype=np.float32)
-        # self.action_space      = Discrete(pie)
 
-        # TODO: What are our observations?
+        # One observation per step; namely the amount that the other person sent.
         self.observation_space = Tuple(( Box(low=0, high=1, shape=(1,), dtype=np.float32)
                                        , Box(low=0, high=1, shape=(1,), dtype=np.float32)
                                       ))
@@ -56,8 +45,9 @@ class TrustGameEnv(MultiAgentEnv):
         if self.ws:
           self.ws.close()
         self.ws = create_connection(self.game_server_url)
+        self.ws.send(json.dumps([self.pie, self.factor]))
 
-        obs = { i: (0, 0) for i in range(self.num_agents) }
+        obs = { i: (0.0, 0.0) for i in range(self.num_agents) }
         return obs
 
 
@@ -74,9 +64,7 @@ class TrustGameEnv(MultiAgentEnv):
         encode = lambda a: json.dumps((float(a)))
 
         if self.step_number == 1:
-            # TODO: "Mask" it < pie (not < factor*pie)
             sent_input = action_dict[0][0] # Have to pull out the first element of the size-1 array
-            # print(f"Sending {encode(sent_input)}")
             self.ws.send(encode(sent_input))
 
             sent_input_is_valid = json.loads(self.ws.recv())
@@ -87,7 +75,7 @@ class TrustGameEnv(MultiAgentEnv):
             # If the input was valid there's more to do
             is_done = not sent_input_is_valid
 
-            # TODO: Revisit; this seems horribly wrong.
+            # TODO: Is this a good idea?
             observations = {}
             for i in range(self.num_agents):
                 observations[i] = ( sent_input, 0 )
@@ -116,11 +104,8 @@ class TrustGameEnv(MultiAgentEnv):
         dones = { i: is_done for i in range(self.num_agents) }
         dones["__all__"] = is_done
 
-        # print(f"obs = {observations}")
-
         # Infos: Empty.
         infos = { i: {} for i in range(self.num_agents) }
 
         return observations, rewards, dones, infos
-
 
