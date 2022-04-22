@@ -1,7 +1,7 @@
 gputil
 jupyter
 psutil
-ray[rllib]
+ray[rllib]==1.11.0
 tensorflow
 websocket-client
 mergedeep
