@@ -7,6 +7,9 @@ import qualified Examples.ExternalEnvironment.PD                as PD
 import qualified Examples.ExternalEnvironment.RockPaperScissors as RockPaperScissors
 import qualified Examples.ExternalEnvironment.TrustGame         as TrustGame
 
+-- TODO:
+--  Alternatively to this; could just serve all the games on different routes.
+
 data Game = PrisonersDilemma
           | TrustGame
           | RockPaperScissors
