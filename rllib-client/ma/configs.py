@@ -15,11 +15,16 @@ def dict_to_string (d):
     """ Note: Not recursive; only works for a top-level dictionary. """
     return ",".join( f"{k}={v}" for k,v in d.items() )
 
-def make_trust_game_config (policy, factor=3, pie=10):
+def make_trust_game_config ( policy
+                           , factor=3
+                           , pie=10
+                           , game_server_url="ws://localhost:3000/play"
+                           ):
     c = { "env": "TGE"
         , "env_config":
                 { "factor": factor
                 , "pie": pie
+                , "game_server_url": game_server_url
                 }
         , "multiagent": make_multiagent_config(policy)
         }
@@ -46,11 +51,16 @@ def make_multiagent_config (player_1_policy):
         }
     return multiagent
 
-def make_action_space_config (policy, action_space, episode_length):
+def make_action_space_config ( policy
+                             , action_space
+                             , episode_length
+                             , game_server_url="ws://localhost:3000/play"
+                             ):
     c = { "env": "DTPLGE"
         , "env_config":
                 { "action_space": action_space
                 , "episode_length": episode_length # Used by our callback.
+                , "game_server_url": game_server_url
                 }
         , "multiagent": make_multiagent_config(policy)
         , "callbacks": AverageRewardOverEpisodeLength
@@ -82,4 +92,3 @@ class AverageRewardOverEpisodeLength(DefaultCallbacks):
         for k in keys:
             name = k[1]
             episode.custom_metrics[f"{name}_step_average"] = episode.agent_rewards[k] / ep_len
-

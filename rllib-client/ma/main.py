@@ -82,4 +82,3 @@ if __name__ == "__main__":
     train( make_trust_game_config(always_constant(0.5), pie=10), timesteps_total=20_000 )
     train( make_trust_game_config(always_constant(1), pie=10), timesteps_total=20_000 )
     train( make_trust_game_config(learned, pie=10), timesteps_total=20_000 )
-    # train( make_trust_game_config(always_fraction(0, 3), pie=10) )  # TODO: I don't like passing nameless numbers

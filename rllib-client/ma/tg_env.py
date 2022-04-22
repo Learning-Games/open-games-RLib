@@ -14,9 +14,12 @@ class TrustGameEnv(MultiAgentEnv):
 
         assert "pie" in env_config, "Need a 'pie' in 'env_config'"
         assert "factor" in env_config, "Need a 'factor' in 'env_config'"
+        assert "game_server_url" in env_config, "Need a 'game_server_url' in 'env_config'!"
 
         pie    = env_config["pie"]
         factor = env_config["factor"]
+
+        self.game_server_url = env_config["game_server_url"]
 
         # Player 1 "action" is a number between 0 and pie
         # Player 2 "action" is a number between 0 and (factor * pie)
@@ -52,8 +55,8 @@ class TrustGameEnv(MultiAgentEnv):
 
         if self.ws:
           self.ws.close()
+        self.ws = create_connection(self.game_server_url)
 
-        self.ws = create_connection("ws://localhost:3000/play")
         obs = { i: (0, 0) for i in range(self.num_agents) }
         return obs
 

@@ -31,10 +31,14 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
 
         assert "action_space" in env_config, "Need a 'action_space' in 'env_config'"
 
-        # Default episode length of 1.
-        self.episode_length = env_config.get("episode_length", 1)
+        # E.g: ws://localhost:3000/play
+        assert "game_server_url" in env_config, "Need a 'game_server_url' in 'env_config'!"
 
-        self.action_space = env_config["action_space"]
+        # Default episode length of 1.
+        self.episode_length  = env_config.get("episode_length", 1)
+        self.game_server_url = env_config["game_server_url"]
+        self.action_space    = env_config["action_space"]
+
         self.action_map   = { i: v for (i, v) in enumerate(self.action_space) }
         self.num_actions  = len(self.action_space)
         self.num_agents   = 2
@@ -78,7 +82,7 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
         # Close the socket if it's already open, and reopen it
         if self.ws:
           self.ws.close()
-        self.ws = create_connection("ws://localhost:3000/play")
+        self.ws = create_connection(self.game_server_url)
 
         obs = { i: (0, 0) for i in range(self.num_agents) }
         return obs
