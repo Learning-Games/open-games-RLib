@@ -3,8 +3,8 @@
 From this folder:
 
 ```
-conda create -n rlib-client python=3.8
-conda activate rlib-client
+conda create -n rllib-client python=3.8
+conda activate rllib-client
 pip install -r requirements.txt
 ```
 
