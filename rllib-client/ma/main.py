@@ -75,12 +75,22 @@ if __name__ == "__main__":
     train( make_pd_config(always_defect), timesteps_total=timesteps )
     train( make_pd_config(random_pd_move), timesteps_total=timesteps )
     train( make_pd_config(random_pd_move, episode_length=100), timesteps_total=timesteps)
+    train( make_pd_config(tit_for_tat), timesteps_total=timesteps )
+    train( make_pd_config(learned, episode_length=1), timesteps_total=timesteps )
+    train( make_pd_config(learned, episode_length=10), timesteps_total=timesteps )
+    train( make_pd_config(learned, episode_length=100), timesteps_total=timesteps )
 
-    train( make_rps_config(random_rps_move, episode_length=10), timesteps_total=timesteps)
     train( make_rps_config(always_rock, episode_length=100), timesteps_total=timesteps)
+    train( make_rps_config(random_rps_move, episode_length=10), timesteps_total=timesteps)
+    train( make_rps_config(random_rps_move, episode_length=100), timesteps_total=timesteps)
+    train( make_rps_config(learned, episode_length=1), timesteps_total=timesteps)
+    train( make_rps_config(learned, episode_length=10), timesteps_total=timesteps)
+    train( make_rps_config(learned, episode_length=100), timesteps_total=timesteps)
 
     train( make_trust_game_config(always_constant(0), pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(always_constant(0.1), pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(always_constant(0.5), pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(always_constant(1), pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(learned, pie=10), timesteps_total=timesteps )
+
+

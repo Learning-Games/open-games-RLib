@@ -27,8 +27,9 @@ def make_trust_game_config ( policy
                 , "game_server_url": game_server_url
                 }
         , "multiagent": make_multiagent_config(policy)
+        , "callbacks": DefaultCallbacks
         }
-    c["env_config"]["name"] = f'{c["env"]}/player1={policy.name}/{dict_to_string(c["env_config"])}'
+    c["env_config"]["name"] = f'{c["env"]}/tg/player1={policy.name}/{dict_to_string(c["env_config"])}/'
     return c
 
 def make_multiagent_config (player_1_policy):
@@ -55,6 +56,7 @@ def make_action_space_config ( policy
                              , action_space
                              , episode_length
                              , game_server_url
+                             , prefix
                              ):
     c = { "env": "DTPLGE"
         , "env_config":
@@ -65,14 +67,14 @@ def make_action_space_config ( policy
         , "multiagent": make_multiagent_config(policy)
         , "callbacks": AverageRewardOverEpisodeLength
         }
-    c["env_config"]["name"] = f'{c["env"]}/player1={policy.name}/ep_len={episode_length}'
+    c["env_config"]["name"] = f'{c["env"]}/{prefix}/player1={policy.name}/ep_len={episode_length}/'
     return c
 
 def make_pd_config (policy, episode_length=10, game_server_url="ws://localhost:3000/prisoners-dilemma/play"):
-    return make_action_space_config(policy, pd_action_space, episode_length, game_server_url)
+    return make_action_space_config(policy, pd_action_space, episode_length, game_server_url, prefix="pd")
 
 def make_rps_config (policy, episode_length=10, game_server_url="ws://localhost:3000/rock-paper-scissors/play"):
-    return make_action_space_config(policy, rps_action_space, episode_length, game_server_url)
+    return make_action_space_config(policy, rps_action_space, episode_length, game_server_url, prefix="rps")
 
 class AverageRewardOverEpisodeLength(DefaultCallbacks):
     def on_episode_end(
