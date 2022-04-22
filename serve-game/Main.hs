@@ -40,7 +40,6 @@ run port = do
             defaultSettings
   runSettings settings =<< mkApp
 
-
 data Options = Options
   { port :: Int
   }
@@ -59,4 +58,3 @@ main = go =<< execParser p
   where
     p = info (opts <**> helper) fullDesc
     go Options { port }  = run port
-
