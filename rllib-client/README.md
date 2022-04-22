@@ -13,7 +13,7 @@ To test the websockets, it's helpful to have [websocat][websocat].
 [websocat]: https://github.com/vi/websocat
 
 
-#### Prisoners-Dilemma Server
+#### Prisoners Dilemma
 
 ```
 > stack build open-games-hs:serve-game
@@ -34,6 +34,51 @@ Running a game:
 ```
 
 
+#### Trust Game
+
+```
+> stack build open-games-hs:serve-game
+> stack exec -- server-game --port 3001 --game TrustGame
+```
+
+Testing it:
+
+```
+> curl http://localhost:3001/healthcheck
+"Ok!
+```
+
+
+Running a game:
+
+Start an interactive websocat session:
+
+```
+> websocat ws://localhost:3001/play
+```
+
+Then, play the first move:
+
+```
+> 0.5
+true
+```
+
+Then, play the second move:
+
+```
+> 0.5
+true
+```
+
+Then, observe the result:
+
+```
+[12.5,7.5]
+```
+
+The `true` outputs is the server confirming the input is good; and the final
+array is: `[player_1_reward, player_2_reward]`.
 
 
 ## Environment: How to use (via conda)
@@ -62,13 +107,13 @@ Later:
 
 - [ ] Clean up the Haskell code?
   - [ ] IO Monad?!
-- [ ] Work out how to get the optimal "strategy" from the result of training?
-  - I.e. how to save/use the trained agent.
 - [ ] Experiment with different network architectures for training
 
 
 Done:
 
+- [!] Work out how to get the optimal "strategy" from the result of training?
+  - I.e. how to save/use the trained agent.
 - [!] Monty Hall
   - Opted to investigate 'Trust Game' instead.
 - [x] Start running more experiments on a GPU?
