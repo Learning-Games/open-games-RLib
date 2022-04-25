@@ -77,6 +77,28 @@ Then, observe the result:
 The `true` outputs is the server confirming the input is good; and the final
 array is: `[player_1_reward, player_2_reward]`.
 
+#### Monty Hall (Simple)
+
+Start an interactive websocat session:
+
+```
+> websocat ws://localhost:3000/simple-monty-hall/play
+```
+
+Then, input the door number that is chosen first (1 - 3):
+```
+> 3
+```
+
+Then, input whether you want to switch door or not (true = yes, false = no):
+```
+> false
+```
+
+Then, observe the result:
+```
+0.0
+```
 
 ## Environment: How to use (via conda)
 
