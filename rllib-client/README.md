@@ -46,7 +46,7 @@ Running a game:
 Start an interactive websocat session:
 
 ```
-> websocat ws://localhost:3001/trust-game/play
+> websocat ws://localhost:3000/trust-game/play
 ```
 
 Then, play the first move:
