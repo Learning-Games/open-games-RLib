@@ -316,7 +316,8 @@ wsPlay pending = do
           game2' = play chooseGoatDoor strategy2
       game2 <- extractNextState game2' (game0, game1)
 
-      -- TODO: Perhaps we should send this information to the python world (obs)
+      -- Inform the client about the door that was opened by the presenter
+      WS.sendTextData connection (encode game2)
 
       -- Game 3: Ask the player whether they want to change their choice (boolean).
       (Just changeChoice) <- decode <$> WS.receiveData @ByteString connection

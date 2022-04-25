@@ -17,6 +17,7 @@ from ray.tune.registry import register_env
 
 from env      import DiscreteTwoPlayerLearningGamesEnv # DTPLGE for short.
 from tg_env   import TrustGameEnv
+from mh_env   import MontyHallEnv
 
 from policies.generic import learned
 from policies.rps     import always_rock, random_rps_move
@@ -40,6 +41,7 @@ framework = "tf2"
 
 register_env("DTPLGE", lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config))
 register_env("TGE",    lambda config: TrustGameEnv(env_config=config))
+register_env("MH",     lambda config: MontyHallEnv(env_config=config))
 
 base_config = {
     # "gamma": 0.8,
@@ -72,25 +74,27 @@ if __name__ == "__main__":
 
     timesteps = 25_000
 
-    train( make_pd_config(always_defect), timesteps_total=timesteps )
-    train( make_pd_config(random_pd_move), timesteps_total=timesteps )
-    train( make_pd_config(random_pd_move, episode_length=100), timesteps_total=timesteps)
-    train( make_pd_config(tit_for_tat), timesteps_total=timesteps )
-    train( make_pd_config(learned, episode_length=1), timesteps_total=timesteps )
-    train( make_pd_config(learned, episode_length=10), timesteps_total=timesteps )
-    train( make_pd_config(learned, episode_length=100), timesteps_total=timesteps )
+    train( make_monty_hall_config(timesteps_total=timesteps) )
 
-    train( make_rps_config(always_rock, episode_length=100), timesteps_total=timesteps)
-    train( make_rps_config(random_rps_move, episode_length=10), timesteps_total=timesteps)
-    train( make_rps_config(random_rps_move, episode_length=100), timesteps_total=timesteps)
-    train( make_rps_config(learned, episode_length=1), timesteps_total=timesteps)
-    train( make_rps_config(learned, episode_length=10), timesteps_total=timesteps)
-    train( make_rps_config(learned, episode_length=100), timesteps_total=timesteps)
+    # train( make_pd_config(always_defect), timesteps_total=timesteps )
+    # train( make_pd_config(random_pd_move), timesteps_total=timesteps )
+    # train( make_pd_config(random_pd_move, episode_length=100), timesteps_total=timesteps)
+    # train( make_pd_config(tit_for_tat), timesteps_total=timesteps )
+    # train( make_pd_config(learned, episode_length=1), timesteps_total=timesteps )
+    # train( make_pd_config(learned, episode_length=10), timesteps_total=timesteps )
+    # train( make_pd_config(learned, episode_length=100), timesteps_total=timesteps )
 
-    train( make_trust_game_config(always_constant(0), pie=10), timesteps_total=timesteps )
-    train( make_trust_game_config(always_constant(0.1), pie=10), timesteps_total=timesteps )
-    train( make_trust_game_config(always_constant(0.5), pie=10), timesteps_total=timesteps )
-    train( make_trust_game_config(always_constant(1), pie=10), timesteps_total=timesteps )
-    train( make_trust_game_config(learned, pie=10), timesteps_total=timesteps )
+    # train( make_rps_config(always_rock, episode_length=100), timesteps_total=timesteps)
+    # train( make_rps_config(random_rps_move, episode_length=10), timesteps_total=timesteps)
+    # train( make_rps_config(random_rps_move, episode_length=100), timesteps_total=timesteps)
+    # train( make_rps_config(learned, episode_length=1), timesteps_total=timesteps)
+    # train( make_rps_config(learned, episode_length=10), timesteps_total=timesteps)
+    # train( make_rps_config(learned, episode_length=100), timesteps_total=timesteps)
+
+    # train( make_trust_game_config(always_constant(0), pie=10), timesteps_total=timesteps )
+    # train( make_trust_game_config(always_constant(0.1), pie=10), timesteps_total=timesteps )
+    # train( make_trust_game_config(always_constant(0.5), pie=10), timesteps_total=timesteps )
+    # train( make_trust_game_config(always_constant(1), pie=10), timesteps_total=timesteps )
+    # train( make_trust_game_config(learned, pie=10), timesteps_total=timesteps )
 
 

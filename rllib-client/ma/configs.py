@@ -15,6 +15,29 @@ def dict_to_string (d):
     """ Note: Not recursive; only works for a top-level dictionary. """
     return ",".join( f"{k}={v}" for k,v in d.items() )
 
+def make_monty_hall_config (game_server_url="ws://localhost:3000/simple-monty-hall/play"):
+    c = { "env": "MH"
+        , "env_config": {"game_server_url": game_server_url}
+        , "multiagent": make_multiagent_single_player_config()
+        , "callbacks": DefaultCallbacks
+        }
+    c["env_config"]["name"] = f'{c["env"]}/tg/player1={policy.name}/{dict_to_string(c["env_config"])}/'
+    return c
+
+def make_multiagent_single_player_config ():
+    def select_policy (agent_id, episode, **kwargs):
+        assert agent_id in [ 0 ], f"Unknown player: {agent_id}!"
+        return f"player_{agent_id}"
+
+    policies_to_train = ["player_0"]
+
+    multiagent = {
+        "policies_to_train": policies_to_train,
+        "policy_mapping_fn": select_policy,
+        "policies": {"player_0": learned.policy}
+        }
+    return multiagent
+
 def make_trust_game_config ( policy
                            , factor=3
                            , pie=10
