@@ -68,7 +68,6 @@ chooseWinningDoor :: IO DoorCar
 chooseWinningDoor = do
   g <- newStdGen
   let winning_door = fst $ randomR (1,3) g
-  -- putStrLn $ "winning door : " ++ show winning_door -- debugging print
   return winning_door
 
 -- Given a set of doors choose one randomly
@@ -108,7 +107,7 @@ payoffDecision winner doorChosen choiceChanged
 -- player chooses a door
 -- presenter opens another door
 -- player chooses to change or not
-
+-- compute payoff
 
 chooseInitialDoor :: OpenGame
                        (MonadOptic IO)
@@ -232,10 +231,9 @@ playerFinalPayoff = [opengame|
   |]
 
 
--- test :: Pie -> Sent -> SentBack -> Factor -> IO (Sent, SentBack, Payoff, Payoff)
-test :: Door -> ChangeChoice -> IO Double
-test firstDoorChoice changeChoice = do
-  -- GAME 0
+test :: PlayParameters -> IO PlayResult
+test PlayParameters { theDoor, playerAction } = do
+  -- Game 0: Choose the door behind which the car is.
   let strategy0 :: List '[]
       strategy0 = Nil
 
@@ -243,57 +241,45 @@ test firstDoorChoice changeChoice = do
       game0' = play chooseInitialDoor strategy0
   game0 <- extractNextState game0' ()
 
-  -- -- TODO: firstDoorChoice
-
-  -- GAME 1
+  -- Game 1: Ask the player for a first door choice (integer).
   let strategy1 :: List '[Door]
-      strategy1 = firstDoorChoice ::- Nil
+      strategy1 = theDoor ::- Nil
 
-      -- game1 :: MonadOptic IO Pie () Double Double
+      game1' :: MonadOptic IO DoorCar () Door ()
       game1' = play playerChooseDoor strategy1
-  game1 <- extractNextState game1' game0 {- last state, as input -}
+  game1 <- extractNextState game1' (game0)
 
-  -- GAME 2
+  -- Game 2: Choose and open a door hiding a goat.
   let strategy2 :: List '[]
       strategy2 = Nil
 
-      -- game2 :: MonadOptic IO Double () Double Double
+      game2' :: MonadOptic IO (DoorCar, Door) () DoorGoat ()
       game2' = play chooseGoatDoor strategy2
   game2 <- extractNextState game2' (game0, game1)
 
-  -- -- TODO: changeChoice
-
-  -- GAME 3
+  -- Game 3: Ask the player whether they want to change their choice (boolean).
   let strategy3 :: List '[ChangeChoice]
-      strategy3 = changeChoice ::- Nil
+      strategy3 = playerAction ::- Nil
 
-      -- game3 :: MonadOptic IO (Pie, Sent, SentBack) () Double ()
+      game3' :: MonadOptic IO (DoorCar, Door, DoorGoat) () ChangeChoice ()
       game3' = play playerChangeChoice strategy3
-
   game3 <- extractNextState game3' (game0, game1, game2)
 
-  -- GAME 4
+  -- Game 4: Compute the payoff for the player, given (most of) the history.
   let strategy4 :: List '[]
       strategy4 = Nil
 
-      -- game3 :: MonadOptic IO (Pie, Sent, SentBack) () Double ()
+      game4' :: MonadOptic IO (DoorCar, Door, ChangeChoice) () Double ()
       game4' = play playerFinalPayoff strategy4
-
   payoff <- extractNextState game4' (game0, game1, game3) -- NOTE: skipped game2
 
-  return payoff -- 3.0 -- payoff
-
-test2 :: PlayParameters -> IO PlayResult
-test2 PlayParameters { theDoor, playerAction } = do
-  p <- test theDoor playerAction
-  return $ PlayResult { playerPayoff = p }
+  return $ PlayResult { playerPayoff = payoff }
 
 switch :: Int -> IO Double
-switch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test2 (PlayParameters { theDoor = 2, playerAction = True })))
+switch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test (PlayParameters { theDoor = 2, playerAction = True })))
 
 dontSwitch :: Int -> IO Double
-dontSwitch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test2 (PlayParameters { theDoor = 2, playerAction = False })))
-
+dontSwitch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test (PlayParameters { theDoor = 2, playerAction = False })))
 
 
 wsPlay :: PendingConnection -> Handler ()
@@ -302,7 +288,7 @@ wsPlay pending = do
     connection <- WS.acceptRequest pending
     handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
 
-      -- GAME 0
+      -- Game 0: Choose the door behind which the car is.
       let strategy0 :: List '[]
           strategy0 = Nil
 
@@ -310,42 +296,41 @@ wsPlay pending = do
           game0' = play chooseInitialDoor strategy0
       game0 <- extractNextState game0' ()
 
-      -- GAME 1: Ask for a first door choice (integer)
+      -- Game 1: Ask the player for a first door choice (integer).
       (Just firstDoorChoice) <- decode <$> WS.receiveData @ByteString connection
 
       let strategy1 :: List '[Door]
           strategy1 = firstDoorChoice ::- Nil
 
-          -- game1 :: MonadOptic IO Pie () Double Double
+          game1' :: MonadOptic IO DoorCar () Door ()
           game1' = play playerChooseDoor strategy1
-      game1 <- extractNextState game1' game0 {- last state, as input -}
+      game1 <- extractNextState game1' (game0)
 
       -- TODO: Ensure that the integer given is in [1..3]
 
-      -- GAME 2
+      -- Game 2: Choose and open a door hiding a goat.
       let strategy2 :: List '[]
           strategy2 = Nil
 
-          -- game2 :: MonadOptic IO Double () Double Double
+          game2' :: MonadOptic IO (DoorCar, Door) () DoorGoat ()
           game2' = play chooseGoatDoor strategy2
       game2 <- extractNextState game2' (game0, game1)
 
-      -- GAME 3: Ask whether the player wants to change the door (boolean)
+      -- Game 3: Ask the player whether they want to change their choice (boolean).
       (Just changeChoice) <- decode <$> WS.receiveData @ByteString connection
 
       let strategy3 :: List '[ChangeChoice]
           strategy3 = changeChoice ::- Nil
 
-          -- game3 :: MonadOptic IO (Pie, Sent, SentBack) () Double ()
+          game3' :: MonadOptic IO (DoorCar, Door, DoorGoat) () ChangeChoice ()
           game3' = play playerChangeChoice strategy3
       game3 <- extractNextState game3' (game0, game1, game2)
 
-
-      -- GAME 4
+      -- Game 4: Compute the payoff for the player, given (most of) the history.
       let strategy4 :: List '[]
           strategy4 = Nil
 
-          -- game3 :: MonadOptic IO (Pie, Sent, SentBack) () Double ()
+          game4' :: MonadOptic IO (DoorCar, Door, ChangeChoice) () Double ()
           game4' = play playerFinalPayoff strategy4
 
       payoff <- extractNextState game4' (game0, game1, game3) -- NOTE: skipped game2
