@@ -32,6 +32,7 @@ from policies.tg      import ( always_constant
 from configs          import ( make_pd_config
                              , make_rps_config
                              , make_trust_game_config
+                             , make_monty_hall_config
                              )
 
 # TODO: The trust game is non-symmetric and with our current abstraction we
@@ -74,7 +75,7 @@ if __name__ == "__main__":
 
     timesteps = 25_000
 
-    train( make_monty_hall_config(timesteps_total=timesteps) )
+    train( make_monty_hall_config(), timesteps_total=timesteps )
 
     # train( make_pd_config(always_defect), timesteps_total=timesteps )
     # train( make_pd_config(random_pd_move), timesteps_total=timesteps )

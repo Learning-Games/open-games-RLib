@@ -21,7 +21,7 @@ def make_monty_hall_config (game_server_url="ws://localhost:3000/simple-monty-ha
         , "multiagent": make_multiagent_single_player_config()
         , "callbacks": DefaultCallbacks
         }
-    c["env_config"]["name"] = f'{c["env"]}/tg/player1={policy.name}/{dict_to_string(c["env_config"])}/'
+    c["env_config"]["name"] = f'{c["env"]}/mh/{dict_to_string(c["env_config"])}/'
     return c
 
 def make_multiagent_single_player_config ():

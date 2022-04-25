@@ -77,7 +77,7 @@ class MontyHallEnv(MultiAgentEnv):
 
         if self.step_number == 2:
             change_door = action_dict[0][1]
-            self.ws.send(json.dumps(change_door == 1))
+            self.ws.send(json.dumps(bool(change_door == 1)))
 
             payoff = json.loads(self.ws.recv())
             rewards = { 0: payoff }
