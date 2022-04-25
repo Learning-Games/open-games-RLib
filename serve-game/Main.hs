@@ -12,11 +12,13 @@ import           Servant.API.WebSocket    (WebSocketPending)
 import qualified Examples.ExternalEnvironment.PD                as PD
 import qualified Examples.ExternalEnvironment.RockPaperScissors as RockPaperScissors
 import qualified Examples.ExternalEnvironment.TrustGame         as TrustGame
+import qualified Examples.ExternalEnvironment.ModularMontyHall  as ModularMontyHall
 
 type Api
   = "prisoners-dilemma" :> "play" :> WebSocketPending
   :<|> "trust-game" :> "play" :> WebSocketPending
   :<|> "rock-paper-scissors" :> "play" :> WebSocketPending
+  :<|> "simple-monty-hall" :> "play" :> WebSocketPending
   :<|> "healthcheck" :> Get '[JSON] String
 
 api :: Proxy Api
@@ -27,6 +29,7 @@ server
   =    PD.wsPlay
   :<|> TrustGame.wsPlay
   :<|> RockPaperScissors.wsPlay
+  :<|> ModularMontyHall.wsPlay
   :<|> return "Ok!"
 
 mkApp :: IO Application

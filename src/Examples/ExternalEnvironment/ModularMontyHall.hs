@@ -11,7 +11,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
-module Examples.ExternalEnvironment.MontyHall where
+module Examples.ExternalEnvironment.ModularMontyHall where
 
 import           Control.Exception                   (handle, SomeException(..))
 import           Control.Monad                       (forever)

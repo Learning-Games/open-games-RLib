@@ -47,6 +47,7 @@ library:
     - Examples.ExternalEnvironment.PD
     - Examples.ExternalEnvironment.RockPaperScissors
     - Examples.ExternalEnvironment.TrustGame
+    - Examples.ExternalEnvironment.ModularMontyHall
     - Examples.InteractiveIO.InteractiveIO
     - Examples.Markov.RepeatedPD
     - Examples.Markov.TestSimpleMonteCarlo
