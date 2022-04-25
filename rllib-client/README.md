@@ -49,6 +49,11 @@ Start an interactive websocat session:
 > websocat ws://localhost:3000/trust-game/play
 ```
 
+Then, input the pie size and the factor:
+```
+> [10,3]
+```
+
 Then, play the first move:
 
 ```
