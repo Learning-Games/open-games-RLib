@@ -66,15 +66,13 @@ wsPlay pending = do
     disconnect _ = pure ()
 
 
-prisonersDilemmaExternal :: OpenGame
-                                    (MonadOptic IO)
-                                    (MonadContext IO)
-                                    '[ActionPD, ActionPD]
-                                    '[]
-                                    ()
-                                    (Double, Double)
-                                    (ActionPD, ActionPD)
-                                    ()
+prisonersDilemmaExternal :: ExternalEnvironmentGame
+                              '[ActionPD, ActionPD]
+                              '[]
+                              ()
+                              (Double, Double)
+                              (ActionPD, ActionPD)
+                              ()
 prisonersDilemmaExternal = [opengame|
 
    inputs    :      ;

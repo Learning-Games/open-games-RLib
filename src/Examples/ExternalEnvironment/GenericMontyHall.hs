@@ -165,9 +165,7 @@ dontSwitch   n = fmap (/ fromIntegral n) (sum <$> replicateM n (test (2 ::- Fals
 --    make_move( move2 )
 --
 
-genericMontyHall :: OpenGame
-                      (MonadOptic IO)
-                      (MonadContext IO)
+genericMontyHall :: ExternalEnvironmentGame
                       '[Door, ChangeChoice]
                       '[]
                       ()

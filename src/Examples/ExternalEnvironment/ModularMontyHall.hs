@@ -109,9 +109,7 @@ payoffDecision winner doorChosen choiceChanged
 -- player chooses to change or not
 -- compute payoff
 
-chooseInitialDoor :: OpenGame
-                       (MonadOptic IO)
-                       (MonadContext IO)
+chooseInitialDoor :: ExternalEnvironmentGame
                        '[]
                        '[]
                        ()
@@ -133,9 +131,7 @@ chooseInitialDoor = [opengame|
    returns   :     ;
   |]
 
-playerChooseDoor :: OpenGame
-                       (MonadOptic IO)
-                       (MonadContext IO)
+playerChooseDoor :: ExternalEnvironmentGame
                        '[Door]      -- a: inputs from interactWithEnv (1 call
                        '[]          -- b?
                        DoorCar      -- x? (winningDoor)
@@ -158,9 +154,7 @@ playerChooseDoor = [opengame|
   |]
 
 
-chooseGoatDoor :: OpenGame
-                    (MonadOptic IO)
-                    (MonadContext IO)
+chooseGoatDoor :: ExternalEnvironmentGame
                     '[]
                     '[]
                     (DoorCar, Door)
@@ -183,9 +177,7 @@ chooseGoatDoor = [opengame|
   |]
 
 
-playerChangeChoice :: OpenGame
-                        (MonadOptic IO)
-                        (MonadContext IO)
+playerChangeChoice :: ExternalEnvironmentGame
                         '[ChangeChoice]
                         '[]
                         (DoorCar, Door, DoorGoat)
@@ -207,9 +199,7 @@ playerChangeChoice = [opengame|
    returns   :     ;
   |]
 
-playerFinalPayoff :: OpenGame
-                       (MonadOptic IO)
-                       (MonadContext IO)
+playerFinalPayoff :: ExternalEnvironmentGame
                        '[]
                        '[]
                        (DoorCar, Door, ChangeChoice)

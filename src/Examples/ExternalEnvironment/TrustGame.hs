@@ -101,9 +101,7 @@ wsPlay pending = do
 -- 1.1. Trust Game
 trustGame :: p
              -> Factor
-             -> OpenGame
-                  (MonadOptic IO)
-                  (MonadContext IO)
+             -> ExternalEnvironmentGame
                   '[Double, Double]
                   '[]
                   ()
@@ -136,9 +134,7 @@ trustGame pie factor = [opengame|
 
 -- 2. splitting things into components
 
-proposerDecision :: OpenGame
-                      (MonadOptic IO)
-                      (MonadContext IO)
+proposerDecision :: ExternalEnvironmentGame
                       '[Double]
                       '[]
                       Pie
@@ -163,9 +159,7 @@ proposerDecision = [opengame|
   |]
 
 
-responderDecision :: OpenGame
-                       (MonadOptic IO)
-                       (MonadContext IO)
+responderDecision :: ExternalEnvironmentGame
                        '[Double]
                        '[]
                        Double
@@ -190,9 +184,7 @@ responderDecision = [opengame|
    |]
 
 
-proposerPayoff :: OpenGame
-                    (MonadOptic IO)
-                    (MonadContext IO)
+proposerPayoff :: ExternalEnvironmentGame
                     '[]
                     '[]
                     (Pie, Sent, SentBack)
@@ -216,9 +208,7 @@ proposerPayoff = [opengame|
    returns   :      ;
   |]
 
-responderPayoff :: OpenGame
-                     (MonadOptic IO)
-                     (MonadContext IO)
+responderPayoff :: ExternalEnvironmentGame
                      '[]
                      '[]
                      (Factor, Sent, SentBack)

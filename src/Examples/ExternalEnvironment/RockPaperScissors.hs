@@ -84,15 +84,13 @@ wsPlay pending = do
 
 -- Game
 
-rockPaperScissorsExternal :: OpenGame
-                                    (MonadOptic IO)
-                                    (MonadContext IO)
-                                    '[ActionRPS, ActionRPS]
-                                    '[]
-                                    ()
-                                    (Double, Double)
-                                    (ActionRPS, ActionRPS)
-                                    ()
+rockPaperScissorsExternal :: ExternalEnvironmentGame
+                               '[ActionRPS, ActionRPS]
+                               '[]
+                               ()
+                               (Double, Double)
+                               (ActionRPS, ActionRPS)
+                               ()
 rockPaperScissorsExternal = [opengame|
 
    inputs    :      ;

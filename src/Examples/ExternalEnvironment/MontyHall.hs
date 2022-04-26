@@ -103,9 +103,7 @@ payoffDecision winner doorChosen choiceChanged
 
 -------
 -- Game
-montyHallExternal :: OpenGame
-                       (MonadOptic IO)
-                       (MonadContext IO)
+montyHallExternal :: ExternalEnvironmentGame
                        '[Door,Bool]
                        '[]
                        ()
