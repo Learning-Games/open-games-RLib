@@ -12,7 +12,7 @@ import           Servant.API.WebSocket    (WebSocketPending)
 import qualified Examples.ExternalEnvironment.PD                as PD
 import qualified Examples.ExternalEnvironment.RockPaperScissors as RockPaperScissors
 import qualified Examples.ExternalEnvironment.TrustGame         as TrustGame
-import qualified Examples.ExternalEnvironment.ModularMontyHall  as ModularMontyHall
+import qualified Examples.ExternalEnvironment.MontyHall         as MontyHall
 
 type Api
   = "prisoners-dilemma" :> "play" :> WebSocketPending
@@ -29,7 +29,7 @@ server
   =    PD.wsPlay
   :<|> TrustGame.wsPlay
   :<|> RockPaperScissors.wsPlay
-  :<|> ModularMontyHall.wsPlay
+  :<|> MontyHall.wsPlay
   :<|> return "Ok!"
 
 mkApp :: IO Application

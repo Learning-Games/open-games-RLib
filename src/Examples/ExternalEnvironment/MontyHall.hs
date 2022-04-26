@@ -13,24 +13,24 @@
 
 module Examples.ExternalEnvironment.MontyHall where
 
-import Engine.Engine hiding (fromLens, fromFunctions, state, nature)
-import Preprocessor.Preprocessor
-
-import Control.Monad.IO.Class   (liftIO)
-import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, runSettings, defaultSettings)
-import Servant                  ((:>), (:<|>)((:<|>)), Server, Handler, Application
-                                , Proxy(..), JSON, Get, Post, ReqBody, serve)
-
-import Engine.ExternalEnvironment
-import Examples.ExternalEnvironment.Common (extractPayoff, extractPayoffAndNextState)
-
-import qualified Data.Set as S
+import           Control.Exception                   (handle, SomeException(..))
+import           Control.Monad                       (forever)
+import           Control.Monad                       (replicateM)
+import           Control.Monad.IO.Class              (liftIO)
+import           Data.Aeson                          (ToJSON, FromJSON)
+import           Data.Aeson                          (encode, decode)
+import           Data.ByteString.Lazy.Internal       (ByteString)
+import           Data.Tuple.Extra                    (uncurry3)
+import           Engine.Engine hiding (fromLens, fromFunctions, state, nature)
+import           Engine.ExternalEnvironment
+import           Examples.ExternalEnvironment.Common (extractNextState)
+import           GHC.Generics                        (Generic)
+import           Network.WebSockets.Connection       (PendingConnection)
+import           Preprocessor.Preprocessor
+import           Servant                             (Handler)
 import           System.Random
-
-import Data.Aeson               (ToJSON, FromJSON)
-import GHC.Generics             (Generic)
-
-import Control.Monad (replicateM)
+import qualified Data.Set as S
+import qualified Network.WebSockets                  as WS
 
 -- TODO Use the dependency operator for that!
 
@@ -68,7 +68,6 @@ chooseWinningDoor :: IO DoorCar
 chooseWinningDoor = do
   g <- newStdGen
   let winning_door = fst $ randomR (1,3) g
-  -- putStrLn $ "winning door : " ++ show winning_door -- debugging print
   return winning_door
 
 -- Given a set of doors choose one randomly
@@ -103,6 +102,8 @@ payoffDecision winner doorChosen choiceChanged
 
 -------
 -- Game
+
+-- Monolithic version of the game
 montyHallExternal :: ExternalEnvironmentGame
                        '[Door,Bool]
                        '[]
@@ -151,20 +152,167 @@ montyHallExternal = [opengame|
    returns   :    ;
   |]
 
+-- setup: choose a winning door for the car
+-- player chooses a door
+-- presenter opens another door
+-- player chooses to change or not
+-- compute payoff
+
+chooseInitialDoor :: ExternalEnvironmentGame
+                       '[]
+                       '[]
+                       ()
+                       ()
+                       DoorCar
+                       ()
+chooseInitialDoor = [opengame|
+   inputs    :      ;
+   feedback  :      ;
+   :----------------------------:
+   inputs    :     ;
+   feedback  :     ;
+   operation : nature chooseWinningDoor ;
+   outputs   : winningDoor ;
+   returns   :     ;
+   // Chooses behind which door the car is
+   :----------------------------:
+   outputs   : winningDoor ;
+   returns   :     ;
+  |]
+
+playerChooseDoor :: ExternalEnvironmentGame
+                       '[Door]      -- a: inputs from interactWithEnv (1 call
+                       '[]          -- b?
+                       DoorCar      -- x? (winningDoor)
+                       ()           -- s
+                       Door         -- y: outputs of the overall thing
+                       ()           -- r: returns
+playerChooseDoor = [opengame|
+   inputs    : winningDoor ;
+   feedback  :     ;
+   :----------------------------:
+   inputs    : winningDoor ;
+   feedback  : ignoreZeroPayoff ;
+   operation : interactWithEnv ;
+   outputs   : decision1 ;
+   returns   : 0   ;
+   // first decision; fix payoff at zero
+   :----------------------------:
+   outputs   : decision1 ;
+   returns   :     ;
+  |]
+
+
+chooseGoatDoor :: ExternalEnvironmentGame
+                    '[]
+                    '[]
+                    (DoorCar, Door)
+                    ()
+                    DoorGoat
+                    ()
+chooseGoatDoor = [opengame|
+   inputs    : winningDoor,decision1 ;
+   feedback  :  ;
+   :----------------------------:
+   inputs    : winningDoor,decision1 ;
+   feedback  :  ;
+   operation : liftStochastic (uncurry revealGoatDoor) ;
+   outputs   : revealedDoor ;
+   returns   :  ;
+   // if first decision did not win the prize, reveal one door which contains a goat
+   :----------------------------:
+   outputs   : revealedDoor ;
+   returns   :     ;
+  |]
+
+
+playerChangeChoice :: ExternalEnvironmentGame
+                        '[ChangeChoice]
+                        '[]
+                        (DoorCar, Door, DoorGoat)
+                        ()
+                        ChangeChoice
+                        ()
+playerChangeChoice = [opengame|
+   inputs    : winningDoor,decision1,revealedDoor ;
+   feedback  :  ;
+   :----------------------------:
+   inputs    : winningDoor,decision1,revealedDoor ;
+   feedback  : ignoreZeroPayoff ;
+   operation : interactWithEnv ;
+   outputs   : decision2 ;
+   returns   : 0 ;
+   // reverse or keep first choice
+   :----------------------------:
+   outputs   : decision2 ;
+   returns   :     ;
+  |]
+
+playerFinalPayoff :: ExternalEnvironmentGame
+                       '[]
+                       '[]
+                       (DoorCar, Door, ChangeChoice)
+                       ()
+                       Double
+                       ()
+playerFinalPayoff = [opengame|
+   inputs    : winningDoor,decision1,decision2 ;
+   feedback  :  ;
+   :----------------------------:
+   inputs    : winningDoor,decision1,decision2 ;
+   feedback  :      ;
+   operation : fromFunctions (uncurry3 payoffDecision) id ;
+   outputs   : payoff ;
+   // compute the payoff
+   :----------------------------:
+   outputs   : payoff ;
+   returns   :     ;
+  |]
+
 
 test :: PlayParameters -> IO PlayResult
 test PlayParameters { theDoor, playerAction } = do
-  -- putStrLn $ "switch door  : " ++ show playerAction -- debugging print
+  -- Game 0: Choose the door behind which the car is.
+  let strategy0 :: List '[]
+      strategy0 = Nil
 
-  let strategy :: List '[Door, ChangeChoice]
-      strategy = theDoor ::- playerAction ::- Nil
+      game0' :: MonadOptic IO () () DoorCar ()
+      game0' = play chooseInitialDoor strategy0
+  game0 <- extractNextState game0' ()
 
-      gamenext :: MonadOptic IO () Double (Door, Bool) ()
-      gamenext = play montyHallExternal strategy
+  -- Game 1: Ask the player for a first door choice (integer).
+  let strategy1 :: List '[Door]
+      strategy1 = theDoor ::- Nil
 
-  (p, _ns) <- extractPayoffAndNextState gamenext () ()
+      game1' :: MonadOptic IO DoorCar () Door ()
+      game1' = play playerChooseDoor strategy1
+  game1 <- extractNextState game1' (game0)
 
-  return $ PlayResult { playerPayoff = p }
+  -- Game 2: Choose and open a door hiding a goat.
+  let strategy2 :: List '[]
+      strategy2 = Nil
+
+      game2' :: MonadOptic IO (DoorCar, Door) () DoorGoat ()
+      game2' = play chooseGoatDoor strategy2
+  game2 <- extractNextState game2' (game0, game1)
+
+  -- Game 3: Ask the player whether they want to change their choice (boolean).
+  let strategy3 :: List '[ChangeChoice]
+      strategy3 = playerAction ::- Nil
+
+      game3' :: MonadOptic IO (DoorCar, Door, DoorGoat) () ChangeChoice ()
+      game3' = play playerChangeChoice strategy3
+  game3 <- extractNextState game3' (game0, game1, game2)
+
+  -- Game 4: Compute the payoff for the player, given (most of) the history.
+  let strategy4 :: List '[]
+      strategy4 = Nil
+
+      game4' :: MonadOptic IO (DoorCar, Door, ChangeChoice) () Double ()
+      game4' = play playerFinalPayoff strategy4
+  payoff <- extractNextState game4' (game0, game1, game3) -- NOTE: skipped game2
+
+  return $ PlayResult { playerPayoff = payoff }
 
 switch :: Int -> IO Double
 switch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test (PlayParameters { theDoor = 2, playerAction = True })))
@@ -172,45 +320,65 @@ switch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test 
 dontSwitch :: Int -> IO Double
 dontSwitch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test (PlayParameters { theDoor = 2, playerAction = False })))
 
---------------
--- Servant API
 
--- Using: https://httpie.io/docs/cli/json
---
---  http localhost:3000/healthcheck
---  http POST localhost:3000/play < json-data/mh-game.json
---
-type Api = "play" :> ReqBody '[JSON] PlayParameters :> Post '[JSON] PlayResult
-           :<|> "healthcheck" :> Get '[JSON] String
+wsPlay :: PendingConnection -> Handler ()
+wsPlay pending = do
+  liftIO $ do
+    connection <- WS.acceptRequest pending
+    handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
 
-api :: Proxy Api
-api = Proxy
+      -- Game 0: Choose the door behind which the car is.
+      let strategy0 :: List '[]
+          strategy0 = Nil
 
-server :: Server Api
-server =
-  runPlay
-  :<|> return "Ok!"
+          game0' :: MonadOptic IO () () DoorCar ()
+          game0' = play chooseInitialDoor strategy0
+      game0 <- extractNextState game0' ()
 
-run :: IO ()
-run = do
-  let port = 3000
-      settings =
-        setPort port $
-          setBeforeMainLoop (putStrLn ("Listening on port " ++ show port)) $
-            defaultSettings
-  runSettings settings =<< mkApp
+      -- Game 1: Ask the player for a first door choice (integer).
+      (Just firstDoorChoice) <- decode <$> WS.receiveData @ByteString connection
 
-mkApp :: IO Application
-mkApp = return $ serve api server
+      let strategy1 :: List '[Door]
+          strategy1 = firstDoorChoice ::- Nil
 
-runPlay :: PlayParameters -> Handler PlayResult
-runPlay PlayParameters { theDoor, playerAction } = do
+          game1' :: MonadOptic IO DoorCar () Door ()
+          game1' = play playerChooseDoor strategy1
+      game1 <- extractNextState game1' (game0)
 
-  let strategy = theDoor ::- playerAction ::- Nil
-      gamenext = play montyHallExternal strategy
+      -- TODO: Ensure that the integer given is in [1..3]
 
-  -- TODO: Does this need to be in IO?
-  p <- liftIO $ extractPayoff gamenext () ()
+      -- Game 2: Choose and open a door hiding a goat.
+      let strategy2 :: List '[]
+          strategy2 = Nil
 
-  return $ PlayResult { playerPayoff = p }
+          game2' :: MonadOptic IO (DoorCar, Door) () DoorGoat ()
+          game2' = play chooseGoatDoor strategy2
+      game2 <- extractNextState game2' (game0, game1)
+
+      -- Inform the client about the door that was opened by the presenter
+      WS.sendTextData connection (encode game2)
+
+      -- Game 3: Ask the player whether they want to change their choice (boolean).
+      (Just changeChoice) <- decode <$> WS.receiveData @ByteString connection
+
+      let strategy3 :: List '[ChangeChoice]
+          strategy3 = changeChoice ::- Nil
+
+          game3' :: MonadOptic IO (DoorCar, Door, DoorGoat) () ChangeChoice ()
+          game3' = play playerChangeChoice strategy3
+      game3 <- extractNextState game3' (game0, game1, game2)
+
+      -- Game 4: Compute the payoff for the player, given (most of) the history.
+      let strategy4 :: List '[]
+          strategy4 = Nil
+
+          game4' :: MonadOptic IO (DoorCar, Door, ChangeChoice) () Double ()
+          game4' = play playerFinalPayoff strategy4
+
+      payoff <- extractNextState game4' (game0, game1, game3) -- NOTE: skipped game2
+
+      WS.sendTextData connection (encode payoff)
+  where
+    disconnect :: SomeException -> IO ()
+    disconnect _ = pure ()
 
