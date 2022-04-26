@@ -259,7 +259,8 @@ playerFinalPayoff = [opengame|
    returns   :     ;
   |]
 
-
+-- Duplicates the functionality of wsPlay but takes the inputs as arguments and
+-- returns the results as outputs, instead of using a socket.
 test :: PlayParameters -> IO PlayResult
 test PlayParameters { theDoor, playerAction } = do
   -- Game 0: Choose the door behind which the car is.
@@ -309,7 +310,6 @@ switch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test 
 
 dontSwitch :: Int -> IO Double
 dontSwitch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test (PlayParameters { theDoor = 2, playerAction = False })))
-
 
 wsPlay :: PendingConnection -> Handler ()
 wsPlay pending = do
