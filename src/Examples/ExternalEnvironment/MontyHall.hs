@@ -22,7 +22,8 @@ import           Data.Aeson                          (encode, decode)
 import           Data.ByteString.Lazy.Internal       (ByteString)
 import           Data.Tuple.Extra                    (uncurry3)
 import           Engine.Engine hiding (fromLens, fromFunctions, state, nature)
-import           Engine.ExternalEnvironment
+import           Engine.ExternalEnvironment          ( ExternalEnvironmentGame, fromFunctions, fromLens
+                                                     , interactWithEnv, liftStochastic, nature )
 import           Examples.ExternalEnvironment.Common (extractNextState)
 import           GHC.Generics                        (Generic)
 import           Network.WebSockets.Connection       (PendingConnection)
@@ -31,8 +32,6 @@ import           Servant                             (Handler)
 import           System.Random
 import qualified Data.Set as S
 import qualified Network.WebSockets                  as WS
-
--- TODO Use the dependency operator for that!
 
 -------------
 -- Data types
@@ -71,7 +70,6 @@ chooseWinningDoor = do
   return winning_door
 
 -- Given a set of doors choose one randomly
--- chooseRandomDoorFromSet bug: index out of bounds (0,s)
 chooseRandomDoorFromSet :: S.Set Door -> IO DoorGoat
 chooseRandomDoorFromSet doors = do
   g <- newStdGen
@@ -81,13 +79,10 @@ chooseRandomDoorFromSet doors = do
   return result
 
 -- Given door with car behind and chosen door, reveal door which contains a goat
--- revealGoatDoor bug: the resulting index does not refer to the original list
 revealGoatDoor :: DoorCar -> Door -> IO DoorGoat
 revealGoatDoor winner choice = do
-  -- putStrLn $ "chosen door  : " ++ show choice -- debugging print
   opened_door <- chooseRandomDoorFromSet $ S.delete choice $ S.delete winner initialSetDoors
   -- ^ ignore the winner door and the chosen door (might overlap, but that's alright)
-  -- putStrLn $ "opened door  : " ++ show opened_door -- debugging print
   return opened_door
 
 ----------
@@ -112,10 +107,8 @@ montyHallExternal :: ExternalEnvironmentGame
                        (Door, Bool)
                        ()
 montyHallExternal = [opengame|
-
    inputs    :      ;
    feedback  :  payoff    ;
-
    :----------------------------:
    inputs    :     ;
    feedback  :     ;
@@ -144,10 +137,7 @@ montyHallExternal = [opengame|
    outputs   : decision2 ;
    returns   : payoffDecision winningDoor decision1 decision2 ;
    // reverse or keep first choice; if winning prize else zero
-   // GEORGE: why do we need revealedDoor as an input??
-
    :----------------------------:
-
    outputs   : decision1,decision2 ;
    returns   :    ;
   |]

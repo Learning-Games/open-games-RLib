@@ -7,9 +7,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
-
 
 module Examples.ExternalEnvironment.TrustGame where
 
@@ -20,7 +18,7 @@ import           Data.Aeson                          (encode, decode)
 import           Data.ByteString.Lazy.Internal       (ByteString)
 import           Data.Tuple.Extra                    (uncurry3)
 import           Engine.Engine hiding                (fromLens, fromFunctions, state, nature)
-import           Engine.ExternalEnvironment
+import           Engine.ExternalEnvironment          (ExternalEnvironmentGame, fromFunctions, fromLens, interactWithEnv)
 import           Examples.ExternalEnvironment.Common (extractNextState)
 import           Examples.SequentialMoves            (trustGamePayoffProposer, trustGamePayoffResponder, Pie, Factor, Sent, SentBack)
 import           Network.WebSockets.Connection       (PendingConnection)
@@ -31,7 +29,6 @@ import qualified Network.WebSockets                  as WS
 data GameException = BadSentInputException     { got :: Double, max :: Double }
                    | BadSentBackInputException { got :: Double, max :: Double }
   deriving (Show, Exception)
-
 
 wsPlay :: PendingConnection -> Handler ()
 wsPlay pending = do
@@ -109,10 +106,8 @@ trustGame :: p
                   (Double, Double)
                   ()
 trustGame pie factor = [opengame|
-
    inputs    :      ;
    feedback  :  (payoff1,payoff2)  ;
-
    :----------------------------:
    inputs    :   ;
    feedback  : payoff1     ;
@@ -125,9 +120,7 @@ trustGame pie factor = [opengame|
    operation : interactWithEnv;
    outputs   : sentBack ;
    returns   : trustGamePayoffResponder factor sent sentBack ;
-
    :----------------------------:
-
    outputs   :  (sent,sentBack)  ;
    returns   :      ;
    |]
@@ -144,16 +137,13 @@ proposerDecision :: ExternalEnvironmentGame
 proposerDecision = [opengame|
    inputs    : pie ;
    feedback  :   ;
-
    :----------------------------:
    inputs    : pie ;
    feedback  : ignorePayoff    ;
    operation : interactWithEnv ;
    outputs   : sent ;
    returns   : payoffProposer    ;
-
    :----------------------------:
-
    outputs   :  sent        ;
    returns   :  payoffProposer    ;
   |]
@@ -169,16 +159,13 @@ responderDecision :: ExternalEnvironmentGame
 responderDecision = [opengame|
    inputs    : sent     ;
    feedback  :   ;
-
    :----------------------------:
    inputs    : sent  ;
    feedback  : ignorePayoff     ;
    operation : interactWithEnv ;
    outputs   : sentBack ;
    returns   : payoffResponder ;
-
    :----------------------------:
-
    outputs   :  sentBack         ;
    returns   :  payoffResponder  ;
    |]
@@ -194,16 +181,13 @@ proposerPayoff :: ExternalEnvironmentGame
 proposerPayoff = [opengame|
    inputs    : pie, sent, sentBack    ;
    feedback  :   ;
-
    :----------------------------:
    inputs    : pie, sent, sentBack  ;
    feedback  :      ;
    operation : fromFunctions (uncurry3 trustGamePayoffProposer) id;
    outputs   : payoffSender;
    returns   :  ;
-
    :----------------------------:
-
    outputs   :  payoffSender    ;
    returns   :      ;
   |]
@@ -218,37 +202,16 @@ responderPayoff :: ExternalEnvironmentGame
 responderPayoff = [opengame|
    inputs    : factor, sent, sentBack    ;
    feedback  :   ;
-
    :----------------------------:
    inputs    : factor, sent, sentBack  ;
    feedback  :      ;
    operation : fromFunctions (uncurry3 trustGamePayoffResponder) id;
    outputs   : payoffResponder;
    returns   :  ;
-
    :----------------------------:
-
    outputs   :  payoffResponder    ;
    returns   :      ;
   |]
-
-
-{-
-
-
---- Control flow now:
-
--- 0 extractNextState from proposerDecision -> _sent_
--- 1 extractNextState from responderDecision ->  _sentBack_
--- 2 responderDecision produces _payoff2_ ->
--- 3 senderDecision produces _payoff1_
-
-
-testSender = senderDecision (3 :: Double)
-
-testResponder = responderDecision (3 :: Double)
---}
-
 
 -- Trustless
 --   I give you 0
@@ -296,16 +259,3 @@ test pie sentInput sentBackInput factor = do
 
   return (sent, sentBack, payoff1, payoff2)
 
-
-
--- proposerEval :: IO Double
--- proposerEval = extractNextState (play proposerDecision (10 {- sent -} ::- Nil)) () -- 10
---                                                                      -- ^ this is the s input in the extractState, the _pie_ in the _proposerGame_
--- responderEval :: IO Double
--- responderEval = extractNextState (play responderDecision (5 {- sentBack -} ::- Nil)) 5 {- sent -}
---
--- proposerPayoffEval :: IO Payoff
--- proposerPayoffEval = extractNextState (play proposerPayoff Nil) (10,10,5)
---
--- responderPayoffEval :: Factor -> IO Payoff
--- responderPayoffEval factor = extractNextState (play (responderPayoff factor) Nil) (10,5)

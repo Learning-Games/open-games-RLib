@@ -12,16 +12,11 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-
-
 module Engine.ExternalEnvironment where
 
 import           Engine.OpenGames hiding (lift)
 import           Engine.OpticClass
 import           Engine.TLL
-
-
-
 
 ---------------------------------------------------------------------
 -- This module implements a plain pure input version of an open game.
@@ -31,14 +26,11 @@ import           Engine.TLL
 -- experiments.
 ---------------------------------------------------------------------
 
-
-
 -------------
 -- Data types
 type AgentEE = String
 
 type ExternalEnvironmentGame a b x s y r = OpenGame (MonadOptic IO) (MonadContext IO) a b x s y r
-
 
 ---------------------
 -- Main functionality
@@ -47,20 +39,17 @@ interactWithEnv ::
   (Show a, Ord a) =>
    ExternalEnvironmentGame  '[a] '[] x Double a Double
 interactWithEnv = OpenGame {
-  play =  \(strat ::- Nil) -> let v x = do
+  play =  \(strat ::- Nil) -> let v _ = do
                                    return ((),strat)
                                   u () r = pure r
                                    in MonadOptic v u ,
   evaluate = undefined}
-
-
 
 -- Support functionality for constructing open games
 fromLens :: (x -> y) -> (x -> r -> s) -> ExternalEnvironmentGame '[] '[] x s y r
 fromLens v u = OpenGame {
   play = \Nil -> MonadOptic (\x -> return (x, v x)) (\x r -> return (u x r)),
   evaluate = \Nil _ -> Nil}
-
 
 fromFunctions :: (x -> y) -> (r -> s) -> ExternalEnvironmentGame '[] '[] x s y r
 fromFunctions f g = fromLens f (const g)
