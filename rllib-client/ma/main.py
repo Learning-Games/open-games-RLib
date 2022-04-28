@@ -27,8 +27,8 @@ from policies.pd      import ( always_defect
                              , tit_for_tat_0
                              , tit_for_tat_1
                              )
-from policies.tg      import ( always_constant
-                             , always_fraction
+from policies.tg      import ( always_constant_0
+                             , always_constant_1
                              )
 from configs          import ( make_pd_config
                              , make_rps_config
@@ -98,11 +98,11 @@ if __name__ == "__main__":
     train( make_rps_config(learned, learned, episode_length=10), timesteps_total=timesteps)
     train( make_rps_config(learned, learned, episode_length=100), timesteps_total=timesteps)
 
-    # TODO: always_constant only works for player2; make it work for either
-    train( make_trust_game_config(learned, always_constant(0), pie=10), timesteps_total=timesteps )
-    train( make_trust_game_config(learned, always_constant(0.1), pie=10), timesteps_total=timesteps )
-    train( make_trust_game_config(learned, always_constant(0.5), pie=10), timesteps_total=timesteps )
-    train( make_trust_game_config(learned, always_constant(1), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(learned, always_constant_1(0), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(learned, always_constant_1(0.1), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(always_constant_0(0.1), learned, pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(learned, always_constant_1(0.5), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(learned, always_constant_1(1), pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(learned, learned, pie=10), timesteps_total=timesteps )
 
     print("done.")
