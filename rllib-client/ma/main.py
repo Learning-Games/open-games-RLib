@@ -24,7 +24,8 @@ from policies.rps     import always_rock, random_rps_move
 from policies.pd      import ( always_defect
                              , random_pd_move
                              , always_cooperate
-                             , tit_for_tat
+                             , tit_for_tat_0
+                             , tit_for_tat_1
                              )
 from policies.tg      import ( always_constant
                              , always_fraction
@@ -84,7 +85,8 @@ if __name__ == "__main__":
     train( make_pd_config(learned, always_defect), timesteps_total=timesteps )
     train( make_pd_config(learned, random_pd_move), timesteps_total=timesteps )
     train( make_pd_config(learned, random_pd_move, episode_length=100), timesteps_total=timesteps)
-    train( make_pd_config(learned, tit_for_tat), timesteps_total=timesteps )
+    train( make_pd_config(learned, tit_for_tat_1), timesteps_total=timesteps )
+    train( make_pd_config(tit_for_tat_0, learned), timesteps_total=timesteps )
     train( make_pd_config(learned, learned, episode_length=1), timesteps_total=timesteps )
     train( make_pd_config(learned, learned, episode_length=10), timesteps_total=timesteps )
     train( make_pd_config(learned, learned, episode_length=100), timesteps_total=timesteps )
@@ -96,6 +98,7 @@ if __name__ == "__main__":
     train( make_rps_config(learned, learned, episode_length=10), timesteps_total=timesteps)
     train( make_rps_config(learned, learned, episode_length=100), timesteps_total=timesteps)
 
+    # TODO: always_constant only works for player2; make it work for either
     train( make_trust_game_config(learned, always_constant(0), pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(learned, always_constant(0.1), pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(learned, always_constant(0.5), pie=10), timesteps_total=timesteps )
