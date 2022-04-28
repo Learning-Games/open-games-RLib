@@ -38,7 +38,8 @@ def make_multiagent_single_player_config ():
         }
     return multiagent
 
-def make_trust_game_config ( policy
+def make_trust_game_config ( policy0
+                           , policy1
                            , factor=3
                            , pie=10
                            , game_server_url="ws://localhost:3000/trust-game/play"
@@ -49,33 +50,36 @@ def make_trust_game_config ( policy
                 , "pie": pie
                 , "game_server_url": game_server_url
                 }
-        , "multiagent": make_multiagent_config(policy)
+        , "multiagent": make_multiagent_config(policy0, policy1)
         , "callbacks": DefaultCallbacks
         }
-    c["env_config"]["name"] = f'{c["env"]}/tg/player1={policy.name}/{dict_to_string(c["env_config"])}/'
+    c["env_config"]["name"] = f'{c["env"]}/tg/player0={policy0.name}/player1={policy1.name}/{dict_to_string(c["env_config"])}/'
     return c
 
-def make_multiagent_config (player_1_policy):
+def make_multiagent_config (policy0, policy1):
     def select_policy (agent_id, episode, **kwargs):
         assert agent_id in [ 0, 1 ], f"Unknown player: {agent_id}!"
         return f"player_{agent_id}"
 
-    if player_1_policy.name == "learned":
-        policies_to_train = ["player_0", "player_1"]
-    else:
-        policies_to_train = ["player_0"]
+    # Note that if neither of them is "learned" there's no training to do.
+    policies_to_train = []
+    if policy0.name == "learned":
+        policies_to_train = policies_to_train + ["player_0"]
+    if policy1.name == "learned":
+        policies_to_train = policies_to_train + ["player_1"]
 
     multiagent = {
         "policies_to_train": policies_to_train,
         "policy_mapping_fn": select_policy,
         "policies": {
-            "player_0": learned.policy,
-            "player_1": player_1_policy.policy,
+            "player_0": policy0.policy,
+            "player_1": policy1.policy,
             }
         }
     return multiagent
 
-def make_action_space_config ( policy
+def make_action_space_config ( policy0
+                             , policy1
                              , action_space
                              , episode_length
                              , game_server_url
@@ -87,17 +91,17 @@ def make_action_space_config ( policy
                 , "episode_length": episode_length # Used by our callback.
                 , "game_server_url": game_server_url
                 }
-        , "multiagent": make_multiagent_config(policy)
+        , "multiagent": make_multiagent_config(policy0, policy1)
         , "callbacks": AverageRewardOverEpisodeLength
         }
-    c["env_config"]["name"] = f'{c["env"]}/{prefix}/player1={policy.name}/ep_len={episode_length}/'
+    c["env_config"]["name"] = f'{c["env"]}/{prefix}/player0={policy0.name}/player1={policy1.name}/ep_len={episode_length}/'
     return c
 
-def make_pd_config (policy, episode_length=10, game_server_url="ws://localhost:3000/prisoners-dilemma/play"):
-    return make_action_space_config(policy, pd_action_space, episode_length, game_server_url, prefix="pd")
+def make_pd_config (policy0, policy1, episode_length=10, game_server_url="ws://localhost:3000/prisoners-dilemma/play"):
+    return make_action_space_config(policy0, policy1, pd_action_space, episode_length, game_server_url, prefix="pd")
 
-def make_rps_config (policy, episode_length=10, game_server_url="ws://localhost:3000/rock-paper-scissors/play"):
-    return make_action_space_config(policy, rps_action_space, episode_length, game_server_url, prefix="rps")
+def make_rps_config (policy0, policy1, episode_length=10, game_server_url="ws://localhost:3000/rock-paper-scissors/play"):
+    return make_action_space_config(policy0, policy1, rps_action_space, episode_length, game_server_url, prefix="rps")
 
 class AverageRewardOverEpisodeLength(DefaultCallbacks):
     def on_episode_end(
