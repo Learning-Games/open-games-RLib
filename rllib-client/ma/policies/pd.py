@@ -58,7 +58,7 @@ always_cooperate = NamedPolicy( name="always_cooperate"
                                                  )
                               )
 
-# Tit-for-tat policy policy, to be used by "player_0" only.
+# Tit-for-tat policy, to be used by "player_0" only.
 tit_for_tat_0 = NamedPolicy( name="tit_for_tat_0"
                            , policy=PolicySpec( policy_class=TitForTat
                                               , config={ "initial_move": pd_action_space.index("Cooperate")
@@ -67,7 +67,7 @@ tit_for_tat_0 = NamedPolicy( name="tit_for_tat_0"
                                               )
                            )
 
-# Tit-for-tat policy policy, to be used by "player_1" only.
+# Tit-for-tat policy, to be used by "player_1" only.
 tit_for_tat_1 = NamedPolicy( name="tit_for_tat_1"
                            , policy=PolicySpec( policy_class=TitForTat
                                               , config={ "initial_move": pd_action_space.index("Cooperate")
