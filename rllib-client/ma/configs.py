@@ -62,6 +62,8 @@ def make_multiagent_config (policy0, policy1):
         return f"player_{agent_id}"
 
     # Note that if neither of them is "learned" there's no training to do.
+    assert "learned" in [policy0.name, policy1.name], "At least one policy must be \"learned\""
+
     policies_to_train = []
     if policy0.name == "learned":
         policies_to_train = policies_to_train + ["player_0"]
