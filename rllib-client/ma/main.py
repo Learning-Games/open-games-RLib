@@ -55,6 +55,7 @@ base_config = {
 
 # Learners tried:
 #   PG(yes), DQN(no), PPO(no), QMIX—{torch,jax}(no), DDPG(no), ES(yes?), A3C(partially)
+#   ARS(no), CQL(no), DREAMER(no), IMPALA(no), MAML(no), MARWIL(no), MBMPO(no), SAC(no)
 
 def train(conf, timesteps_total=10_000, learner="PG"):
 
