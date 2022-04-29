@@ -46,15 +46,12 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
         # Required by `rllib/env/multi_agent_env.py`
         self._agent_ids   = set([ f"player_{i}" for i in range(self.num_agents) ])
 
-        # TODO: Revisit
-        # self.move_of_no_move = self.num_actions
-
         # We make a discrete choice from our action space
         self.action_space      = Discrete(self.num_actions)
 
         # Our observations are simply a tuple of:
         #
-        #   ( ourAction, theirAction )
+        #   ( player1Action, player2Action )
         #
         self.observation_space = Tuple( ( Discrete(self.num_actions)
                                       ,   Discrete(self.num_actions)
@@ -72,12 +69,7 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
 
         # Prisoners Dilemma:   In the beginning, everyone cooperates.
         # Rock-paper-scissors: In the beginning, everyone plays rock?!
-        #
         # Alt. In the beginning, everyone makes the dummy move of no-move.
-        #
-        # TODO:
-        #   - move of no move?
-        #   - or start from some specific starting point?
 
         # Close the socket if it's already open, and reopen it
         if self.ws:

@@ -62,7 +62,6 @@ class RandomMove(Policy):
     def _get_random_move(self):
         return choice(range(len(self._action_space)))
 
-    # TODO: Do we really need this?
     def get_initial_state(self):
         move = self._get_random_move()
         return [move]

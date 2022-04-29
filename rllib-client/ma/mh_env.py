@@ -17,12 +17,7 @@ class MontyHallEnv(MultiAgentEnv):
 
         # We always pass two moves, but depending on which step we are we
         # ignore half the tuple.
-        # NOTE: Alternatively: we can have 5 actions (1-3 || False-True) and
-        # mask appropriately per step.
-        # Discrete(2): False (0), True (1)
-        self.action_space      = Tuple((Discrete(3), Discrete(2))) # (door, change)
-        self.false_value = 0
-        self.true_value  = 1
+        self.action_space = Tuple((Discrete(3), Discrete(2))) # (door, change)
 
         # One observation per step; namely the amount that the other person sent.
 	# NOTE: We use "3" as the invalid / starting observation. Haskell only
@@ -77,14 +72,13 @@ class MontyHallEnv(MultiAgentEnv):
 
         if self.step_number == 2:
             change_door = action_dict[0][1]
-            self.ws.send(json.dumps(bool(change_door == 1)))
+            self.ws.send(json.dumps(bool(change_door == 1))) # 0 -> False, 1 -> True
 
             payoff = json.loads(self.ws.recv())
             rewards = { 0: payoff }
 
             is_done = True
 
-            # TODO: Revisit; this seems horribly wrong.
             observations = { 0: self.default_observation }
 
         dones = { 0: is_done }

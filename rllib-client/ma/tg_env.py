@@ -29,7 +29,6 @@ class TrustGameEnv(MultiAgentEnv):
                                        , Box(low=0, high=1, shape=(1,), dtype=np.float32)
                                       ))
 
-
         # Required by `rllib/env/multi_agent_env.py`
         self._agent_ids   = set([ f"player_{i}" for i in range(self.num_agents) ])
 
@@ -75,7 +74,6 @@ class TrustGameEnv(MultiAgentEnv):
             # If the input was valid there's more to do
             is_done = not sent_input_is_valid
 
-            # TODO: Is this a good idea?
             observations = {}
             for i in range(self.num_agents):
                 observations[i] = ( sent_input, 0 )
@@ -96,7 +94,6 @@ class TrustGameEnv(MultiAgentEnv):
 
             is_done = True
 
-            # TODO: Revisit; this seems horribly wrong.
             observations = {}
             for i in range(self.num_agents):
                 observations[i] = ( 0, sent_back_input )

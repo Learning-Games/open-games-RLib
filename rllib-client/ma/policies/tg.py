@@ -28,9 +28,6 @@ class FractionalReturn(Policy):
     def _center_move(self, move):
         return move - ( (self.action_space.high + self.action_space.low) / 2 )
 
-    # TODO: ?? Somehow get the last move of player 1, and then
-    #       compute factor * that * fraction, and return that.
-
     # Unclear how to get the last move of player 1, so the safe thing to to is
     # to start from zero and then use the observations to decide.
     def get_initial_state(self):
