@@ -11,6 +11,10 @@
 
 module Examples.ExternalEnvironment.TrustGame where
 
+---------------------------------------------------------------------
+-- Open game implementation of the Trust game
+---------------------------------------------------------------------
+
 import           Control.Exception                   (throw, handle, fromException, Exception, SomeException(..))
 import           Control.Monad                       (forever, when)
 import           Control.Monad.IO.Class              (liftIO)
@@ -30,6 +34,10 @@ data GameException = BadSentInputException     { got :: Double, max :: Double }
                    | BadSentBackInputException { got :: Double, max :: Double }
   deriving (Show, Exception)
 
+-- Play the game via a socket. Note: This has been modified so that the input
+-- it requests from Python is always a _fraction_ (between 0 and 1), and then
+-- we compute the actual amounts in the appropriate way. This simplifies the
+-- Python RL model design.
 wsPlay :: PendingConnection -> Handler ()
 wsPlay pending = do
   liftIO $ do
@@ -37,11 +45,6 @@ wsPlay pending = do
     handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
       -- Constants: Note, we read them as input.
       (Just (pie, factor)) <- decode <$> WS.receiveData @ByteString connection
-
-      -- Note: This has been modified so that the input it requests from
-      -- Python is always a _fraction_ (between 0 and 1), and then we compute
-      -- the actual amounts in the appropriate way. This simplifies the Python
-      -- RL model design.
 
       -- Game 1
       --  - Ask for an amount to send
@@ -95,8 +98,8 @@ wsPlay pending = do
         Just ge -> putStrLn ("Bad game play: " ++ show ge ++ ". Goodbye.") >> pure ()
         _       -> pure ()
 
--- 1.1. Trust Game
-trustGame :: p
+-- Monolithic version of the game
+trustGame :: Pie
              -> Factor
              -> ExternalEnvironmentGame
                   '[Double, Double]
@@ -113,7 +116,7 @@ trustGame pie factor = [opengame|
    feedback  : payoff1     ;
    operation : interactWithEnv ;
    outputs   : sent ;
-   returns   : trustGamePayoffProposer factor sent sentBack; // TODO: should factor be pie here?
+   returns   : trustGamePayoffProposer pie sent sentBack;
 
    inputs    : sent;
    feedback  : payoff2     ;
@@ -125,8 +128,7 @@ trustGame pie factor = [opengame|
    returns   :      ;
    |]
 
--- 2. splitting things into components
-
+-- Game 1: Have the first player decide an amount to send
 proposerDecision :: ExternalEnvironmentGame
                       '[Double]
                       '[]
@@ -148,7 +150,7 @@ proposerDecision = [opengame|
    returns   :  payoffProposer    ;
   |]
 
-
+-- Game 2: Have the second player decide an amount to send back
 responderDecision :: ExternalEnvironmentGame
                        '[Double]
                        '[]
@@ -171,6 +173,7 @@ responderDecision = [opengame|
    |]
 
 
+-- Game 3: Considering (almost) everything, reveal player 1's payoff.
 proposerPayoff :: ExternalEnvironmentGame
                     '[]
                     '[]
@@ -192,6 +195,7 @@ proposerPayoff = [opengame|
    returns   :      ;
   |]
 
+-- Game 3: Considering (almost) everything, reveal player 2's payoff.
 responderPayoff :: ExternalEnvironmentGame
                      '[]
                      '[]
@@ -213,19 +217,9 @@ responderPayoff = [opengame|
    returns   :      ;
   |]
 
--- Trustless
---   I give you 0
---   you get 0
---   you give me back 0
---
--- Trusty
---   I give you X
---   you get 3X             (-2x for the manager)
---   you give me back 2X    (+x p1, +x p2)
-
--- issue: in proposerDecision: unenforced logic: 0 <= sent <= pie
--- issue: sendBack is unrestricted; it doesn't even depend on factor currently
--- 0 <= sentBack <= factor * sent
+-- NOTE: The trustless equilibrium is for both to send nothing. A more trusty
+-- solution would be for player 1 to send X, then player 2 to send 2X back,
+-- thus having both players end up with +X.
 
 -- e.g. (test 100 10 6 3)
 

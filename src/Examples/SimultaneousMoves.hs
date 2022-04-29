@@ -1,11 +1,15 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Examples.SimultaneousMoves where
 
 
+import Data.Aeson                (ToJSON, FromJSON, encode, decode)
 import Engine.Engine
+import GHC.Generics              (Generic)
 import Preprocessor.Preprocessor
 
 
@@ -20,7 +24,7 @@ import Preprocessor.Preprocessor
 
 -- 1.0. Prisoner's dilemma
 data ActionPD = Cooperate | Defect
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON)
 
 -- | Payoff matrix for player i given i's action and j's action
 prisonersDilemmaMatrix :: ActionPD -> ActionPD -> Payoff

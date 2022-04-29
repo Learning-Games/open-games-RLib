@@ -7,10 +7,13 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeApplications #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# OPTIONS_GHC -fno-warn-unused-matches #-} -- due to the code generated for prisonersDilemmaExternal
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
 module Examples.ExternalEnvironment.PD where
+
+---------------------------------------------------------------------
+-- Open game implementation of the Prisoner's Dilemma game
+---------------------------------------------------------------------
 
 import           Control.Exception                   (SomeException, handle)
 import           Control.Monad                       (forever)
@@ -37,21 +40,13 @@ data PlayResult = PlayResult
   , player2Payoff  :: Double
   } deriving (Show, Generic, ToJSON, FromJSON)
 
-deriving instance Generic  ActionPD
-
--- Orphans
-instance ToJSON   ActionPD
-instance FromJSON ActionPD
-
 wsPlay :: PendingConnection -> Handler ()
 wsPlay pending = do
   liftIO $ do
     connection <- WS.acceptRequest pending
     handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
       -- Receive and decode the action of each player
-      -- TODO: Fix this partial pattern match here.
-      playParameters <- WS.receiveData @ByteString connection
-      let Just (PlayParameters { player1Action, player2Action }) = decode playParameters
+      Just (PlayParameters { player1Action, player2Action }) <- decode <$> WS.receiveData @ByteString connection
 
       -- Play the game to compute the payoffs
       let strategy = player1Action ::- player2Action ::- Nil
@@ -65,7 +60,6 @@ wsPlay pending = do
   where
     disconnect :: SomeException -> IO ()
     disconnect _ = pure ()
-
 
 prisonersDilemmaExternal :: ExternalEnvironmentGame
                               '[ActionPD, ActionPD]

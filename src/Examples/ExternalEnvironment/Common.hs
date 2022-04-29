@@ -2,18 +2,20 @@ module Examples.ExternalEnvironment.Common (extractNextState, extractPayoffAndNe
 
 import Engine.Engine (MonadOptic(..))
 
--- TODO: These probably belong elsewhere (where?)
+---------------------------------------------------------------------
+-- Utility functions to extract the next state and payoff from a
+-- monad optic. TODO: Perhaps there is a better location for these
+-- functions.
+---------------------------------------------------------------------
 
--- extract next state (action)
 extractNextState :: MonadOptic m s t a b -> s -> m a
 extractNextState (MonadOptic v _) x = do
-  (_,a) <- v x
-  pure a
+  (_, nextState) <- v x
+  pure nextState
 
--- extract both the next state and the continuation
 extractPayoffAndNextState :: MonadOptic m s t a b -> s -> b -> m (t, a)
 extractPayoffAndNextState (MonadOptic v u) x r = do
   (z, nextState) <- v x
   payoff <- u z r
-  return (payoff, nextState)
+  pure (payoff, nextState)
 

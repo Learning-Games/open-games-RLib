@@ -13,6 +13,10 @@
 
 module Examples.ExternalEnvironment.MontyHall where
 
+---------------------------------------------------------------------
+-- Open game implementation of the Monty Hall game
+---------------------------------------------------------------------
+
 import           Control.Exception                   (handle, SomeException(..))
 import           Control.Monad                       (forever)
 import           Control.Monad                       (replicateM)
@@ -73,12 +77,12 @@ chooseWinningDoor = do
 chooseRandomDoorFromSet :: S.Set Door -> IO DoorGoat
 chooseRandomDoorFromSet doors = do
   g <- newStdGen
-  let s = S.size doors
-      index = fst $ randomR (0, s - 1) g
+  -- Note: randomR is inclusive in the bounds
+  let index = fst $ randomR (0, 2) g
   let result = S.elemAt index doors
   return result
 
--- Given door with car behind and chosen door, reveal door which contains a goat
+-- Given door with car behind and chosen door, reveal a door which contains a goat.
 revealGoatDoor :: DoorCar -> Door -> IO DoorGoat
 revealGoatDoor winner choice = do
   opened_door <- chooseRandomDoorFromSet $ S.delete choice $ S.delete winner initialSetDoors
@@ -87,6 +91,7 @@ revealGoatDoor winner choice = do
 
 ----------
 -- Payoffs
+
 payoffDecision :: DoorCar ->  Door -> ChangeChoice -> Double
 payoffDecision winner doorChosen choiceChanged
   | winner == doorChosen && not choiceChanged  = prize
@@ -142,12 +147,7 @@ montyHallExternal = [opengame|
    returns   :    ;
   |]
 
--- setup: choose a winning door for the car
--- player chooses a door
--- presenter opens another door
--- player chooses to change or not
--- compute payoff
-
+-- Game 1: Choose a random door to hide the car behind.
 chooseInitialDoor :: ExternalEnvironmentGame
                        '[]
                        '[]
@@ -170,13 +170,14 @@ chooseInitialDoor = [opengame|
    returns   :     ;
   |]
 
+-- Game 2: Have the player pick a door.
 playerChooseDoor :: ExternalEnvironmentGame
-                       '[Door]      -- a: inputs from interactWithEnv (1 call
-                       '[]          -- b?
-                       DoorCar      -- x? (winningDoor)
-                       ()           -- s
-                       Door         -- y: outputs of the overall thing
-                       ()           -- r: returns
+                      '[Door]
+                      '[]
+                      DoorCar
+                      ()
+                      Door
+                      ()
 playerChooseDoor = [opengame|
    inputs    : winningDoor ;
    feedback  :     ;
@@ -192,7 +193,7 @@ playerChooseDoor = [opengame|
    returns   :     ;
   |]
 
-
+-- Game 3: Have the presenter choose and open a goat door.
 chooseGoatDoor :: ExternalEnvironmentGame
                     '[]
                     '[]
@@ -215,7 +216,8 @@ chooseGoatDoor = [opengame|
    returns   :     ;
   |]
 
-
+-- Game 4: Have the player decide whether they wish to stick to their original
+-- choice or whether they wish to switch to the remaining closed door.
 playerChangeChoice :: ExternalEnvironmentGame
                         '[ChangeChoice]
                         '[]
@@ -238,6 +240,7 @@ playerChangeChoice = [opengame|
    returns   :     ;
   |]
 
+-- Game 5: Considering everything, reveal whether the player won or not.
 playerFinalPayoff :: ExternalEnvironmentGame
                        '[]
                        '[]
@@ -258,6 +261,9 @@ playerFinalPayoff = [opengame|
    outputs   : payoff ;
    returns   :     ;
   |]
+
+----------------
+-- test the game
 
 -- Duplicates the functionality of wsPlay but takes the inputs as arguments and
 -- returns the results as outputs, instead of using a socket.
@@ -310,6 +316,9 @@ switch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test 
 
 dontSwitch :: Int -> IO Double
 dontSwitch n = fmap (/ fromIntegral n) (sum <$> replicateM n (playerPayoff <$> test (PlayParameters { theDoor = 2, playerAction = False })))
+
+-----------------------------
+-- play the game via a socket
 
 wsPlay :: PendingConnection -> Handler ()
 wsPlay pending = do

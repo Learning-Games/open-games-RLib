@@ -11,6 +11,10 @@
 
 module Examples.ExternalEnvironment.RockPaperScissors where
 
+---------------------------------------------------------------------
+-- Open game implementation of the Rock-Paper-Scissors game
+---------------------------------------------------------------------
+
 import           Control.Exception                   (SomeException, handle)
 import           Control.Monad                       (forever)
 import           Control.Monad.IO.Class              (liftIO)
@@ -59,9 +63,7 @@ wsPlay pending = do
     connection <- WS.acceptRequest pending
     handle disconnect . WS.withPingThread connection 10 (pure ()) $ liftIO $ forever $ do
       -- Receive and decode the action of each player
-      -- TODO: Fix this partial pattern match here.
-      playParameters <- WS.receiveData @ByteString connection
-      let Just (PlayParameters { player1Action, player2Action }) = decode playParameters
+      Just (PlayParameters { player1Action, player2Action }) <- decode <$> WS.receiveData @ByteString connection
 
       -- Play the game to compute the payoffs
       let strategy = player1Action ::- player2Action ::- Nil
