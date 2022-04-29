@@ -36,9 +36,6 @@ from configs          import ( make_pd_config
                              , make_monty_hall_config
                              )
 
-# TODO: The trust game is non-symmetric and with our current abstraction we
-# cannot train the second player while the first player has a fixed strategy.
-
 framework = "tf2"
 
 register_env("DTPLGE", lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config))
@@ -53,10 +50,6 @@ base_config = {
     "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", 0)),
     "framework": framework,
     }
-
-# Learners tried:
-#   PG(yes), DQN(no), PPO(no), QMIX—{torch,jax}(no), DDPG(no), ES(yes?), A3C(partially)
-#   ARS(no), CQL(no), DREAMER(no), IMPALA(no), MAML(no), MARWIL(no), MBMPO(no), SAC(no)
 
 def train(conf, timesteps_total=10_000, learner="PG"):
 
@@ -83,7 +76,9 @@ if __name__ == "__main__":
     train( make_monty_hall_config(), timesteps_total=timesteps )
 
     train( make_pd_config(learned, always_defect), timesteps_total=timesteps )
+    train( make_pd_config(always_defect, learned), timesteps_total=timesteps )
     train( make_pd_config(learned, random_pd_move), timesteps_total=timesteps )
+    train( make_pd_config(random_pd_move, learned), timesteps_total=timesteps )
     train( make_pd_config(learned, random_pd_move, episode_length=100), timesteps_total=timesteps)
     train( make_pd_config(learned, tit_for_tat_1), timesteps_total=timesteps )
     train( make_pd_config(tit_for_tat_0, learned), timesteps_total=timesteps )
@@ -92,17 +87,22 @@ if __name__ == "__main__":
     train( make_pd_config(learned, learned, episode_length=100), timesteps_total=timesteps )
 
     train( make_rps_config(learned, always_rock, episode_length=100), timesteps_total=timesteps)
+    train( make_rps_config(always_rock, learned, episode_length=100), timesteps_total=timesteps)
     train( make_rps_config(learned, random_rps_move, episode_length=10), timesteps_total=timesteps)
+    train( make_rps_config(random_rps_move, learned, episode_length=10), timesteps_total=timesteps)
     train( make_rps_config(learned, random_rps_move, episode_length=100), timesteps_total=timesteps)
     train( make_rps_config(learned, learned, episode_length=1), timesteps_total=timesteps)
     train( make_rps_config(learned, learned, episode_length=10), timesteps_total=timesteps)
     train( make_rps_config(learned, learned, episode_length=100), timesteps_total=timesteps)
 
     train( make_trust_game_config(learned, always_constant_1(0), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(always_constant_1(0), learned, pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(learned, always_constant_1(0.1), pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(always_constant_0(0.1), learned, pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(learned, always_constant_1(0.5), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(always_constant_0(0.5), learned, pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(learned, always_constant_1(1), pie=10), timesteps_total=timesteps )
+    train( make_trust_game_config(always_constant_1(1), learned, pie=10), timesteps_total=timesteps )
     train( make_trust_game_config(learned, learned, pie=10), timesteps_total=timesteps )
 
     print("done.")
