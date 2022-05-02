@@ -125,3 +125,33 @@ Observe results via `tensorboard`:
 cd ~/ray_results && tensorboard --logdir .
 ```
 
+# A note on interpreting the graps in TensorBoard
+
+Ray, in it's default configuration, generates _a lot_ of graphs. We have taken
+effort to generate filenames that contain a bunch of the metadata, so that you
+can easily filter the training runs, to find the configurations you are
+interested in.
+
+A standard filter for the graphs, to find those related to the mean reward by
+player, is:
+
+```
+sampler.*mean/player_
+```
+
+Note there is one quirk, in the games where we allowed a variable "episode
+length"; we implemented a custom tensorboard callback that computes the
+_average_ reward per episode; you can find this particular graph with the
+following filter:
+
+
+```
+sampler.*step_average_mean
+```
+
+Note that you can also see some metrics related to CPU/GPU utlisiation, and
+timing results, with the following filter:
+
+```
+pu|time_this_iter_s|throughput|learn_time_ms
+```
