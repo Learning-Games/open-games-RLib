@@ -78,7 +78,7 @@ chooseRandomDoorFromSet :: S.Set Door -> IO DoorGoat
 chooseRandomDoorFromSet doors = do
   g <- newStdGen
   -- Note: randomR is inclusive in the bounds
-  let index = fst $ randomR (0, 2) g
+  let index = fst $ randomR (0, S.size doors - 1) g
   let result = S.elemAt index doors
   return result
 
@@ -379,5 +379,5 @@ wsPlay pending = do
       WS.sendTextData connection (encode payoff)
   where
     disconnect :: SomeException -> IO ()
-    disconnect _ = pure ()
+    disconnect e = putStrLn ("Disconnecting. Error: " ++ show e) >> pure ()
 
