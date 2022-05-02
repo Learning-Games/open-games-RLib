@@ -19,16 +19,16 @@ class ConstantMove(Policy):
         # This is probably broken for more complicated action spaces (i.e.
         # tuples, dicts, ...)
         if isinstance(self.action_space, Box):
-            # Oh, that means the action space is a 'Box', so self.move needs
-            # to be centered.
-            #
-            # TODO: This is definitely wrong; need to track down the code in
-            # ray that it doing this transformation.
+            # TODO: This is definitely wrong for action spaces with differen
+            # bounds; need to track down the code in ray that it doing this
+            # transformation and find the right way to reverse it; for now we
+            # just throw an error.
             #
             #   0-1 -> -1, 1
-            assert self.action_space.high == 1, "unsupported action space; review."
-            assert self.action_space.low  == 0, "unsupported action space; review."
-            self.move = (move*2) - 1 # - ( (self.action_space.high + self.action_space.low) )
+            assert self.action_space.high == 1, "unsupported action space, high must equal 1; review."
+            assert self.action_space.low  == 0, "unsupported action space, low must equal 0; review."
+
+            self.move = (move*2) - 1
             # print(f"changed {move} to be {self.move}")
         else:
             # Discrete, it's okay.
@@ -48,7 +48,6 @@ class ConstantMove(Policy):
         **kwargs
     ):
         x = state_batches[0], state_batches, {}
-        # print(f"x={x}")
         return x
 
 

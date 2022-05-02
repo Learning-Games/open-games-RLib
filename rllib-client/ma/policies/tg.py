@@ -56,16 +56,6 @@ class FractionalReturn(Policy):
         return [[self._scale_move(x) for x in obs_batch[other_agent]]], state_batches, {}
 
 
-# TODO: Do we actually need this function?
-always_fraction = lambda fraction, factor: \
-    NamedPolicy( name=f"always_fraction @ {fraction, factor}"
-               , policy=PolicySpec( policy_class=FractionalReturn
-                                  , config={ "fraction": np.array(fraction, dtype=np.float32)
-                                           , "factor": np.array(factor, dtype=np.float32)
-                                           }
-                                  )
-               )
-
 # Note: Because we changed the _game_, this is actually always a constant
 # _fraction_.
 
