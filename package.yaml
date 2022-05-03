@@ -17,12 +17,11 @@ library:
     - Engine.BayesianGames
     - Engine.Diagnostics
     - Engine.Engine
+    - Engine.InteractiveIO
     - Engine.Memory
     - Engine.OpenGames
     - Engine.OpticClass
     - Engine.QLearning
-    - Engine.QLearningVerboseOutput
-    - Engine.QLearningNoMemory.Export
     - Engine.QLearning.Export
     - Engine.QLearning.ExportAsymmetric
     - Engine.QLearning.ExportAsymmetricLearners
@@ -32,126 +31,146 @@ library:
     - Engine.QLearning.ExportAsymmetricLearnersOwnPrice
     - Engine.QLearning.ExportVerbose
     - Engine.QLearning.ImportAsymmetricLearners
-    - Engine.InteractiveIO
-    - Engine.QLearningSimple
-    - Engine.QLearningBoltzmann.ExportAsymmetricLearnersLogReduced
     - Engine.QLearningBoltzmann
+    - Engine.QLearningBoltzmann.ExportAsymmetricLearnersLogReduced
+    - Engine.QLearningNoMemory.Export
+    - Engine.QLearningSimple
+    - Engine.QLearningVerboseOutput
     - Engine.TLL
-    - Preprocessor.AbstractSyntax
-    - Preprocessor.Compile
-    - Preprocessor.Lambda
-    - Preprocessor.Parser
-    - Preprocessor.THSyntax
-    - Preprocessor.TH
-    - Preprocessor.Types
-    - Preprocessor.Preprocessor
-    - Examples.SimultaneousMoves
-    - Examples.Bayesian
-    - Examples.Decision
-    - Examples.SequentialMoves
     - Examples.Auctions.AuctionSupportFunctions
     - Examples.Auctions.ChooseReservePrice
     - Examples.Auctions.DutchAuction
     - Examples.Auctions.SequentialAuction
     - Examples.Auctions.SimultaneousBidAuction
+    - Examples.Bayesian
+    - Examples.Decision
+    - Examples.ExternalEnvironment.PD
+    - Examples.ExternalEnvironment.RockPaperScissors
+    - Examples.ExternalEnvironment.TrustGame
+    - Examples.ExternalEnvironment.MontyHall
+    - Examples.InteractiveIO.InteractiveIO
     - Examples.Markov.RepeatedPD
-    - Examples.Markov.TwoStageMarkov
     - Examples.Markov.TestSimpleMonteCarlo
     - Examples.Markov.TestSimpleMonteCarlo.Continuation
-    - Graphics
-    - Examples.InteractiveIO.InteractiveIO
+    - Examples.Markov.TwoStageMarkov
+    - Examples.QLearning.AsymmetricLearners
+    - Examples.QLearning.AsymmetricLearners.Internal
+    - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
+    - Examples.QLearning.AsymmetricLearners.MarkovInternal
+    - Examples.QLearning.AsymmetricLearners2PhasesExogAction
+    - Examples.QLearning.AsymmetricLearners3Phases
+    - Examples.QLearning.AsymmetricLearners4Phases
+    - Examples.QLearning.AsymmetricLearners8Phases
+    - Examples.QLearning.AsymmetricPrices
+    - Examples.QLearning.AsymmetricPrices.Internal
+    - Examples.QLearning.BestReply
+    - Examples.QLearning.CalvanoReplication
+    - Examples.QLearning.CalvanoReplication.Internal
+    - Examples.QLearning.CalvanoReplication.InternalVerbose
+    - Examples.QLearning.CalvanoReplicationVerbose
+    - Examples.QLearning.Cournot
+    - Examples.QLearning.Cournot.Internal
+    - Examples.QLearning.CournotBoltzmann
+    - Examples.QLearning.CournotBoltzmann.Internal
     - Examples.QLearning.NoMemory.Internal
     - Examples.QLearning.NoMemory3Phases
     - Examples.QLearning.NoObservation.Internal
     - Examples.QLearning.NoObservation3Phases
     - Examples.QLearning.OwnPriceObservation.Internal
-    - Examples.QLearning.OwnPriceObservationExogAction
     - Examples.QLearning.OwnPriceObservation3Phases
-    - Examples.QLearning.AsymmetricLearners.Internal
-    - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
-    - Examples.QLearning.AsymmetricLearners.MarkovInternal
-    - Examples.QLearning.AsymmetricLearners
-    - Examples.QLearning.AsymmetricLearners2PhasesExogAction
-    - Examples.QLearning.AsymmetricLearners3Phases
-    - Examples.QLearning.AsymmetricLearners4Phases
-    - Examples.QLearning.AsymmetricLearners8Phases
-    - Examples.QLearning.AsymmetricPrices.Internal
-    - Examples.QLearning.AsymmetricPrices
-    - Examples.QLearning.BestReply
-    - Examples.QLearning.CalvanoReplication
-    - Examples.QLearning.CalvanoReplication.Internal
-    - Examples.QLearning.CalvanoReplicationVerbose
-    - Examples.QLearning.CalvanoReplication.InternalVerbose
-    - Examples.QLearning.Cournot.Internal
-    - Examples.QLearning.Cournot
-    - Examples.QLearning.CournotBoltzmann
-    - Examples.QLearning.CournotBoltzmann.Internal
+    - Examples.QLearning.OwnPriceObservationExogAction
     - Examples.QLearning.PD
     - Examples.QLearning.PDDeterministicPlayer
     - Examples.QLearning.SandholmCritesReplication
+    - Examples.SequentialMoves
+    - Examples.SimultaneousMoves
+    - Graphics
+    - Preprocessor.AbstractSyntax
+    - Preprocessor.Compile
+    - Preprocessor.Lambda
+    - Preprocessor.Parser
+    - Preprocessor.Preprocessor
+    - Preprocessor.TH
+    - Preprocessor.THSyntax
+    - Preprocessor.Types
 
 dependencies:
     - base >=4.7 && <5
-    - mtl
-    - transformers
+    - QuickCheck
     - ad
-    - poly
-    - profunctors
-    - template-haskell
-    - parsec
-    - comonad
-    - optics
-    - ixset
-    - random-fu
-    - probability
-    - hashtables
-    - random
-    - vector
-    - vector-instances
-    - unordered-containers
-    - mwc-random >= 0.15.0.1
-    - vector-sized
-    - hashable
-    - cassava
-    - bytestring
     - aeson
-    - filepath
-    - typed-process
-    - clock
-    - rio
-    - formatting
-    - deepseq
     - array
-    - time
+    - bytestring
+    - cassava
+    - clock
+    - comonad
+    - cond
     - containers
+    - criterion
+    - deepseq
+    - directory
+    - double-conversion
+    - extra
+    - fgl
+    - filepath
+    - formatting
+    - graphviz
+    - hashable
+    - hashmap
+    - hashtables
+    - hspec
+    - ixset
+    - lens
+    - megaparsec
+    - monad-bayes
+    - mtl
+    - mwc-random
+    - mwc-random >= 0.15.0.1
+    - optics
+    - optparse-applicative
+    - parsec
     - path
     - path-io
-    - unliftio
-    - double-conversion
-    - hspec
-    - cond
-    - QuickCheck
-    - splitmix
-    - utf8-string
-    - hashmap
-    - directory
-    - graphviz
-    - fgl
-    - lens
-    - typed-process
-    - extra
-    - mwc-random
+    - poly
+    - probability
+    - profunctors
     - random
-    - vector
-    - monad-bayes
-    - criterion
+    - random
+    - random-fu
+    - rio
+    - servant
+    - servant-server
+    - servant-websockets
+    - splitmix
+    - template-haskell
     - text
-    - megaparsec
-
-
-
+    - time
+    - transformers
+    - typed-process
+    - typed-process
+    - unliftio
+    - unordered-containers
+    - utf8-string
+    - vector
+    - vector
+    - vector-instances
+    - vector-sized
+    - wai
+    - warp
+    - websockets
 
 executables:
+  # Servers for RL-training
+  serve-game:
+    main:        Main.hs
+    source-dirs: serve-game
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+      - open-games-hs
+
   learning-exe:
     main:                Main.hs
     source-dirs:         app

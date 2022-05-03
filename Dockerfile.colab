@@ -1,0 +1,21 @@
+# Hack: We want to run our executable on google colab; so let's just build
+# an executable that works (i.e. the same version of ubuntu that colab uses).
+
+# Usage:
+#   > docker build . -f Dockerfile.colab -t og-colab
+#   > id=$(docker create og-colab)
+#   > mkdir -p out
+#   > id:/stuff/.stack-work/install/x86_64-linux/3787a3972bbba3801b070ab4238fe613862db41e7154f39de36e5a71119a3f3d/8.8.4/bin/pd-server ./out
+#
+from ubuntu:18.04
+
+run  apt-get update \
+       && apt-get -y install curl
+
+run  curl -sSL https://get.haskellstack.org/ | sh
+
+run  mkdir -p stuff
+
+copy . /stuff
+
+run  cd stuff && stack build open-games-hs:exe:pd-server
