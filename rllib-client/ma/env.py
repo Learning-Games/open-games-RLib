@@ -1,5 +1,5 @@
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
-from gym.spaces import Discrete, Tuple
+from gym.spaces import Discrete, Tuple, Box
 from copy import copy
 import requests
 import json
@@ -53,10 +53,12 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
         #
         #   ( player1Action, player2Action )
         #
-        self.observation_space = Tuple( ( Discrete(self.num_actions)
-                                      ,   Discrete(self.num_actions)
-                                        )
-                                      )
+        # self.observation_space = Tuple( ( Discrete(self.num_actions)
+        #                               ,   Discrete(self.num_actions)
+        #                                 )
+        #                               )
+
+        self.observation_space = Box(low=0, high=self.num_actions - 1, shape=(2,))
 
         # The websocket we read from
         self.ws = None
@@ -76,7 +78,7 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
           self.ws.close()
         self.ws = create_connection(self.game_server_url)
 
-        obs = { i: (0, 0) for i in range(self.num_agents) }
+        obs = { i: [0, 0] for i in range(self.num_agents) }
         return obs
 
 
@@ -102,7 +104,7 @@ class DiscreteTwoPlayerLearningGamesEnv(MultiAgentEnv):
         # Observations
         observations = {}
         for i in range(self.num_agents):
-            observations[i] = ( action_dict[0], action_dict[1] )
+            observations[i] = [ action_dict[0], action_dict[1] ]
 
         # Dones: We're done, if we've done enough steps.
         is_done = self.step_number >= self.episode_length
