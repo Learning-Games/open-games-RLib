@@ -43,6 +43,7 @@ from configs          import ( make_pd_config
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.rllib.models               import ModelCatalog
 from ray.rllib.models.tf.misc       import normc_initializer
+from ray.rllib.agents.dqn.distributional_q_tf_model import DistributionalQTFModel
 
 # TODO: god knows how much I hate this dynamic search for the library..
 from ray.rllib.utils.framework import try_import_tf
@@ -57,9 +58,9 @@ class MyKerasModel(TFModelV2):
         )
         num_outputs = 2 # TODO
         # obs_space.shape = ((),())
-        print("HEY, I EXIST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print(f"obs_space.shape={obs_space.shape}")
-        print(f"obs_space={obs_space}")
+        # print("HEY, I EXIST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        # print(f"obs_space.shape={obs_space.shape}")
+        # print(f"obs_space={obs_space}")
         self.inputs = tf.keras.layers.Input(shape=obs_space.shape, name="observations") # obs_space.shape
 
         layer_1 = tf.keras.layers.Dense(
@@ -93,6 +94,41 @@ class MyKerasModel(TFModelV2):
         return {"foo": tf.constant(42.0)}
 
 
+class MyKerasQModel(DistributionalQTFModel):
+    """Custom model for DQN."""
+
+    def __init__(self, obs_space, action_space, num_outputs, model_config, name, **kw):
+        super(MyKerasQModel, self).__init__(
+            obs_space, action_space, num_outputs, model_config, name, **kw
+        )
+
+        num_outputs = 2 # TODO
+
+        # Define the core model layers which will be used by the other
+        # output heads of DistributionalQModel
+        self.inputs = tf.keras.layers.Input(shape=obs_space.shape, name="observations")
+        layer_1 = tf.keras.layers.Dense(
+            128,
+            name="my_layer1",
+            activation=tf.nn.relu,
+            kernel_initializer=normc_initializer(1.0),
+        )(self.inputs)
+        layer_out = tf.keras.layers.Dense(
+            num_outputs,
+            name="my_out",
+            activation=tf.nn.relu,
+            kernel_initializer=normc_initializer(1.0),
+        )(layer_1)
+        self.base_model = tf.keras.Model(self.inputs, layer_out)
+
+    # Implement the core forward method.
+    def forward(self, input_dict, state, seq_lens):
+        model_out = self.base_model(input_dict["obs"])
+        return model_out, state
+
+    def metrics(self):
+        return {"foo": tf.constant(42.0)}
+
 framework = "tf2"
 
 register_env("DTPLGE", lambda config: DiscreteTwoPlayerLearningGamesEnv(env_config=config))
@@ -106,8 +142,11 @@ base_config = {
     # "metrics_num_episodes_for_smoothing": 200,
     "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", 0)),
     "framework": framework,
+    "num_atoms": 1,
     # TODO: Try the "custom" model and see what happens
-    "model": { "custom_model": "keras_model" }, # NOTE: currently registered in __init__
+    # "model": { "custom_model": "keras_model" }, # NOTE: currently registered in __init__
+    "model": { "custom_model": "keras_q_model"
+             }, # NOTE: currently registered in __init__
     }
 
 def train(conf, timesteps_total=10_000, learner="PG"):
@@ -132,6 +171,7 @@ if __name__ == "__main__":
 
     # TODO: I wonder whether this really needs to happen after init has been called.
     ModelCatalog.register_custom_model("keras_model", MyKerasModel)
+    ModelCatalog.register_custom_model("keras_q_model", MyKerasQModel)
 
     # TODO: What's the difference between the learner and the model???
 
