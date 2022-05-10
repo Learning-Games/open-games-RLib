@@ -56,10 +56,6 @@ class MyKerasModel(TFModelV2):
             obs_space, action_space, num_outputs, model_config, name
         )
         num_outputs = 2 # TODO
-        # obs_space.shape = ((),())
-        print("HEY, I EXIST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print(f"obs_space.shape={obs_space.shape}")
-        print(f"obs_space={obs_space}")
         self.inputs = tf.keras.layers.Input(shape=obs_space.shape, name="observations") # obs_space.shape
 
         layer_1 = tf.keras.layers.Dense(
@@ -68,12 +64,18 @@ class MyKerasModel(TFModelV2):
             activation=tf.nn.relu,
             kernel_initializer=normc_initializer(1.0),
         )(self.inputs)
+        layer_2 = tf.keras.layers.Dense(
+            num_outputs,
+            name="my_layer2",
+            activation=None,
+            kernel_initializer=normc_initializer(0.01),
+        )(layer_1)
         layer_out = tf.keras.layers.Dense(
             num_outputs,
             name="my_out",
             activation=None,
             kernel_initializer=normc_initializer(0.01),
-        )(layer_1)
+        )(layer_2)
         value_out = tf.keras.layers.Dense(
             1,
             name="value_out",
