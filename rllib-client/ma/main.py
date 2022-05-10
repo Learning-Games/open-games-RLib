@@ -13,7 +13,7 @@ from collections import namedtuple
 from mergedeep   import merge
 
 from ray               import tune
-from ray.tune.registry import register_env
+from ray.tune.registry import register_env, register_trainable
 
 from env      import DiscreteTwoPlayerLearningGamesEnv # DTPLGE for short.
 from tg_env   import TrustGameEnv
@@ -36,6 +36,8 @@ from configs          import ( make_pd_config
                              , make_monty_hall_config
                              )
 
+# Our custom algorithm (currently a replica of PG)
+from custom_pg import CustomPG
 
 # TODO: Copied from here:
 #   https://github.com/ray-project/ray/blob/master/rllib/examples/custom_keras_model.py
@@ -101,6 +103,9 @@ register_env("DTPLGE", lambda config: DiscreteTwoPlayerLearningGamesEnv(env_conf
 register_env("TGE",    lambda config: TrustGameEnv(env_config=config))
 register_env("MH",     lambda config: MontyHallEnv(env_config=config))
 
+# Register the CustomPG algorithm, so that tune.run can look it up in the registry.
+register_trainable("CustomPG", CustomPG)
+
 base_config = {
     # "gamma": 0.8,
     # "rollout_fragment_length": 500,
@@ -112,7 +117,8 @@ base_config = {
     "model": { "custom_model": "keras_model" }, # NOTE: currently registered in __init__
     }
 
-def train(conf, timesteps_total=10_000, learner="PG"):
+
+def train(conf, timesteps_total=10_000, learner="CustomPG"):
 
     # Note: 'merge' does a recursive merge, which is what we want.
     config = merge(base_config, conf)
