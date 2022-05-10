@@ -139,7 +139,7 @@ if __name__ == "__main__":
 
     # train( make_monty_hall_config(), timesteps_total=timesteps )
 
-    train( make_pd_config(learned, always_defect), timesteps_total=timesteps, learner="DQN" )
+    train( make_pd_config(learned, always_defect), timesteps_total=timesteps ) # , learner="DQN" )
     # train( make_pd_config(always_defect, learned), timesteps_total=timesteps )
     # train( make_pd_config(learned, random_pd_move), timesteps_total=timesteps )
     # train( make_pd_config(random_pd_move, learned), timesteps_total=timesteps )
