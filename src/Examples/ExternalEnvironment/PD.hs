@@ -23,12 +23,24 @@ import           Data.ByteString.Lazy.Internal       (ByteString)
 import           Engine.Engine hiding                (fromLens, fromFunctions, state)
 import           Engine.ExternalEnvironment          (ExternalEnvironmentGame, fromFunctions, fromLens, interactWithEnv)
 import           Examples.ExternalEnvironment.Common (extractPayoffAndNextState)
-import           Examples.SimultaneousMoves          (prisonersDilemmaMatrix,ActionPD(..))
 import           GHC.Generics                        (Generic)
 import           Network.WebSockets.Connection       (PendingConnection)
 import           Preprocessor.Preprocessor
 import           Servant                             (Handler)
 import qualified Network.WebSockets                  as WS
+
+-- 1.0. Prisoner's dilemma
+data ActionPD = Cooperate | Defect
+  deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON)
+
+-- | Payoff matrix for player i given i's action and j's action
+prisonersDilemmaMatrix :: ActionPD -> ActionPD -> Payoff
+prisonersDilemmaMatrix Cooperate Cooperate   = 3
+prisonersDilemmaMatrix Cooperate Defect  = 0
+prisonersDilemmaMatrix Defect Cooperate  = 5
+prisonersDilemmaMatrix Defect Defect = 1
+
+
 
 data PlayParameters = PlayParameters
   { player1Action :: ActionPD
