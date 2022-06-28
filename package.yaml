@@ -1,11 +1,11 @@
-name: open-games-hs
+name: open-games-rlib
 version: '0.1.0.0'
-synopsis: Haskell implementation of open games
+synopsis: Rlib interface to open games engine
 category: Math
-author: Jules Hedges, André Videla, Philipp Zahn & other contributors
-maintainer: philipp.zahn@protonmail
-copyright: Jules Hedges, André Videla, Philipp Zahn & other contributors
-license: AGPL
+author: George Karachalias, Noon van der Silk, Philipp Zahn
+maintainer: philipp.m.zahn@gmail.com
+copyright: Philipp Zahn
+license: MIT
 extra-source-files:
 - README.md
 
@@ -13,151 +13,43 @@ extra-source-files:
 library:
   source-dirs: src
   exposed-modules:
-    - Engine.AtomicGames
-    - Engine.BayesianGames
-    - Engine.Diagnostics
-    - Engine.Engine
-    - Engine.InteractiveIO
-    - Engine.Memory
-    - Engine.OpenGames
-    - Engine.OpticClass
-    - Engine.QLearning
-    - Engine.QLearning.Export
-    - Engine.QLearning.ExportAsymmetric
-    - Engine.QLearning.ExportAsymmetricLearners
-    - Engine.QLearning.ExportAsymmetricLearnersLog
-    - Engine.QLearning.ExportAsymmetricLearnersLogReduced
-    - Engine.QLearning.ExportAsymmetricLearnersLogReducedVerboseOutput
-    - Engine.QLearning.ExportAsymmetricLearnersOwnPrice
-    - Engine.QLearning.ExportVerbose
-    - Engine.QLearning.ImportAsymmetricLearners
-    - Engine.QLearningBoltzmann
-    - Engine.QLearningBoltzmann.ExportAsymmetricLearnersLogReduced
-    - Engine.QLearningNoMemory.Export
-    - Engine.QLearningSimple
-    - Engine.QLearningVerboseOutput
-    - Engine.TLL
-    - Examples.Auctions.AuctionSupportFunctions
-    - Examples.Auctions.ChooseReservePrice
-    - Examples.Auctions.DutchAuction
-    - Examples.Auctions.SequentialAuction
-    - Examples.Auctions.SimultaneousBidAuction
-    - Examples.Bayesian
-    - Examples.Decision
     - Examples.ExternalEnvironment.PD
     - Examples.ExternalEnvironment.RockPaperScissors
     - Examples.ExternalEnvironment.TrustGame
     - Examples.ExternalEnvironment.MontyHall
-    - Examples.InteractiveIO.InteractiveIO
-    - Examples.Markov.RepeatedPD
-    - Examples.Markov.TestSimpleMonteCarlo
-    - Examples.Markov.TestSimpleMonteCarlo.Continuation
-    - Examples.Markov.TwoStageMarkov
-    - Examples.QLearning.AsymmetricLearners
-    - Examples.QLearning.AsymmetricLearners.Internal
-    - Examples.QLearning.AsymmetricLearners.InternalVerboseOutput
-    - Examples.QLearning.AsymmetricLearners.MarkovInternal
-    - Examples.QLearning.AsymmetricLearners2PhasesExogAction
-    - Examples.QLearning.AsymmetricLearners3Phases
-    - Examples.QLearning.AsymmetricLearners4Phases
-    - Examples.QLearning.AsymmetricLearners8Phases
-    - Examples.QLearning.AsymmetricPrices
-    - Examples.QLearning.AsymmetricPrices.Internal
-    - Examples.QLearning.BestReply
-    - Examples.QLearning.CalvanoReplication
-    - Examples.QLearning.CalvanoReplication.Internal
-    - Examples.QLearning.CalvanoReplication.InternalVerbose
-    - Examples.QLearning.CalvanoReplicationVerbose
-    - Examples.QLearning.Cournot
-    - Examples.QLearning.Cournot.Internal
-    - Examples.QLearning.CournotBoltzmann
-    - Examples.QLearning.CournotBoltzmann.Internal
-    - Examples.QLearning.NoMemory.Internal
-    - Examples.QLearning.NoMemory3Phases
-    - Examples.QLearning.NoObservation.Internal
-    - Examples.QLearning.NoObservation3Phases
-    - Examples.QLearning.OwnPriceObservation.Internal
-    - Examples.QLearning.OwnPriceObservation3Phases
-    - Examples.QLearning.OwnPriceObservationExogAction
-    - Examples.QLearning.PD
-    - Examples.QLearning.PDDeterministicPlayer
-    - Examples.QLearning.SandholmCritesReplication
-    - Examples.SequentialMoves
-    - Examples.SimultaneousMoves
-    - Graphics
-    - Preprocessor.AbstractSyntax
-    - Preprocessor.Compile
-    - Preprocessor.Lambda
-    - Preprocessor.Parser
-    - Preprocessor.Preprocessor
-    - Preprocessor.TH
-    - Preprocessor.THSyntax
-    - Preprocessor.Types
 
 dependencies:
-    - base >=4.7 && <5
-    - QuickCheck
-    - ad
-    - aeson
-    - array
-    - bytestring
-    - cassava
-    - clock
-    - comonad
-    - cond
-    - containers
-    - criterion
-    - deepseq
-    - directory
-    - double-conversion
-    - extra
-    - fgl
-    - filepath
-    - formatting
-    - graphviz
-    - hashable
-    - hashmap
-    - hashtables
-    - hspec
-    - ixset
-    - lens
-    - megaparsec
-    - monad-bayes
-    - mtl
-    - mwc-random
-    - mwc-random >= 0.15.0.1
-    - optics
-    - optparse-applicative
-    - parsec
-    - path
-    - path-io
-    - poly
-    - probability
-    - profunctors
-    - random
-    - random
-    - random-fu
-    - rio
-    - servant
-    - servant-server
-    - servant-websockets
-    - splitmix
-    - template-haskell
-    - text
-    - time
-    - transformers
-    - typed-process
-    - typed-process
-    - unliftio
-    - unordered-containers
-    - utf8-string
-    - vector
-    - vector
-    - vector-instances
-    - vector-sized
-    - wai
-    - warp
-    - websockets
+  - aeson
+  - base >= 4.7 && < 5
+  - bytestring
+  - comonad
+  - containers
+  - criterion
+  - extra
+  - fgl
+  - generic-random
+  - graphviz
+  - lens
+  - mtl
+  - mwc-random
+  - NumInstances
+  - open-games-hs
+  - optparse-applicative
+  - parsec
+  - poly
+  - probability
+  - profunctors
+  - random
+  - servant
+  - servant-server
+  - servant-websockets
+  - splitmix
+  - template-haskell
+  - transformers
+  - typed-process
+  - wai
+  - warp
+  - websockets
 
 executables:
   # Servers for RL-training
@@ -169,65 +61,5 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-      - open-games-hs
+      - open-games-rlib
 
-  learning-exe:
-    main:                Main.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-      - open-games-hs
-
-  eq-analysis:
-    main:                Main.hs
-    source-dirs:         analysis
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-      - open-games-hs
-
-  game:
-    main:                Main.hs
-    source-dirs:         game
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    - -Wall
-  graphics:
-    main:                Main.hs
-    source-dirs:         graphics
-    dependencies:
-      - open-games-hs
-      - graphviz
-      - template-haskell
-
-tests:
-  test-open-games:
-    main: Spec.hs
-    source-dirs: src/test
-    dependencies:
-      - open-games-hs
-      - template-haskell
-      - base
-      - hspec
-      - QuickCheck
-
-
-benchmarks:
-  learning-bench:
-    main:                Main.hs
-    source-dirs:         bench
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    - -eventlog
-    dependencies:
-      - open-games-hs
-      - criterion

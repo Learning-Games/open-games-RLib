@@ -273,7 +273,7 @@ test PlayParameters { theDoor, playerAction } = do
   let strategy0 :: List '[]
       strategy0 = Nil
 
-      game0' :: MonadOptic IO () () DoorCar ()
+      game0' :: MonadOpticLearning IO () () DoorCar ()
       game0' = play chooseInitialDoor strategy0
   game0 <- extractNextState game0' ()
 
@@ -281,7 +281,7 @@ test PlayParameters { theDoor, playerAction } = do
   let strategy1 :: List '[Door]
       strategy1 = theDoor ::- Nil
 
-      game1' :: MonadOptic IO DoorCar () Door ()
+      game1' :: MonadOpticLearning IO DoorCar () Door ()
       game1' = play playerChooseDoor strategy1
   game1 <- extractNextState game1' (game0)
 
@@ -289,7 +289,7 @@ test PlayParameters { theDoor, playerAction } = do
   let strategy2 :: List '[]
       strategy2 = Nil
 
-      game2' :: MonadOptic IO (DoorCar, Door) () DoorGoat ()
+      game2' :: MonadOpticLearning IO (DoorCar, Door) () DoorGoat ()
       game2' = play chooseGoatDoor strategy2
   game2 <- extractNextState game2' (game0, game1)
 
@@ -297,7 +297,7 @@ test PlayParameters { theDoor, playerAction } = do
   let strategy3 :: List '[ChangeChoice]
       strategy3 = playerAction ::- Nil
 
-      game3' :: MonadOptic IO (DoorCar, Door, DoorGoat) () ChangeChoice ()
+      game3' :: MonadOpticLearning IO (DoorCar, Door, DoorGoat) () ChangeChoice ()
       game3' = play playerChangeChoice strategy3
   game3 <- extractNextState game3' (game0, game1, game2)
 
@@ -305,7 +305,7 @@ test PlayParameters { theDoor, playerAction } = do
   let strategy4 :: List '[]
       strategy4 = Nil
 
-      game4' :: MonadOptic IO (DoorCar, Door, ChangeChoice) () Double ()
+      game4' :: MonadOpticLearning IO (DoorCar, Door, ChangeChoice) () Double ()
       game4' = play playerFinalPayoff strategy4
   payoff <- extractNextState game4' (game0, game1, game3) -- NOTE: skipped game2
 
@@ -330,7 +330,7 @@ wsPlay pending = do
       let strategy0 :: List '[]
           strategy0 = Nil
 
-          game0' :: MonadOptic IO () () DoorCar ()
+          game0' :: MonadOpticLearning IO () () DoorCar ()
           game0' = play chooseInitialDoor strategy0
       game0 <- extractNextState game0' ()
 
@@ -340,7 +340,7 @@ wsPlay pending = do
       let strategy1 :: List '[Door]
           strategy1 = firstDoorChoice ::- Nil
 
-          game1' :: MonadOptic IO DoorCar () Door ()
+          game1' :: MonadOpticLearning IO DoorCar () Door ()
           game1' = play playerChooseDoor strategy1
       game1 <- extractNextState game1' (game0)
 
@@ -350,7 +350,7 @@ wsPlay pending = do
       let strategy2 :: List '[]
           strategy2 = Nil
 
-          game2' :: MonadOptic IO (DoorCar, Door) () DoorGoat ()
+          game2' :: MonadOpticLearning IO (DoorCar, Door) () DoorGoat ()
           game2' = play chooseGoatDoor strategy2
       game2 <- extractNextState game2' (game0, game1)
 
@@ -363,7 +363,7 @@ wsPlay pending = do
       let strategy3 :: List '[ChangeChoice]
           strategy3 = changeChoice ::- Nil
 
-          game3' :: MonadOptic IO (DoorCar, Door, DoorGoat) () ChangeChoice ()
+          game3' :: MonadOpticLearning IO (DoorCar, Door, DoorGoat) () ChangeChoice ()
           game3' = play playerChangeChoice strategy3
       game3 <- extractNextState game3' (game0, game1, game2)
 
@@ -371,7 +371,7 @@ wsPlay pending = do
       let strategy4 :: List '[]
           strategy4 = Nil
 
-          game4' :: MonadOptic IO (DoorCar, Door, ChangeChoice) () Double ()
+          game4' :: MonadOpticLearning IO (DoorCar, Door, ChangeChoice) () Double ()
           game4' = play playerFinalPayoff strategy4
 
       payoff <- extractNextState game4' (game0, game1, game3) -- NOTE: skipped game2

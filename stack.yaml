@@ -35,18 +35,13 @@ packages:
 # forks / in-progress versions pinned to a git hash. For example:
 #
 extra-deps:
+ - git: https://github.com/philipp-zahn/open-games-hs.git
+   commit: c7a9571dfd4e221ac6b15ee835704e2b39912610
  - probability-0.2.7@sha256:3e9fe130af3bd75e791e1add902eb2caab170cc95373281c0a9626b01fc3b104,2869
- - ixset-1.1.1.1@sha256:be27159a55e8a81b7b50a27a6ca5bb56a145296877ae4551a43c06b75256103a,1623
- - syb-with-class-0.6.1.13@sha256:b4316425ca16cabd2b982fb3c8e417f73b406dc8a23fd02973ab3d906141287e,1853
- - random-fu-0.2.7.7@sha256:55c62bc8e7a2970d4706f50b391559594ef1a8b5e71c0fbd2c9e30d5adafb9ab,4612
- - random-1.2.0@sha256:3337fb944048b49ada7ac70771e9040382da8dcc7058570dd6835af5cc40b822,6094
- - random-source-0.3.0.11@sha256:f78e361474d648fb0e0112d895c3a4bca80b1e565b778d763d59614270e8779c,3132
- - rvar-0.2.0.6@sha256:d07cbb734ec307539fb58d4344b2284a1a91f41c9308f437c27ae8bada2111bf,2317
- - mwc-random-0.15.0.1@sha256:48e4b01a7447671b8bd13957de65f19ef41ee0376083c0c501e179e68768276a,3372
- - flexible-defaults-0.0.3@sha256:6a7ab000561e1075003cb1053dfbbb4020ae2b02916776d1479c9c3fc82f5d0d,2508
- - splitmix-0.1.0.3
- - path-io-1.6.2
- - fsnotify-0.3.0.1
+ - random-1.2.0
+ - splitmix-0.1
+ - mwc-random-0.15.0.2
+
 
 allow-newer: true
 
