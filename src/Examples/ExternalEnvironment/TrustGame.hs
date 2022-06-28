@@ -229,7 +229,7 @@ test pie sentInput sentBackInput factor = do
   let strategy1 :: List '[Double]
       strategy1 = sentInput ::- Nil
 
-      game1 :: MonadOptic IO Pie () Double Double
+      game1 :: MonadOpticLearning IO Pie () Double Double
       game1 = play proposerDecision strategy1
   sent <- extractNextState game1 pie
 
@@ -237,17 +237,17 @@ test pie sentInput sentBackInput factor = do
   let strategy2 :: List '[Double]
       strategy2 = sentBackInput ::- Nil
 
-      game2 :: MonadOptic IO Double () Double Double
+      game2 :: MonadOpticLearning IO Double () Double Double
       game2 = play responderDecision strategy2
   sentBack <- extractNextState game2 sent
 
   -- GAME 3
-  let game3 :: MonadOptic IO (Pie, Sent, SentBack) () Double ()
+  let game3 :: MonadOpticLearning IO (Pie, Sent, SentBack) () Double ()
       game3 = play proposerPayoff Nil
   payoff1 <- extractNextState game3 (pie, sent, sentBack)
 
   -- GAME 4
-  let game4 :: MonadOptic IO (Factor, Sent, SentBack) () Double ()
+  let game4 :: MonadOpticLearning IO (Factor, Sent, SentBack) () Double ()
       game4 = play responderPayoff Nil
   payoff2 <- extractNextState game4 (factor, sent, sentBack)
 
